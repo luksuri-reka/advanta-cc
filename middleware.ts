@@ -1,35 +1,81 @@
-import { NextResponse, NextRequest } from 'next/server';
+// middleware.ts
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
-const AUTH_COOKIE = 'auth_token';
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
-export function middleware(req: NextRequest) {
-  const { nextUrl, cookies } = req;
-  const { pathname, origin } = nextUrl;
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // If the cookie is set, update the request's cookies.
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          // Also update the response's cookies.
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          // If the cookie is removed, update the request's cookies.
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          // Also update the response's cookies.
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
+    }
+  )
 
-  const isAdminRoute = pathname.startsWith('/admin');
-  if (!isAdminRoute) {
-    return NextResponse.next();
-  }
+  // This line is crucial. It refreshes the session cookie on every request,
+  // making sure it doesn't expire and is available for Server Components.
+  await supabase.auth.getUser()
 
-  const token = cookies.get(AUTH_COOKIE)?.value || null;
-  const isLoginPage = pathname === '/admin/login';
-
-  // Not authenticated and trying to access any /admin route except /admin/login
-  if (!token && !isLoginPage) {
-    const redirectUrl = new URL('/admin/login', origin);
-    redirectUrl.searchParams.set('next', pathname + (nextUrl.search || ''));
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Already authenticated and tries to access /admin/login, redirect to /admin
-  if (token && isLoginPage) {
-    const redirectUrl = new URL('/admin', origin);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  return NextResponse.next();
+  return response
 }
 
+// Ensure the middleware is only called for relevant paths.
 export const config = {
-  matcher: ['/admin/:path*'],
-};
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+}
