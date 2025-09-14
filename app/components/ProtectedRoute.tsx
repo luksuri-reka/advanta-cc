@@ -1,34 +1,44 @@
+// app/components/ProtectedRoute.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { getAuthToken } from '../utils/auth';
+// 1. Ganti getAuthToken dengan getProfile
+import { getProfile } from '../utils/auth';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
 };
 
 /**
- * Client-side route guard. Redirects to /admin/login if no auth token found.
- * This complements middleware.ts which guards on the server/edge.
+ * Client-side route guard. Redirects to /admin/login if no auth session found.
  */
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [ready, setReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) {
-      const next = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '');
-      router.replace(`/admin/login?next=${encodeURIComponent(next)}`);
-      return;
-    }
-    setReady(true);
+    // 2. Buat fungsi async untuk memeriksa sesi
+    const checkSession = async () => {
+      const user = await getProfile();
+
+      if (!user) {
+        // 3. Jika tidak ada user, arahkan ke halaman login
+        const next = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '');
+        router.replace(`/admin/login?next=${encodeURIComponent(next)}`);
+      } else {
+        // 4. Jika ada user, tampilkan halamannya
+        setIsReady(true);
+      }
+    };
+
+    checkSession();
   }, [router, pathname, searchParams]);
 
-  if (!ready) {
+  // Tampilkan loading selama proses pengecekan sesi
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex items-center gap-3 text-zinc-700">

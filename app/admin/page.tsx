@@ -1,13 +1,23 @@
+// app/admin/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '../components/ProtectedRoute';
-import { getProfile, logout, type AuthUser } from '../utils/auth';
+import { getProfile, logout } from '../utils/auth';
+import type { User } from '@supabase/supabase-js';
+
+// Tipe data sederhana untuk state di komponen ini
+interface DisplayUser {
+  id: string;
+  name: string;
+  email: string;
+  roles?: string[];
+}
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<DisplayUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
@@ -15,13 +25,20 @@ export default function AdminDashboardPage() {
     let mounted = true;
     (async () => {
       try {
-        const profile = await getProfile();
-        if (mounted) {
-          setUser(profile);
+        const profile: User | null = await getProfile();
+        
+        if (mounted && profile) {
+          // Memetakan data dari objek User Supabase ke state kita
+          setUser({
+            id: profile.id,
+            name: profile.user_metadata?.name || profile.user_metadata?.full_name || 'Nama tidak tersedia',
+            email: profile.email || 'Email tidak tersedia',
+            roles: profile.app_metadata?.roles || [],
+          });
         }
       } catch (err: any) {
         console.error('Gagal memuat profil:', err);
-        setErrMsg('Gagal memuat profil.');
+        setErrMsg('Gagal memuat data profil. Sesi Anda mungkin telah berakhir.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -66,8 +83,17 @@ export default function AdminDashboardPage() {
           ) : (
             <>
               {errMsg && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                  {errMsg}
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm font-medium text-red-800">Gagal memuat data</p>
+                  <p className="text-sm text-zinc-600 mt-1">
+                    {errMsg} Silakan coba masuk kembali.
+                  </p>
+                  <button
+                    onClick={() => router.replace('/admin/login')}
+                    className="mt-3 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500 transition-colors"
+                  >
+                    Ke Halaman Login
+                  </button>
                 </div>
               )}
 

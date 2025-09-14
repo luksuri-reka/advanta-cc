@@ -1,14 +1,14 @@
+// app/components/Login.tsx
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation'; // 1. Impor useRouter
 import { ArrowRightIcon, UserIcon, LockClosedIcon } from '@heroicons/react/24/outline';
-import { login } from '../utils/auth'; // Import dari auth.ts, bukan api.ts
+import { login } from '../utils/auth';
 
-interface LoginProps {
-  onLoginSuccess: (token: string) => void;
-}
-
-export default function Login({ onLoginSuccess }: LoginProps) {
+// 2. Hapus interface dan prop onLoginSuccess karena tidak dibutuhkan lagi
+export default function Login() {
+  const router = useRouter(); // 3. Inisialisasi router
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -25,8 +25,15 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
     try {
       setSubmitting(true);
-      const result = await login(email, password); // Menggunakan function login dari auth.ts
-      onLoginSuccess(result.token);
+      // 4. Panggil login dan dapatkan 'user' dari hasilnya
+      const { user } = await login(email, password);
+
+      // 5. Jika login berhasil (user ada), arahkan ke halaman admin
+      if (user) {
+        router.replace('/admin');
+      } else {
+        throw new Error('Gagal masuk, data pengguna tidak diterima.');
+      }
     } catch (err: any) {
       const message = err?.message || 'Gagal masuk. Periksa kembali email/kata sandi Anda.';
       setError(message);

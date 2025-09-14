@@ -29,9 +29,8 @@ export default function LoginForm() {
       setSubmitting(true);
       setDebugInfo('Menghubungi server...');
       
-      const result = await login(email, password);
-      
-      setDebugInfo(`Login berhasil! Token: ${result.token?.substring(0, 20)}...`);
+      const { user } = await login(email, password);
+      setDebugInfo(`Login berhasil untuk: ${user?.email}`);
       
       const next = searchParams?.get('next');
       router.replace(next && next.startsWith('/admin') ? next : '/admin');
