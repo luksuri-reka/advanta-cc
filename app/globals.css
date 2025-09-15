@@ -1,7 +1,27 @@
+/* app/globals.css */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  background-color: #f0f2f5; /* Warna fallback jika gambar gagal dimuat */
+  background-color: #f0f2f5;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* --- TAMBAHKAN INI --- */
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgb(0 0 0 / 10%);
+  }
+  .text-shadow-md {
+    text-shadow: 0 4px 8px rgb(0 0 0 / 12%), 0 2px 4px rgb(0 0 0 / 8%);
+  }
 }

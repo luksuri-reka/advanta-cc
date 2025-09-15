@@ -1,8 +1,8 @@
 ﻿// app/utils/api.ts
 import { supabase } from './supabase';
 
+// Tipe data ProductData tidak perlu diubah
 export interface ProductData {
-  // Pastikan semua nama properti ini ada sebagai kolom di tabel 'production_registers' Anda
   serial_number: string;
   search_key: string;
   product_photo: string;
@@ -24,7 +24,7 @@ export interface ProductData {
   tanggal_panen: string;
   bahan_bahan_aktif: string[];
   qr_code_link?: string;
-  model_type: 'bag' | 'production'; 
+  model_type: 'bag' | 'production';
 }
 
 export interface ApiResponse {
@@ -35,34 +35,20 @@ export interface ApiResponse {
 }
 
 export async function searchProduct(serialNumber: string): Promise<ApiResponse> {
-  // ==========================================================
-  // PASTIKAN NAMA TABEL ADALAH 'production_registers'
-  const { data: productData, error } = await supabase
-    .from('production_registers') 
-    .select('*')
-    .eq('search_key', serialNumber) // Dan kita mencari di kolom 'search_key'
-    .single();
-  // ==========================================================
+  const { data, error } = await supabase.rpc('get_product_details_by_serial', {
+    p_search_key: serialNumber,
+  });
 
   if (error) {
-    console.error('Error fetching product from Supabase:', error);
-    if (error.code === 'PGRST116') {
-      throw new Error(`Produk dengan nomor seri "${serialNumber}" tidak ditemukan. Pastikan RLS (Row Level Security) sudah diatur.`);
-    }
-    throw new Error(error.message || 'Terjadi kesalahan saat mengambil data produk.');
+    console.error('Error calling RPC function:', error);
+    throw new Error(error.message || 'Terjadi kesalahan saat memanggil RPC.');
   }
 
-  if (!productData) {
-    throw new Error('Produk tidak ditemukan.');
+  if (!data) {
+    // Pesan error jika RLS aktif dan tidak ada data yang cocok
+    throw new Error(`Produk dengan nomor seri "${serialNumber}" tidak ditemukan. Pastikan nomor seri benar dan RLS (Row Level Security) telah diatur jika diperlukan.`);
   }
 
-  const response: ApiResponse = {
-    data: productData as ProductData,
-    meta: {
-      // Pastikan ada kolom 'model_type' di tabel Anda
-      model_type: productData.model_type || 'bag', 
-    },
-  };
-
-  return response;
+  // Data dari RPC sudah dalam format ApiResponse
+  return data as ApiResponse;
 }
