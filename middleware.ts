@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
@@ -31,21 +31,17 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Ambil data pengguna
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // Logika Pengalihan Halaman
+  // Jika user belum login DAN mencoba mengakses halaman di bawah '/admin' (kecuali halaman login itu sendiri)
   if (!user && pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    // Jika belum login dan coba akses /admin (selain halaman login), arahkan ke login
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/login'
-    return NextResponse.redirect(url)
-  } else if (user && pathname === '/admin/login') {
-    // Jika sudah login dan coba akses halaman login, arahkan ke admin
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL('/admin/login', request.url))
+  }
+
+  // Jika user SUDAH login DAN mencoba mengakses halaman login
+  if (user && pathname === '/admin/login') {
+    return NextResponse.redirect(new URL('/admin', request.url))
   }
 
   return response
@@ -53,6 +49,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    /*
+     * Cocokkan semua path request kecuali untuk:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }
