@@ -18,64 +18,41 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // If the cookie is set, update the request's cookies.
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          // Also update the response's cookies.
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          request.cookies.set({ name, value, ...options })
+          response = NextResponse.next({ request: { headers: request.headers }})
+          response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
-          // If the cookie is removed, update the request's cookies.
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          // Also update the response's cookies.
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          request.cookies.set({ name, value: '', ...options })
+          response = NextResponse.next({ request: { headers: request.headers }})
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
 
-  // This line is crucial. It refreshes the session cookie on every request,
-  // making sure it doesn't expire and is available for Server Components.
-  await supabase.auth.getUser()
+  // Ambil data pengguna
+  const { data: { user } } = await supabase.auth.getUser()
+  const { pathname } = request.nextUrl
+
+  // Logika Pengalihan Halaman
+  if (!user && pathname.startsWith('/admin') && pathname !== '/admin/login') {
+    // Jika belum login dan coba akses /admin (selain halaman login), arahkan ke login
+    const url = request.nextUrl.clone()
+    url.pathname = '/admin/login'
+    return NextResponse.redirect(url)
+  } else if (user && pathname === '/admin/login') {
+    // Jika sudah login dan coba akses halaman login, arahkan ke admin
+    const url = request.nextUrl.clone()
+    url.pathname = '/admin'
+    return NextResponse.redirect(url)
+  }
 
   return response
 }
 
-// Ensure the middleware is only called for relevant paths.
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }
