@@ -7,6 +7,7 @@ import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { createRole, updateRole } from './actions';
 
 // Definisikan struktur grup dan izin
 const permissionGroups = [
@@ -75,6 +76,7 @@ export default function RoleForm({ initialData }: RoleFormProps) {
     const [description, setDescription] = useState('');
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // BARU: useEffect untuk mengisi form jika ada initialData (mode edit)
     useEffect(() => {
@@ -107,16 +109,24 @@ export default function RoleForm({ initialData }: RoleFormProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
-        console.log('Menyimpan Peran:', { roleName, description, selectedPermissions });
-        // TODO: Ganti dengan logika createRole atau updateRole dari rolesApi.ts
-        // if (isEditMode) {
-        //   await updateRole(initialData.id, { name: roleName, description, permissions: selectedPermissions });
-        // } else {
-        //   await createRole(roleName, description, selectedPermissions);
-        // }
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setSubmitting(false);
+        setError(null);
+
+        try {
+        if (isEditMode && initialData) {
+            // Logika untuk UPDATE
+            await updateRole(initialData.id, { name: roleName, description }, selectedPermissions);
+        } else {
+            // Logika untuk CREATE
+            await createRole({ name: roleName, description }, selectedPermissions);
+        }
+        // Redirect ke halaman daftar setelah berhasil
         router.push('/admin/roles');
+        } catch (err: any) {
+        console.error("Gagal menyimpan peran:", err);
+        setError(err.message || 'Terjadi kesalahan saat menyimpan.');
+        } finally {
+        setSubmitting(false);
+        }
     };
 
     const handleLogout = () => { /* TODO: Implement logout logic */ };

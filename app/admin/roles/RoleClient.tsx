@@ -4,49 +4,43 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import Navbar from '../Navbar'; // Asumsi Navbar sudah ada dan siap dipakai
+import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
+import { deleteRole } from './actions'; // Impor fungsi API
 
-// Tipe data untuk Peran (sesuaikan dengan tabel 'roles' Anda)
 interface Role {
   id: number;
   name: string;
   description: string;
-  guard_name: string; // 'sanctum' atau lainnya
 }
 
-export default function RoleClient() {
-  const { user } = useAuth(); // Mengambil data user dari context
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
+interface RoleClientProps {
+    initialRoles: Role[];
+}
+
+export default function RoleClient({ initialRoles }: RoleClientProps) {
+  const { user } = useAuth();
+  // State tidak lagi butuh loading karena data sudah disuplai dari server
+  const [roles, setRoles] = useState<Role[]>(initialRoles);
+  const [loading, setLoading] = useState(false);
   
-  // TODO: Ganti dengan data asli dari Supabase
-  useEffect(() => {
-    // Simulasi pengambilan data
-    const fetchRoles = async () => {
-      setLoading(true);
-      // Gantilah ini dengan panggilan Supabase Anda, contoh:
-      // const { data, error } = await supabase.from('roles').select('*');
-      // if (data) setRoles(data);
-      
-      // Data dummy untuk desain
-      const dummyData: Role[] = [
-        { id: 1, name: 'Superadmin', description: 'Akses penuh ke semua fitur', guard_name: 'sanctum' },
-        { id: 2, name: 'Operator Produksi', description: 'Hanya bisa mengelola data produksi', guard_name: 'sanctum' },
-      ];
-      setRoles(dummyData);
+  // Hapus useEffect untuk fetchRoles karena sudah tidak diperlukan
 
-      setLoading(false);
-    };
-    fetchRoles();
-  }, []);
+  const handleDelete = async (roleId: number) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus peran ini? Ini tidak bisa dibatalkan.')) {
+      const result = await deleteRole(roleId);
+      if (result.error) {
+        alert(`Gagal menghapus peran: ${result.error.message}`);
+      }
+      // revalidatePath di server action akan otomatis memperbarui data
+    }
+  };
 
-  const handleLogout = () => { /* TODO: Implement logout logic */ };
+  const handleLogout = () => { /* ... */ };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar user={user ? { name: user.user_metadata.name || 'Admin' } : null} onLogout={handleLogout} />
-
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header Halaman */}
         <div className="md:flex md:items-center md:justify-between pb-6 border-b border-gray-200">
