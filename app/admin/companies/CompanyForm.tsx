@@ -3,7 +3,7 @@
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline'; // Impor CheckCircleIcon
+import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { createCompany, updateCompany, CompanyFormData } from './actions';
 
@@ -12,12 +12,14 @@ interface Province {
   name: string;
 }
 
+// Interface yang diperbaiki untuk mencocokkan struktur dari CompanyClient
 interface Company {
   id: number;
   name: string;
   type: string;
   address: string;
   province_id: number;
+  provinces: { name: string }[]; // Sesuaikan dengan hasil join
 }
 
 interface CompanyFormProps {

@@ -9,7 +9,6 @@ import { useAuth } from '@/app/AuthContext';
 import CompanyForm from './CompanyForm';
 import { deleteCompany } from './actions';
 
-// Helper function untuk menggabungkan class (jika belum ada)
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
 }
@@ -19,13 +18,15 @@ interface Province {
   name: string;
 }
 
+// Interface yang diperbaiki untuk mencocokkan struktur data dari Supabase join
 interface Company {
   id: number;
   name: string;
   type: string;
   address: string;
   province_id: number;
-  provinces: { name: string } | null; // Disesuaikan dengan query baru
+  // Ubah menjadi array sesuai dengan hasil join Supabase
+  provinces: { name: string }[];
 }
 
 interface CompanyClientProps {
@@ -106,7 +107,6 @@ export default function CompanyClient({ initialCompanies, availableProvinces }: 
                       <tr key={company.id} className="even:bg-gray-50">
                         <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900">{company.name}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {/* --- Badge Tipe Perusahaan --- */}
                           <span className={classNames(
                               'inline-flex items-center rounded-md px-2 py-1 text-xs font-medium capitalize',
                               company.type.toLowerCase() === 'swasta' 
@@ -116,7 +116,10 @@ export default function CompanyClient({ initialCompanies, availableProvinces }: 
                             {company.type}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{company.provinces?.name || '-'}</td>
+                        {/* Akses elemen pertama dari array provinces */}
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {company.provinces && company.provinces.length > 0 ? company.provinces[0].name : '-'}
+                        </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <button onClick={() => handleEdit(company)} className="text-emerald-600 hover:text-emerald-900 inline-flex items-center gap-1">
                             <PencilIcon className="h-4 w-4" /> Edit
