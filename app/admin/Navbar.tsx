@@ -39,20 +39,21 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
       ],
     },
     {
-      name: 'Katalog Produk',
+      name: 'Katalog',
       children: [
+        { name: 'Data Jenis Tanaman', href: '/admin/jenis-tanaman' },
+        { name: 'Data Kelas Benih', href: '/admin/kelas-benih' },
+        { name: 'Data Varietas', href: '/admin/varietas' },
+        { name: 'Data Bahan Aktif', href: '/admin/bahan-aktif' },
         { name: 'Data Produk', href: '/admin/products' },
-        { name: 'Data Varietas', href: '/admin/varieties' },
-        { name: 'Kelas Benih', href: '/admin/seed-classes' },
-        { name: 'Jenis Tanaman', href: '/admin/plant-types' },
-        { name: 'Bahan Aktif', href: '/admin/active-ingredients' },
       ],
     },
     {
       name: 'Produksi',
       children: [
         { name: 'Data Produksi', href: '/admin/productions' },
-        { name: 'Manajemen Kantong', href: '/admin/bags' },
+        { name: 'Bag Management', href: '/admin/bags' },
+        { name: 'Generate QR Bag', href: '/admin/qr-bags' },
       ],
     },
     { name: 'Perusahaan', href: '/admin/companies' },
