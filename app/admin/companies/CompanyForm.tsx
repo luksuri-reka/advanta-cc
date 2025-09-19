@@ -3,8 +3,8 @@
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast'; // Impor toast
+import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline'; // Impor CheckCircleIcon
+import { toast } from 'react-hot-toast';
 import { createCompany, updateCompany, CompanyFormData } from './actions';
 
 interface Province {
@@ -30,13 +30,11 @@ interface CompanyFormProps {
 export default function CompanyForm({ isOpen, onClose, availableProvinces, companyToEdit }: CompanyFormProps) {
   const [formData, setFormData] = useState<CompanyFormData>({ name: '', type: '', address: '', province_id: 0 });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // State error lokal tidak lagi diperlukan karena kita pakai toast
-  // const [error, setError] = useState<string | null>(null);
 
   const isEditMode = !!companyToEdit;
 
   useEffect(() => {
-    if (isOpen) { // Hanya update form saat modal dibuka
+    if (isOpen) {
         if (isEditMode && companyToEdit) {
           setFormData({
             name: companyToEdit.name,
@@ -45,7 +43,6 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
             province_id: companyToEdit.province_id,
           });
         } else {
-          // Reset form untuk entri baru
           setFormData({ name: '', type: '', address: '', province_id: 0 });
         }
     }
@@ -56,10 +53,14 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
     setFormData(prev => ({ ...prev, [name]: name === 'province_id' ? parseInt(value) : value }));
   };
 
-  // Optimasi 2: Gunakan toast untuk notifikasi submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (!formData.name || !formData.type || !formData.province_id) {
+        toast.error("Harap isi semua kolom yang ditandai *");
+        return;
+    }
 
     setIsSubmitting(true);
     
@@ -71,7 +72,7 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
       loading: 'Menyimpan data...',
       success: (result) => {
         if (result.error) throw new Error(result.error.message);
-        onClose(); // Tutup modal hanya jika berhasil
+        onClose();
         return `Data perusahaan berhasil ${isEditMode ? 'diperbarui' : 'disimpan'}!`;
       },
       error: (err) => `Gagal menyimpan: ${err.message || 'Terjadi kesalahan'}`,
@@ -83,7 +84,6 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-        {/* ... Backdrop and Transition ... */}
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
@@ -93,36 +93,41 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
                   <span>{isEditMode ? 'Edit Data Perusahaan' : 'Tambah Perusahaan Baru'}</span>
                   <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button>
                 </Dialog.Title>
-                <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                    {/* ... Input fields ... */}
+                
+                <form onSubmit={handleSubmit} className="mt-6 space-y-5">
                      <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nama Perusahaan *</label>
-                        <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm" />
+                        <label htmlFor="name" className="block text-sm font-medium text-zinc-700">Nama Perusahaan *</label>
+                        <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors" />
                     </div>
                     <div>
-                        <label htmlFor="type" className="block text-sm font-medium text-gray-700">Tipe *</label>
-                        <select id="type" name="type" value={formData.type} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm">
+                        <label htmlFor="type" className="block text-sm font-medium text-zinc-700">Tipe *</label>
+                        <select id="type" name="type" value={formData.type} onChange={handleChange} required className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors">
                             <option value="" disabled>Pilih Tipe</option>
-                            <option value="swasta">Swasta</option>
-                            <option value="pemerintah">Pemerintah</option>
+                            <option value="Swasta">Swasta</option>
+                            <option value="Pemerintah">Pemerintah</option>
                         </select>
                     </div>
                     <div>
-                        <label htmlFor="province_id" className="block text-sm font-medium text-gray-700">Provinsi *</label>
-                        <select id="province_id" name="province_id" value={formData.province_id} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm">
+                        <label htmlFor="province_id" className="block text-sm font-medium text-zinc-700">Provinsi *</label>
+                        <select id="province_id" name="province_id" value={formData.province_id} onChange={handleChange} required className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors">
                             <option value={0} disabled>Pilih Provinsi</option>
                             {availableProvinces.map(prov => <option key={prov.id} value={prov.id}>{prov.name}</option>)}
                         </select>
                     </div>
                      <div>
-                        <label htmlFor="address" className="block text-sm font-medium text-gray-700">Alamat</label>
-                        <textarea name="address" id="address" value={formData.address} onChange={handleChange} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"></textarea>
+                        <label htmlFor="address" className="block text-sm font-medium text-zinc-700">Alamat</label>
+                        <textarea name="address" id="address" value={formData.address} onChange={handleChange} rows={3} className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors"></textarea>
                     </div>
                   
-                  <div className="mt-6 flex justify-end gap-x-4">
-                    <button type="button" onClick={onClose} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Tutup</button>
-                    <button type="submit" disabled={isSubmitting} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50">
-                      {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+                  <div className="mt-8 flex justify-end gap-x-4">
+                    <button type="button" onClick={onClose} className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Tutup</button>
+                    <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 transition-all active:scale-95 disabled:opacity-50">
+                      {isSubmitting ? 'Menyimpan...' : (
+                        <>
+                            <CheckCircleIcon className="h-5 w-5" />
+                            <span>Simpan</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
