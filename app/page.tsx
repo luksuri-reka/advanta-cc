@@ -1,33 +1,74 @@
 'use client';
 
 import { useState } from 'react';
-import { QrCodeIcon, ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+// Tambahkan ShieldExclamationIcon untuk ikon laporan
+import { QrCodeIcon, ArrowLeftIcon, ArrowRightIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline';
 import { searchProduct, ApiResponse } from './utils/api';
 import ProductResult from './components/ProductResult';
 
 export default function VerificationPage() {
   const [serialNumber, setSerialNumber] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // --- PERUBAHAN 1: Ubah state error menjadi object ---
+  const [error, setError] = useState<{ message: string; isReportable: boolean } | null>(null);
   const [result, setResult] = useState<ApiResponse | null>(null);
+
+  // --- PENAMBAHAN 1: State baru untuk proses pelaporan ---
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serialNumber.trim()) {
-      setError('Silakan masukkan nomor seri produk.');
+      // --- PERUBAHAN 2: Sesuaikan cara set error ---
+      setError({ message: 'Silakan masukkan nomor seri produk.', isReportable: false });
       return;
     }
     setLoading(true);
     setError(null);
     setResult(null);
+    setReportSuccess(false); // Reset status laporan setiap kali submit baru
     try {
       const response = await searchProduct(serialNumber);
       setResult(response);
     } catch (err: any) {
-      setError(err.message || 'Gagal memverifikasi produk. Periksa kembali nomor seri Anda.');
+      // --- PERUBAHAN 3: Logika untuk mendeteksi error yang bisa dilaporkan ---
+      const errorMessage = err.message || 'Gagal memverifikasi produk. Periksa kembali nomor seri Anda.';
+      const isNotFoundError = errorMessage.includes('Produk dengan nomor seri');
+      setError({ message: errorMessage, isReportable: isNotFoundError });
       console.error('Error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // --- PENAMBAHAN 2: Fungsi baru untuk menangani pengiriman laporan ---
+  const handleReport = async () => {
+    if (!error || !serialNumber) return;
+    
+    setIsReporting(true);
+    try {
+        const response = await fetch('/api/report-failure', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                serialNumber: serialNumber,
+                errorMessage: error.message,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Gagal mengirim laporan.');
+        }
+
+        setReportSuccess(true);
+    } catch (reportError: any) {
+        alert('Gagal mengirim laporan. Silakan coba lagi nanti.');
+        console.error('Report Error:', reportError);
+    } finally {
+        setIsReporting(false);
     }
   };
 
@@ -35,11 +76,12 @@ export default function VerificationPage() {
     setSerialNumber('');
     setResult(null);
     setError(null);
+    setReportSuccess(false); // Reset juga status laporan
   };
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
-      {/* Background Image & Gradient Overlay */}
+      {/* Background tidak berubah */}
       <div className="absolute inset-0 z-0">
         <div
           className="w-full h-full bg-cover bg-center transition-opacity duration-500"
@@ -50,9 +92,8 @@ export default function VerificationPage() {
 
       <div className="relative z-10 min-h-screen flex flex-col">
         {result ? (
-          /* Tampilan Hasil Verifikasi */
+          /* Tampilan Hasil (tidak berubah) */
           <div className="flex flex-col w-full flex-grow animate-fade-in">
-            {/* Header Halaman Hasil */}
             <header className="w-full p-4 sm:p-6 flex items-center justify-between">
               <img src="/advanta-logo.png" alt="Advanta Logo" className="h-8 sm:h-10 w-auto" />
               <button
@@ -63,19 +104,15 @@ export default function VerificationPage() {
                 Cek Lagi
               </button>
             </header>
-            
-            {/* Konten Hasil */}
             <div className="flex-grow flex items-center justify-center">
               <ProductResult data={result.data} modelType={result.meta.model_type} />
             </div>
           </div>
-
         ) : (
           /* Tampilan Form Verifikasi */
           <div className="w-full max-w-6xl mx-auto flex-grow flex items-center p-4 md:p-8">
             <div className="grid md:grid-cols-2 gap-8 lg:gap-16 items-center w-full">
-              
-              {/* Kolom Kiri: Branding & Teks */}
+              {/* Kolom Kiri (tidak berubah) */}
               <div className="text-slate-800 text-center md:text-left animate-fade-in">
                 <img src="/advanta-logo.png" alt="Advanta Logo" className="w-40 mb-6 hidden md:block" />
                 <h1 className="text-4xl lg:text-5xl font-bold leading-tight [text-shadow:_0_2px_4px_rgb(0_0_0_/_10%)]">
@@ -86,7 +123,7 @@ export default function VerificationPage() {
                 </p>
               </div>
 
-              {/* Kolom Kanan: Kartu Form Verifikasi */}
+              {/* Kolom Kanan: Form */}
               <div className="bg-white rounded-2xl shadow-2xl p-8 lg:p-10 border border-white/80 animate-fade-in">
                 <img src="/advanta-logo.png" alt="Advanta Logo" className="w-32 mb-6 mx-auto md:hidden" />
                 <h2 className="text-2xl font-semibold text-slate-900 text-center">
@@ -112,9 +149,32 @@ export default function VerificationPage() {
                     />
                   </div>
 
+                  {/* --- PERUBAHAN 4: Tampilan Blok Error Baru --- */}
                   {error && (
                     <div className="text-center p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-700">{error}</p>
+                      <p className="text-sm text-red-700">{error.message}</p>
+                      
+                      {/* Tombol Lapor hanya muncul jika errornya sesuai dan laporan belum sukses */}
+                      {error.isReportable && !reportSuccess && (
+                        <div className="mt-3">
+                            <button
+                                type="button"
+                                onClick={handleReport}
+                                disabled={isReporting}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-800 bg-red-100 hover:bg-red-200 rounded-md transition-colors disabled:opacity-50"
+                            >
+                                <ShieldExclamationIcon className="h-4 w-4" />
+                                {isReporting ? 'Mengirim...' : 'Laporkan Masalah Ini'}
+                            </button>
+                        </div>
+                      )}
+
+                      {/* Pesan Sukses setelah laporan terkirim */}
+                      {reportSuccess && (
+                        <p className="mt-2 text-sm font-semibold text-emerald-700">
+                          Terima kasih! Laporan Anda telah kami terima.
+                        </p>
+                      )}
                     </div>
                   )}
 

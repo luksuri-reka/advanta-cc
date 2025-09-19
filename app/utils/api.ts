@@ -41,12 +41,12 @@ export async function searchProduct(serialNumber: string): Promise<ApiResponse> 
 
   if (error) {
     console.error('Error calling RPC function:', error);
-    throw new Error(error.message || 'Terjadi kesalahan saat memanggil RPC.');
+    throw new Error(error.message || 'Terjadi kesalahan saat memanggil Data.'); // Terjadi kesalahan saat memanggil RPC
   }
 
   if (!data) {
     // Pesan error jika RLS aktif dan tidak ada data yang cocok
-    throw new Error(`Produk dengan nomor seri "${serialNumber}" tidak ditemukan. Pastikan nomor seri benar dan RLS (Row Level Security) telah diatur jika diperlukan.`);
+    throw new Error(`Produk dengan nomor seri "${serialNumber}" tidak ditemukan. Jika mengalami masalah saat memindai lot, silakan langsung hubungi kami.`); // `Produk dengan nomor seri "${serialNumber}" tidak ditemukan. Pastikan nomor seri benar dan RLS (Row Level Security) telah diatur jika diperlukan.`
   }
 
   // Data dari RPC sudah dalam format ApiResponse
