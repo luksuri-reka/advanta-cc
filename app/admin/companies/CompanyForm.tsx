@@ -40,7 +40,8 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
         if (isEditMode && companyToEdit) {
           setFormData({
             name: companyToEdit.name,
-            type: companyToEdit.type,
+            // Normalize tipe untuk form (title case untuk tampilan)
+            type: companyToEdit.type.charAt(0).toUpperCase() + companyToEdit.type.slice(1).toLowerCase(),
             address: companyToEdit.address,
             province_id: companyToEdit.province_id,
           });
@@ -66,9 +67,15 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
 
     setIsSubmitting(true);
     
+    // Normalize tipe data untuk konsistensi (gunakan lowercase sesuai database)
+    const normalizedFormData = {
+      ...formData,
+      type: formData.type.toLowerCase() // Simpan sebagai lowercase ke database
+    };
+    
     const actionPromise = isEditMode && companyToEdit
-      ? updateCompany(companyToEdit.id, formData)
-      : createCompany(formData);
+      ? updateCompany(companyToEdit.id, normalizedFormData)
+      : createCompany(normalizedFormData);
 
     await toast.promise(actionPromise, {
       loading: 'Menyimpan data...',

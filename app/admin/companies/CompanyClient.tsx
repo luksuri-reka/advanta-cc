@@ -113,12 +113,21 @@ export default function CompanyClient({ initialCompanies, availableProvinces }: 
                                 ? 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20' 
                                 : 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20'
                             )}>
-                            {company.type}
+                            {/* Capitalize first letter untuk tampilan */}
+                            {company.type.charAt(0).toUpperCase() + company.type.slice(1).toLowerCase()}
                           </span>
                         </td>
-                        {/* Akses elemen pertama dari array provinces */}
+                        {/* Tampilkan nama provinsi dengan fallback */}
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {company.provinces && company.provinces.length > 0 ? company.provinces[0].name : '-'}
+                          {(() => {
+                            // Coba ambil dari joined data
+                            if (company.provinces && company.provinces.length > 0) {
+                              return company.provinces[0].name;
+                            }
+                            // Fallback: cari dari availableProvinces berdasarkan province_id
+                            const province = availableProvinces.find(p => p.id === company.province_id);
+                            return province ? province.name : '-';
+                          })()}
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <button onClick={() => handleEdit(company)} className="text-emerald-600 hover:text-emerald-900 inline-flex items-center gap-1">
