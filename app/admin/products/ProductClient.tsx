@@ -8,6 +8,7 @@ import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
 import ProductForm from './ProductForm';
 import { deleteProduct } from './actions';
+import { normalizeImageUrl } from '../../utils/imageUtils';
 
 // --- PERBAIKI INTERFACE DI BAWAH INI ---
 interface Product {
@@ -19,6 +20,20 @@ interface Product {
   varietas: { name: string } | null;
   kelas_benih: { name: string } | null;
   jenis_tanaman: { name: string } | null;
+  // Tambah field untuk edit form
+  jenis_tanaman_id?: number;
+  kelas_benih_id?: number;
+  varietas_id?: number;
+  benih_murni?: number;
+  daya_berkecambah?: number;
+  kadar_air?: number;
+  kotoran_benih?: number;
+  campuran_varietas_lain?: number;
+  benih_tanaman_lain?: number;
+  pack_capacity?: number | null;
+  bag_capacity?: number;
+  qr_color?: string;
+  bahan_aktif_ids?: number[];
 }
 
 interface RelationalData {
@@ -41,7 +56,9 @@ export default function ProductClient({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const handleLogout = async () => { /* ... */ };
+  const handleLogout = async () => { 
+    // Implement logout logic
+  };
 
   const handleEdit = (product: Product) => {
     setSelectedProduct(product);
@@ -101,20 +118,49 @@ export default function ProductClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {initialProducts.map((product) => (
-                    <tr key={product.id} className="even:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <img src={product.photo} alt={product.name} className="h-10 w-10 rounded-full object-cover" />
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900">{product.name}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{product.sku}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{product.varietas?.name || '-'}</td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <button onClick={() => handleEdit(product)} className="text-emerald-600 hover:text-emerald-900">Edit</button>
-                        <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900 ml-4">Hapus</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {initialProducts.map((product) => {
+                    // Normalize image URL untuk setiap produk
+                    const imageUrl = normalizeImageUrl(product.photo);
+                    
+                    return (
+                      <tr key={product.id} className="even:bg-gray-50">
+                        <td className="px-6 py-4">
+                          {imageUrl ? (
+                            <img 
+                              src={imageUrl} 
+                              alt={product.name} 
+                              className="h-10 w-10 rounded-full object-cover border border-gray-200"
+                              onError={(e) => {
+                                console.error('Failed to load image:', imageUrl);
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <div className={`h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs ${imageUrl ? 'hidden' : ''}`}>
+                            No Img
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900">{product.name}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{product.sku}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{product.varietas?.name || '-'}</td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <button 
+                            onClick={() => handleEdit(product)} 
+                            className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(product.id)} 
+                            className="text-red-600 hover:text-red-900 ml-4 transition-colors"
+                          >
+                            Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

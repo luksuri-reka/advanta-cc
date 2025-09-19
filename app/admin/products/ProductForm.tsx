@@ -6,6 +6,7 @@ import { Dialog, Transition, Tab } from '@headlessui/react';
 import { XMarkIcon, CheckCircleIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { createProduct, updateProduct } from './actions';
+import { normalizeImageUrl } from '../../utils/imageUtils';
 
 // Definisikan tipe data untuk relasi
 interface RelationalData {
@@ -30,6 +31,7 @@ interface Product {
   pack_capacity?: number | null;
   bag_capacity?: number;
   qr_color?: string;
+  bahan_aktif_ids?: number[];
 }
 
 interface ProductFormProps {
@@ -112,8 +114,14 @@ export default function ProductForm({
       setPhotoPreview(null);
       setSelectedBahanAktif([]);
     } else if (isEditMode && productToEdit) {
-      setPhotoPreview(productToEdit.photo);
-      // Load existing bahan aktif if editing (you'll need to fetch this data)
+      // Normalize existing photo URL for preview
+      const normalizedPhotoUrl = normalizeImageUrl(productToEdit.photo);
+      setPhotoPreview(normalizedPhotoUrl);
+      
+      // Load existing bahan aktif if available
+      if (productToEdit.bahan_aktif_ids) {
+        setSelectedBahanAktif(productToEdit.bahan_aktif_ids);
+      }
     }
   }, [isOpen, isEditMode, productToEdit]);
 
@@ -180,12 +188,16 @@ export default function ProductForm({
                                   src={photoPreview} 
                                   alt="Preview" 
                                   className="h-24 w-24 object-cover rounded-lg border-2 border-gray-300"
+                                  onError={(e) => {
+                                    console.error('Failed to load preview image:', photoPreview);
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                  }}
                                 />
-                              ) : (
-                                <div className="h-24 w-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                                  <PhotoIcon className="h-8 w-8 text-gray-400" />
-                                </div>
-                              )}
+                              ) : null}
+                              <div className={`h-24 w-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 ${photoPreview ? 'hidden' : ''}`}>
+                                <PhotoIcon className="h-8 w-8" />
+                              </div>
                               <input
                                 type="file"
                                 name="photo"

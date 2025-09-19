@@ -44,10 +44,10 @@ async function fetchInitialData() {
       jenis_tanaman!inner ( name ),
       product_bahan_aktif ( bahan_aktif_id )
     `).order('name', { ascending: true }),
-    supabase.from('jenis_tanaman').select('id, name'),
-    supabase.from('kelas_benih').select('id, name'),
-    supabase.from('varietas').select('id, name'),
-    supabase.from('bahan_aktif').select('id, name')
+    supabase.from('jenis_tanaman').select('id, name').order('name'),
+    supabase.from('kelas_benih').select('id, name').order('name'),
+    supabase.from('varietas').select('id, name').order('name'),
+    supabase.from('bahan_aktif').select('id, name').order('name')
   ]);
   
   // Cek error untuk setiap query
@@ -60,10 +60,10 @@ async function fetchInitialData() {
   // Transform products data to match the expected interface
   const transformedProducts = productsRes.data?.map(product => ({
     id: product.id,
-    photo: product.photo,
+    photo: product.photo, // Sekarang hanya nama file, akan dinormalisasi di client
     sku: product.sku,
     name: product.name,
-    // Data untuk form edit
+    // Data untuk form edit - pastikan semua field ada
     jenis_tanaman_id: product.jenis_tanaman_id,
     kelas_benih_id: product.kelas_benih_id,
     varietas_id: product.varietas_id,
@@ -86,23 +86,36 @@ async function fetchInitialData() {
 
   return {
     products: transformedProducts,
-    allJenisTanaman: jenisTanamanRes.data,
-    allKelasBenih: kelasBenihRes.data,
-    allVarietas: varietasRes.data,
-    allBahanAktif: bahanAktifRes.data,
+    allJenisTanaman: jenisTanamanRes.data || [],
+    allKelasBenih: kelasBenihRes.data || [],
+    allVarietas: varietasRes.data || [],
+    allBahanAktif: bahanAktifRes.data || [],
   };
 }
 
 export default async function ProductsPage() {
-  const { products, allJenisTanaman, allKelasBenih, allVarietas, allBahanAktif } = await fetchInitialData();
-  
-  return (
-    <ProductClient 
-      initialProducts={products}
-      allJenisTanaman={allJenisTanaman || []}
-      allKelasBenih={allKelasBenih || []}
-      allVarietas={allVarietas || []}
-      allBahanAktif={allBahanAktif || []}
-    />
-  );
+  try {
+    const { products, allJenisTanaman, allKelasBenih, allVarietas, allBahanAktif } = await fetchInitialData();
+    
+    return (
+      <ProductClient 
+        initialProducts={products}
+        allJenisTanaman={allJenisTanaman}
+        allKelasBenih={allKelasBenih}
+        allVarietas={allVarietas}
+        allBahanAktif={allBahanAktif}
+      />
+    );
+  } catch (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+          <p className="text-gray-600">
+            {error instanceof Error ? error.message : 'Terjadi kesalahan saat memuat data'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 }
