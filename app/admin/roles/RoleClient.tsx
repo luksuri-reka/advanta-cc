@@ -24,15 +24,29 @@ export default function RoleClient({ initialRoles }: RoleClientProps) {
   const [roles, setRoles] = useState<Role[]>(initialRoles);
   const [loading, setLoading] = useState(false);
   
-  // Hapus useEffect untuk fetchRoles karena sudah tidak diperlukan
+  // Update roles ketika initialRoles berubah
+  useEffect(() => {
+    setRoles(initialRoles);
+  }, [initialRoles]);
 
   const handleDelete = async (roleId: number) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus peran ini? Ini tidak bisa dibatalkan.')) {
-      const result = await deleteRole(roleId);
-      if (result.error) {
-        alert(`Gagal menghapus peran: ${result.error.message}`);
+      setLoading(true);
+      try {
+        const result = await deleteRole(roleId);
+        if (result.error) {
+          alert(`Gagal menghapus peran: ${result.error.message}`);
+        } else {
+          // Update local state untuk immediate feedback
+          setRoles(prev => prev.filter(role => role.id !== roleId));
+          alert('Peran berhasil dihapus!');
+        }
+      } catch (error) {
+        console.error('Error deleting role:', error);
+        alert('Terjadi kesalahan saat menghapus peran');
+      } finally {
+        setLoading(false);
       }
-      // revalidatePath di server action akan otomatis memperbarui data
     }
   };
 
@@ -88,7 +102,11 @@ export default function RoleClient({ initialRoles }: RoleClientProps) {
                             <Link href={`/admin/roles/${role.id}/edit`} className="text-emerald-600 hover:text-emerald-900 inline-flex items-center gap-1">
                               <PencilIcon className="h-4 w-4" /> Edit
                             </Link>
-                            <button className="text-red-600 hover:text-red-900 ml-4 inline-flex items-center gap-1">
+                            <button 
+                              onClick={() => handleDelete(role.id)}
+                              disabled={loading}
+                              className="text-red-600 hover:text-red-900 ml-4 inline-flex items-center gap-1 disabled:opacity-50"
+                            >
                               <TrashIcon className="h-4 w-4" /> Hapus
                             </button>
                           </td>

@@ -3,61 +3,63 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { toast, Toaster } from 'react-hot-toast';
+import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+
 import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import Link from 'next/link';
 import { createRole, updateRole } from './actions';
 
-// Definisikan struktur grup dan izin
+// Definisikan struktur grup dan izin sesuai dengan database
 const permissionGroups = [
     {
         groupName: 'Manajemen Akun',
         permissions: [
-            { name: 'view roles', label: 'Lihat Halaman Peran' },
-            { name: 'manage roles', label: 'Kelola Peran (Tambah, Edit, Hapus)' },
-            { name: 'view users', label: 'Lihat Halaman Pengguna' },
-            { name: 'manage users', label: 'Kelola Pengguna (Tambah, Edit, Hapus)' },
+            { id: '2', name: 'account.role.view', label: 'Lihat Peran' },
+            { id: '1', name: 'account.role.manage', label: 'Kelola Peran (tambah, edit, & hapus)' },
+            { id: '4', name: 'account.user.view', label: 'Lihat Pengguna' },
+            { id: '3', name: 'account.user.manage', label: 'Kelola Pengguna (tambah, edit, & hapus)' },
         ]
     },
     {
-        groupName: 'Katalog',
+        groupName: 'Katalog Produk',
         permissions: [
-            { name: 'view plant_types', label: 'Lihat Jenis Tanaman' },
-            { name: 'manage plant_types', label: 'Kelola Jenis Tanaman' },
-            { name: 'view seed_classes', label: 'Lihat Kelas Benih' },
-            { name: 'manage seed_classes', label: 'Kelola Kelas Benih' },
-            { name: 'view varieties', label: 'Lihat Varietas' },
-            { name: 'manage varieties', label: 'Kelola Varietas' },
-            { name: 'view active_ingredients', label: 'Lihat Bahan Aktif' },
-            { name: 'manage active_ingredients', label: 'Kelola Bahan Aktif' },
-            { name: 'view products', label: 'Lihat Data Produk' },
-            { name: 'manage products', label: 'Kelola Data Produk' },
+            { id: '6', name: 'catalog.jenis_tanaman.view', label: 'Lihat Jenis Tanaman' },
+            { id: '5', name: 'catalog.jenis_tanaman.manage', label: 'Kelola Jenis Tanaman' },
+            { id: '8', name: 'catalog.kelas_benih.view', label: 'Lihat Kelas Benih' },
+            { id: '7', name: 'catalog.kelas_benih.manage', label: 'Kelola Kelas Benih' },
+            { id: '10', name: 'catalog.varietas.view', label: 'Lihat Varietas' },
+            { id: '9', name: 'catalog.varietas.manage', label: 'Kelola Varietas' },
+            { id: '12', name: 'catalog.bahan_aktif.view', label: 'Lihat Bahan Aktif' },
+            { id: '11', name: 'catalog.bahan_aktif.manage', label: 'Kelola Bahan Aktif' },
+            { id: '14', name: 'catalog.data_produk.view', label: 'Lihat Data Produk' },
+            { id: '13', name: 'catalog.data_produk.manage', label: 'Kelola Data Produk' },
         ]
     },
     {
-        groupName: 'Produksi',
+        groupName: 'Manajemen Produksi',
         permissions: [
-            { name: 'view productions', label: 'Lihat Produksi' },
-            { name: 'manage productions', label: 'Kelola Produksi' },
-            { name: 'download productions', label: 'Download Produksi' },
-            { name: 'upload qr_productions', label: 'Upload Kode QR' },
-            { name: 'download qr_productions', label: 'Download Kode QR' },
-            { name: 'view bags', label: 'Lihat Kantong' },
-            { name: 'manage bags', label: 'Kelola Kantong' },
-            { name: 'download qr_bags', label: 'Download QR Kantong' },
+            { id: '18', name: 'production.view', label: 'Lihat Produksi' },
+            { id: '17', name: 'production.manage', label: 'Kelola Produksi' },
+            { id: '19', name: 'production.download', label: 'Download Produksi' },
+            { id: '20', name: 'production.upload_qr', label: 'Upload Kode QR' },
+            { id: '21', name: 'production.download_qr', label: 'Download Kode QR' },
+            { id: '23', name: 'bag.view', label: 'Lihat Kantong' },
+            { id: '22', name: 'bag.manage', label: 'Kelola Kantong' },
+            { id: '24', name: 'bag.download_qr', label: 'Download QR Kantong' },
         ]
     },
     {
         groupName: 'Perusahaan',
         permissions: [
-            { name: 'view companies', label: 'Lihat Perusahaan' },
-            { name: 'manage companies', label: 'Kelola Perusahaan' },
+            { id: '16', name: 'company.view', label: 'Lihat Perusahaan' },
+            { id: '15', name: 'company.manage', label: 'Kelola Perusahaan' },
         ]
     }
 ];
 
-// BARU: Tipe data untuk properti komponen
+// Tipe data untuk properti komponen
 interface RoleWithPermissions {
     id: number;
     name: string;
@@ -75,10 +77,10 @@ export default function RoleForm({ initialData }: RoleFormProps) {
     const [roleName, setRoleName] = useState('');
     const [description, setDescription] = useState('');
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // BARU: useEffect untuk mengisi form jika ada initialData (mode edit)
+    const isEditMode = !!initialData;
+
     useEffect(() => {
         if (initialData) {
             setRoleName(initialData.name);
@@ -86,111 +88,170 @@ export default function RoleForm({ initialData }: RoleFormProps) {
             setSelectedPermissions(initialData.permissions);
         }
     }, [initialData]);
-    
-    const isEditMode = !!initialData;
 
-    const handlePermissionChange = (permissionName: string, isChecked: boolean) => {
-        if (isChecked) {
-            setSelectedPermissions(prev => [...prev, permissionName]);
-        } else {
-            setSelectedPermissions(prev => prev.filter(p => p !== permissionName));
-        }
+    const handlePermissionChange = (permissionId: string, isChecked: boolean) => {
+        setSelectedPermissions(prev => 
+            isChecked ? [...prev, permissionId] : prev.filter(p => p !== permissionId)
+        );
     };
 
-    const handleGroupChange = (groupPermissions: {name: string}[], isChecked: boolean) => {
-        const groupPermissionNames = groupPermissions.map(p => p.name);
+    // BARU: Fungsi untuk menangani "Pilih Semua" per grup
+    const handleGroupChange = (groupPermissions: {id: string}[], isChecked: boolean) => {
+        const groupPermissionIds = groupPermissions.map(p => p.id);
         if (isChecked) {
-            setSelectedPermissions(prev => [...new Set([...prev, ...groupPermissionNames])]);
+            setSelectedPermissions(prev => [...new Set([...prev, ...groupPermissionIds])]);
         } else {
-            setSelectedPermissions(prev => prev.filter(p => !groupPermissionNames.includes(p)));
+            setSelectedPermissions(prev => prev.filter(p => !groupPermissionIds.includes(p)));
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSubmitting(true);
-        setError(null);
+        if (!roleName || !description) {
+            toast.error('Nama Peran dan Deskripsi wajib diisi.');
+            return;
+        }
+        setIsSubmitting(true);
 
-        try {
-        if (isEditMode && initialData) {
-            // Logika untuk UPDATE
-            await updateRole(initialData.id, { name: roleName, description }, selectedPermissions);
-        } else {
-            // Logika untuk CREATE
-            await createRole({ name: roleName, description }, selectedPermissions);
-        }
-        // Redirect ke halaman daftar setelah berhasil
-        router.push('/admin/roles');
-        } catch (err: any) {
-        console.error("Gagal menyimpan peran:", err);
-        setError(err.message || 'Terjadi kesalahan saat menyimpan.');
-        } finally {
-        setSubmitting(false);
-        }
+        const actionPromise = isEditMode && initialData
+            ? updateRole(initialData.id, { name: roleName, description }, selectedPermissions)
+            : createRole({ name: roleName, description }, selectedPermissions);
+
+        toast.promise(actionPromise, {
+            loading: 'Menyimpan data peran...',
+            success: (result) => {
+                if (result.error) throw new Error(result.error.message);
+                router.push('/admin/roles');
+                return `Peran berhasil ${isEditMode ? 'diperbarui' : 'ditambahkan'}!`;
+            },
+            error: (err) => `Gagal: ${err.message || 'Terjadi kesalahan'}`,
+        });
+
+        // Set submitting ke false setelah toast selesai
+        actionPromise.finally(() => setIsSubmitting(false));
     };
-
+    
     const handleLogout = () => { /* TODO: Implement logout logic */ };
 
     return (
-         <div className="min-h-screen bg-gray-50">
-            <Navbar user={user ? { name: user.user_metadata.name || 'Admin' } : null} onLogout={handleLogout} />
+        <div className="min-h-screen bg-gray-50">
+            <Toaster position="top-center" reverseOrder={false} />
+            <Navbar user={user ? { name: user.user_metadata?.name || 'Admin' } : null} onLogout={handleLogout} />
+            
             <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
-                 <div className="mb-6">
-                    <Link href="/admin/roles" className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900">
-                        <ArrowLeftIcon className="h-4 w-4" />
-                        Kembali ke Daftar Peran
-                    </Link>
-                </div>
-                
                 <form onSubmit={handleSubmit}>
-                    <div className="space-y-12">
-                        <div className="border-b border-gray-900/10 pb-12">
-                            <h2 className="text-2xl font-semibold leading-7 text-gray-900">Tambah Peran Baru</h2>
-                            <p className="mt-1 text-sm leading-6 text-gray-600">Isi detail peran dan pilih hak akses yang sesuai di bawah ini.</p>
-                            
-                            <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                                <div className="sm:col-span-4">
-                                    <label htmlFor="role-name" className="block text-sm font-medium leading-6 text-gray-900">Nama Peran *</label>
-                                    <div className="mt-2">
-                                        <input type="text" name="role-name" id="role-name" value={roleName} onChange={e => setRoleName(e.target.value)} required className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm sm:leading-6" placeholder="Contoh: Manajer Gudang" />
-                                    </div>
+                    {/* Header Halaman */}
+                    <div className="md:flex md:items-center md:justify-between pb-6 border-b border-gray-200 mb-8">
+                        <div className="min-w-0 flex-1">
+                            <Link href="/admin/roles" className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 mb-2">
+                                <ArrowLeftIcon className="h-4 w-4" />
+                                Kembali ke Daftar Peran
+                            </Link>
+                            <h1 className="text-3xl font-bold text-gray-900">{isEditMode ? 'Edit Peran' : 'Tambah Peran Baru'}</h1>
+                            <p className="mt-1 text-md text-gray-600">Isi detail peran dan pilih hak akses yang sesuai di bawah ini.</p>
+                        </div>
+                    </div>
+
+                    {/* Konten Utama dengan Layout Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                        
+                        {/* Kolom Kiri: Detail Peran */}
+                        <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
+                            <div className="bg-white rounded-2xl shadow-xl border border-white/60">
+                                <div className="p-6 border-b border-gray-200">
+                                    <h2 className="text-lg font-semibold text-gray-900">Detail Peran</h2>
                                 </div>
-                                <div className="col-span-full">
-                                    <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900">Deskripsi *</label>
-                                    <div className="mt-2">
-                                        <textarea id="description" name="description" rows={3} value={description} onChange={e => setDescription(e.target.value)} required className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm sm:leading-6" placeholder="Jelaskan secara singkat fungsi dari peran ini"></textarea>
+                                <div className="p-6 space-y-5">
+                                    <div>
+                                        <label htmlFor="role-name" className="block text-sm font-medium text-zinc-700">Nama Peran *</label>
+                                        <input 
+                                            type="text" 
+                                            name="role-name" 
+                                            id="role-name" 
+                                            value={roleName} 
+                                            onChange={e => setRoleName(e.target.value)} 
+                                            required 
+                                            className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors" 
+                                            placeholder="Contoh: Manajer Gudang" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="description" className="block text-sm font-medium text-zinc-700">Deskripsi *</label>
+                                        <textarea 
+                                            id="description" 
+                                            name="description" 
+                                            rows={4} 
+                                            value={description} 
+                                            onChange={e => setDescription(e.target.value)} 
+                                            required 
+                                            className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors" 
+                                            placeholder="Jelaskan secara singkat fungsi dari peran ini"
+                                        ></textarea>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="border-b border-gray-900/10 pb-12">
-                            <h2 className="text-base font-semibold leading-7 text-gray-900">Kelola Hak Akses</h2>
-                            <div className="mt-6 space-y-8">
-                                {permissionGroups.map(group => (
-                                    <fieldset key={group.groupName}>
-                                        <legend className="text-sm font-semibold leading-6 text-gray-900">{group.groupName}</legend>
-                                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {/* Kolom Kanan: Hak Akses */}
+                        <div className="lg:col-span-2 space-y-6">
+                            {permissionGroups.map(group => {
+                                // Cek apakah semua izin di grup ini sudah terpilih
+                                const isAllSelected = group.permissions.every(p => selectedPermissions.includes(p.id));
+                                return (
+                                    <div key={group.groupName} className="bg-white rounded-2xl shadow-xl border border-white/60">
+                                        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                                            <h3 className="text-md font-semibold text-gray-800">{group.groupName}</h3>
+                                            <div className="relative flex items-start">
+                                                <div className="flex h-6 items-center">
+                                                    <input id={`select-all-${group.groupName}`} type="checkbox"
+                                                        checked={isAllSelected}
+                                                        onChange={e => handleGroupChange(group.permissions, e.target.checked)}
+                                                        className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-600"
+                                                    />
+                                                </div>
+                                                <div className="ml-3 text-sm leading-6">
+                                                    <label htmlFor={`select-all-${group.groupName}`} className="font-medium text-gray-700">Pilih Semua</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                                             {group.permissions.map(permission => (
-                                                <div key={permission.name} className="relative flex items-start">
+                                                <div key={permission.id} className="relative flex items-start">
                                                     <div className="flex h-6 items-center">
-                                                        <input id={permission.name} name={permission.name} type="checkbox" checked={selectedPermissions.includes(permission.name)} onChange={e => handlePermissionChange(permission.name, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-600" />
+                                                        <input id={permission.id} name={permission.id} type="checkbox"
+                                                            checked={selectedPermissions.includes(permission.id)}
+                                                            onChange={e => handlePermissionChange(permission.id, e.target.checked)}
+                                                            className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-600"
+                                                        />
                                                     </div>
                                                     <div className="ml-3 text-sm leading-6">
-                                                        <label htmlFor={permission.name} className="font-medium text-gray-900">{permission.label}</label>
+                                                        <label htmlFor={permission.id} className="font-medium text-gray-900">{permission.label}</label>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                    </fieldset>
-                                ))}
-                            </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
-                    <div className="mt-6 flex items-center justify-end gap-x-6">
-                        <Link href="/admin/roles" type="button" className="text-sm font-semibold leading-6 text-gray-900">Batal</Link>
-                        <button type="submit" disabled={submitting} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:opacity-50">
-                            {submitting ? 'Menyimpan...' : 'Simpan Peran'}
+
+                    {/* Tombol Aksi */}
+                    <div className="mt-8 pt-6 border-t border-gray-200 flex items-center justify-end gap-x-4">
+                        <Link href="/admin/roles" className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                            Batal
+                        </Link>
+                        <button 
+                            type="submit" 
+                            disabled={isSubmitting} 
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            {isSubmitting ? 'Menyimpan...' : (
+                                <>
+                                    <CheckCircleIcon className="h-5 w-5" />
+                                    <span>Simpan Peran</span>
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>
