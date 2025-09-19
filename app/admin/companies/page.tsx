@@ -1,4 +1,6 @@
 // app/admin/companies/page.tsx
+export const dynamic = "force-dynamic";
+
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import CompanyClient from './CompanyClient';
