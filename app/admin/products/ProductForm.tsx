@@ -49,6 +49,60 @@ function classNames(...classes: (string | boolean)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
+// Initial form data
+const initialFormData = {
+  name: '',
+  sku: '',
+  jenis_tanaman_id: '',
+  kelas_benih_id: '',
+  varietas_id: '',
+  benih_murni: '',
+  daya_berkecambah: '',
+  kadar_air: '',
+  kotoran_benih: '',
+  campuran_varietas_lain: '',
+  benih_tanaman_lain: '',
+  pack_capacity: '',
+  bag_capacity: '',
+  qr_color: 'FFFFFF',
+  qr_color_picker: '#FFFFFF'
+};
+
+// Components outside main function
+const FormInput = ({ label, name, formData, onChange, required = false, ...props }: any) => (
+  <div className="space-y-2">
+    <label className="block text-sm font-semibold text-gray-800 tracking-wide">
+      {label} {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    <input
+      name={name}
+      value={formData[name as keyof typeof formData] || ''}
+      onChange={onChange}
+      required={required}
+      {...props}
+      className="w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all duration-200 text-gray-800 placeholder-gray-400 bg-white hover:border-gray-300"
+    />
+  </div>
+);
+
+const FormSelect = ({ label, name, children, formData, onChange, required = false, ...props }: any) => (
+  <div className="space-y-2">
+    <label className="block text-sm font-semibold text-gray-800 tracking-wide">
+      {label} {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    <select
+      name={name}
+      value={formData[name as keyof typeof formData] || ''}
+      onChange={onChange}
+      required={required}
+      {...props}
+      className="w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all duration-200 text-gray-800 bg-white hover:border-gray-300 appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'m6 8 4 4 4-4\'/%3e%3c/svg%3e')] pr-10"
+    >
+      {children}
+    </select>
+  </div>
+);
+
 export default function ProductForm({ 
   isOpen, onClose, productToEdit,
   allJenisTanaman, allKelasBenih, allVarietas, allBahanAktif 
@@ -56,12 +110,38 @@ export default function ProductForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [selectedBahanAktif, setSelectedBahanAktif] = useState<number[]>([]);
+  const [formData, setFormData] = useState(initialFormData);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   const isEditMode = !!productToEdit;
+
+  // Handle input changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Special handling for color picker
+    if (name === 'qr_color_picker') {
+      setFormData(prev => ({
+        ...prev,
+        qr_color: value.substring(1).toUpperCase()
+      }));
+    } else if (name === 'qr_color') {
+      setFormData(prev => ({
+        ...prev,
+        qr_color_picker: '#' + value
+      }));
+    }
+  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoPreview(reader.result as string);
@@ -82,24 +162,36 @@ export default function ProductForm({
     e.preventDefault();
     setIsSubmitting(true);
     
-    const formData = new FormData(e.currentTarget);
+    const submitFormData = new FormData();
     
-    // Add selected bahan aktif to formData
+    // Add all form data
+    Object.entries(formData).forEach(([key, value]) => {
+      if (key !== 'qr_color_picker' && value !== '') {
+        submitFormData.append(key, value);
+      }
+    });
+    
+    // Add photo file if exists
+    if (photoFile) {
+      submitFormData.append('photo', photoFile);
+    }
+    
+    // Add selected bahan aktif
     selectedBahanAktif.forEach(id => {
-      formData.append('bahan_aktif_ids', id.toString());
+      submitFormData.append('bahan_aktif_ids', id.toString());
     });
 
     try {
       const result = isEditMode && productToEdit
-        ? await updateProduct(productToEdit.id, formData)
-        : await createProduct(formData);
+        ? await updateProduct(productToEdit.id, submitFormData)
+        : await createProduct(submitFormData);
 
       if (result.error) {
         toast.error(`Gagal menyimpan: ${result.error.message}`);
       } else {
         toast.success(`Produk berhasil ${isEditMode ? 'diperbarui' : 'disimpan'}!`);
         onClose();
-        window.location.reload(); // Reload to show new data
+        window.location.reload();
       }
     } catch (error) {
       toast.error(`Gagal menyimpan: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -108,20 +200,44 @@ export default function ProductForm({
     }
   };
 
-  // Reset form when modal opens/closes
+  // Reset/populate form when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
       setPhotoPreview(null);
       setSelectedBahanAktif([]);
+      setFormData(initialFormData);
+      setPhotoFile(null);
     } else if (isEditMode && productToEdit) {
-      // Normalize existing photo URL for preview
+      // Populate form with existing data
+      setFormData({
+        name: productToEdit.name || '',
+        sku: productToEdit.sku || '',
+        jenis_tanaman_id: productToEdit.jenis_tanaman_id?.toString() || '',
+        kelas_benih_id: productToEdit.kelas_benih_id?.toString() || '',
+        varietas_id: productToEdit.varietas_id?.toString() || '',
+        benih_murni: productToEdit.benih_murni?.toString() || '',
+        daya_berkecambah: productToEdit.daya_berkecambah?.toString() || '',
+        kadar_air: productToEdit.kadar_air?.toString() || '',
+        kotoran_benih: productToEdit.kotoran_benih?.toString() || '',
+        campuran_varietas_lain: productToEdit.campuran_varietas_lain?.toString() || '',
+        benih_tanaman_lain: productToEdit.benih_tanaman_lain?.toString() || '',
+        pack_capacity: productToEdit.pack_capacity?.toString() || '',
+        bag_capacity: productToEdit.bag_capacity?.toString() || '',
+        qr_color: productToEdit.qr_color || 'FFFFFF',
+        qr_color_picker: '#' + (productToEdit.qr_color || 'FFFFFF')
+      });
+      
+      // Set photo preview
       const normalizedPhotoUrl = normalizeImageUrl(productToEdit.photo);
       setPhotoPreview(normalizedPhotoUrl);
       
-      // Load existing bahan aktif if available
+      // Set bahan aktif
       if (productToEdit.bahan_aktif_ids) {
         setSelectedBahanAktif(productToEdit.bahan_aktif_ids);
       }
+    } else {
+      // Reset to initial data for new product
+      setFormData(initialFormData);
     }
   }, [isOpen, isEditMode, productToEdit]);
 
@@ -140,31 +256,38 @@ export default function ProductForm({
               leaveFrom="opacity-100 scale-100" 
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center mb-4">
-                  <span>{isEditMode ? 'Edit Data Produk' : 'Tambah Produk Baru'}</span>
+              <Dialog.Panel className="w-full max-w-5xl transform overflow-hidden rounded-3xl bg-gradient-to-br from-white to-gray-50/30 p-8 text-left align-middle shadow-2xl transition-all border border-gray-100">
+                <Dialog.Title as="div" className="flex justify-between items-center mb-8 pb-6 border-b border-gray-100">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                      {isEditMode ? 'Edit Data Produk' : 'Tambah Produk Baru'}
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      {isEditMode ? 'Perbarui informasi produk yang sudah ada' : 'Lengkapi formulir untuk menambah produk baru'}
+                    </p>
+                  </div>
                   <button 
                     type="button"
                     onClick={onClose} 
-                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                    className="p-2 rounded-full hover:bg-red-50 transition-all duration-200 text-gray-400 hover:text-red-500 hover:scale-105"
                   >
-                    <XMarkIcon className="h-5 w-5" />
+                    <XMarkIcon className="h-6 w-6" />
                   </button>
                 </Dialog.Title>
                 
                 <form onSubmit={handleSubmit}>
                   <Tab.Group>
-                    <Tab.List className="flex space-x-1 rounded-xl bg-emerald-900/20 p-1">
+                    <Tab.List className="flex space-x-2 rounded-2xl bg-gradient-to-r from-emerald-50 to-blue-50 p-2 shadow-inner">
                       {['Info Dasar', 'Parameter Uji', 'Kapasitas & Lainnya'].map((category) => (
                         <Tab 
                           key={category} 
                           className={({ selected }) =>
                             classNames(
-                              'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
-                              'ring-white/60 ring-offset-2 ring-offset-emerald-400 focus:outline-none focus:ring-2',
+                              'flex-1 rounded-xl py-3 px-4 text-sm font-semibold leading-5 transition-all duration-200',
+                              'focus:outline-none focus:ring-2 focus:ring-emerald-400/50',
                               selected 
-                                ? 'bg-white text-emerald-700 shadow' 
-                                : 'text-gray-700 hover:bg-white/[0.3] hover:text-gray-900'
+                                ? 'bg-white text-emerald-700 shadow-md border border-emerald-100 transform scale-[0.98]' 
+                                : 'text-gray-600 hover:bg-white/60 hover:text-gray-800 hover:shadow-sm'
                             )
                           }
                         >
@@ -173,318 +296,286 @@ export default function ProductForm({
                       ))}
                     </Tab.List>
                     
-                    <Tab.Panels className="mt-4">
+                    <Tab.Panels className="mt-6">
                       {/* TAB 1: INFO DASAR */}
-                      <Tab.Panel className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Tab.Panel className="space-y-6 max-h-[450px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* Foto Produk */}
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Foto Produk <span className="text-red-500">*</span>
+                          <div className="lg:col-span-2">
+                            <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">
+                              Foto Produk <span className="text-red-500 ml-1">*</span>
                             </label>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-6 p-6 bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-dashed border-gray-200 hover:border-emerald-300 transition-colors duration-200">
                               {photoPreview ? (
-                                <img 
-                                  src={photoPreview} 
-                                  alt="Preview" 
-                                  className="h-24 w-24 object-cover rounded-lg border-2 border-gray-300"
-                                  onError={(e) => {
-                                    console.error('Failed to load preview image:', photoPreview);
-                                    e.currentTarget.style.display = 'none';
-                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                  }}
-                                />
+                                <div className="relative">
+                                  <img 
+                                    src={photoPreview} 
+                                    alt="Preview" 
+                                    className="h-28 w-28 object-cover rounded-2xl border-2 border-emerald-200 shadow-lg"
+                                    onError={(e) => {
+                                      console.error('Failed to load preview image:', photoPreview);
+                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                  />
+                                  <div className="absolute -top-2 -right-2 bg-emerald-500 text-white rounded-full p-1">
+                                    <CheckCircleIcon className="h-4 w-4" />
+                                  </div>
+                                </div>
                               ) : null}
-                              <div className={`h-24 w-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 ${photoPreview ? 'hidden' : ''}`}>
-                                <PhotoIcon className="h-8 w-8" />
+                              <div className={`h-28 w-28 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 bg-gray-50/50 ${photoPreview ? 'hidden' : ''}`}>
+                                <PhotoIcon className="h-10 w-10" />
                               </div>
-                              <input
-                                type="file"
-                                name="photo"
-                                accept="image/*"
-                                onChange={handlePhotoChange}
-                                required={!isEditMode}
-                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                              />
+                              <div className="flex-1">
+                                <input
+                                  type="file"
+                                  name="photo"
+                                  accept="image/*"
+                                  onChange={handlePhotoChange}
+                                  required={!isEditMode}
+                                  className="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 file:shadow-sm file:transition-colors file:duration-200"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">PNG, JPG, JPEG hingga 5MB</p>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Nama Produk */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Nama Produk <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              name="name"
-                              defaultValue={productToEdit?.name}
-                              required
-                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                              placeholder="Contoh: ADV BEJO"
-                            />
-                          </div>
+                          <FormInput 
+                            label="Nama Produk" 
+                            name="name" 
+                            type="text"
+                            placeholder="Contoh: ADV BEJO"
+                            formData={formData}
+                            onChange={handleChange}
+                            required
+                          />
 
-                          {/* SKU */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              SKU <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              name="sku"
-                              defaultValue={productToEdit?.sku}
-                              required
-                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                              placeholder="Contoh: U0000000163001307"
-                            />
-                          </div>
+                          <FormInput 
+                            label="SKU" 
+                            name="sku" 
+                            type="text"
+                            placeholder="Contoh: U0000000163001307"
+                            formData={formData}
+                            onChange={handleChange}
+                            required
+                          />
 
-                          {/* Jenis Tanaman */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Jenis Tanaman <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                              name="jenis_tanaman_id"
-                              defaultValue={productToEdit?.jenis_tanaman_id}
-                              required
-                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                            >
-                              <option value="">Pilih Jenis Tanaman</option>
-                              {allJenisTanaman.map(item => (
-                                <option key={item.id} value={item.id}>{item.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                          <FormSelect 
+                            label="Jenis Tanaman" 
+                            name="jenis_tanaman_id"
+                            formData={formData}
+                            onChange={handleChange}
+                            required
+                          >
+                            <option value="">Pilih Jenis Tanaman</option>
+                            {allJenisTanaman.map(item => (
+                              <option key={item.id} value={item.id}>{item.name}</option>
+                            ))}
+                          </FormSelect>
 
-                          {/* Kelas Benih */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Kelas Benih <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                              name="kelas_benih_id"
-                              defaultValue={productToEdit?.kelas_benih_id}
-                              required
-                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                            >
-                              <option value="">Pilih Kelas Benih</option>
-                              {allKelasBenih.map(item => (
-                                <option key={item.id} value={item.id}>{item.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                          <FormSelect 
+                            label="Kelas Benih" 
+                            name="kelas_benih_id"
+                            formData={formData}
+                            onChange={handleChange}
+                            required
+                          >
+                            <option value="">Pilih Kelas Benih</option>
+                            {allKelasBenih.map(item => (
+                              <option key={item.id} value={item.id}>{item.name}</option>
+                            ))}
+                          </FormSelect>
 
-                          {/* Varietas */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Varietas <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                              name="varietas_id"
-                              defaultValue={productToEdit?.varietas_id}
-                              required
-                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                            >
-                              <option value="">Pilih Varietas</option>
-                              {allVarietas.map(item => (
-                                <option key={item.id} value={item.id}>{item.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                          <FormSelect 
+                            label="Varietas" 
+                            name="varietas_id"
+                            formData={formData}
+                            onChange={handleChange}
+                            required
+                          >
+                            <option value="">Pilih Varietas</option>
+                            {allVarietas.map(item => (
+                              <option key={item.id} value={item.id}>{item.name}</option>
+                            ))}
+                          </FormSelect>
 
                           {/* Bahan Aktif (Multi-select) */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-gray-800 tracking-wide">
                               Bahan Aktif
                             </label>
-                            <div className="border border-gray-300 rounded-md p-2 max-h-32 overflow-y-auto">
-                              {allBahanAktif.map(item => (
-                                <label key={item.id} className="flex items-center space-x-2 py-1 hover:bg-gray-50">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedBahanAktif.includes(item.id)}
-                                    onChange={() => handleBahanAktifToggle(item.id)}
-                                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                                  />
-                                  <span className="text-sm text-gray-700">{item.name}</span>
-                                </label>
-                              ))}
+                            <div className="border border-gray-200 rounded-xl p-4 max-h-40 overflow-y-auto bg-white shadow-sm scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                              <div className="space-y-3">
+                                {allBahanAktif.map(item => (
+                                  <label key={item.id} className="flex items-center space-x-3 p-2 hover:bg-emerald-50 rounded-lg transition-colors duration-150 cursor-pointer group">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedBahanAktif.includes(item.id)}
+                                      onChange={() => handleBahanAktifToggle(item.id)}
+                                      className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 focus:ring-2 focus:ring-offset-0 transition-colors"
+                                    />
+                                    <span className="text-sm text-gray-700 group-hover:text-emerald-700 font-medium">{item.name}</span>
+                                  </label>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </Tab.Panel>
 
                       {/* TAB 2: PARAMETER UJI */}
-                      <Tab.Panel className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto pr-2">
-                        {/* Benih Murni */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Benih Murni (%) <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            name="benih_murni"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            defaultValue={productToEdit?.benih_murni || 0}
-                            required
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                          />
+                      <Tab.Panel className="max-h-[450px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                        <div className="bg-gradient-to-br from-blue-50/30 to-indigo-50/30 rounded-2xl p-6 mb-6">
+                          <h4 className="text-lg font-bold text-gray-800 mb-2 flex items-center">
+                            <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full mr-3"></div>
+                            Parameter Pengujian Mutu Benih
+                          </h4>
+                          <p className="text-gray-600 text-sm">Masukkan nilai parameter sesuai dengan hasil pengujian laboratorium</p>
                         </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <FormInput 
+                          label="Benih Murni (%)" 
+                          name="benih_murni" 
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          formData={formData}
+                          onChange={handleChange}
+                          required
+                        />
 
-                        {/* Daya Berkecambah */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Daya Berkecambah (%) <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            name="daya_berkecambah"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            defaultValue={productToEdit?.daya_berkecambah || 0}
-                            required
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                          />
-                        </div>
+                        <FormInput 
+                          label="Daya Berkecambah (%)" 
+                          name="daya_berkecambah" 
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          formData={formData}
+                          onChange={handleChange}
+                          required
+                        />
 
-                        {/* Kadar Air */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Kadar Air (%) <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            name="kadar_air"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            defaultValue={productToEdit?.kadar_air || 0}
-                            required
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                          />
-                        </div>
+                        <FormInput 
+                          label="Kadar Air (%)" 
+                          name="kadar_air" 
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          formData={formData}
+                          onChange={handleChange}
+                          required
+                        />
 
-                        {/* Kotoran Benih */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Kotoran Benih (%) <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            name="kotoran_benih"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            defaultValue={productToEdit?.kotoran_benih || 0}
-                            required
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                          />
-                        </div>
+                        <FormInput 
+                          label="Kotoran Benih (%)" 
+                          name="kotoran_benih" 
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          formData={formData}
+                          onChange={handleChange}
+                          required
+                        />
 
-                        {/* Campuran Varietas Lain */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Campuran Varietas Lain (%) <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            name="campuran_varietas_lain"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            defaultValue={productToEdit?.campuran_varietas_lain || 0}
-                            required
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                          />
-                        </div>
+                        <FormInput 
+                          label="Campuran Varietas Lain (%)" 
+                          name="campuran_varietas_lain" 
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          formData={formData}
+                          onChange={handleChange}
+                          required
+                        />
 
-                        {/* Benih Tanaman Lain */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Benih Tanaman Lain (%) <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            name="benih_tanaman_lain"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            defaultValue={productToEdit?.benih_tanaman_lain || 0}
-                            required
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                          />
+                        <FormInput 
+                          label="Benih Tanaman Lain (%)" 
+                          name="benih_tanaman_lain" 
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          formData={formData}
+                          onChange={handleChange}
+                          required
+                        />
                         </div>
                       </Tab.Panel>
 
                       {/* TAB 3: KAPASITAS & LAINNYA */}
-                      <Tab.Panel className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Pack Capacity */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Kapasitas Pack (kg)
-                            </label>
-                            <input
-                              type="number"
-                              name="pack_capacity"
-                              step="0.001"
-                              min="0"
-                              defaultValue={productToEdit?.pack_capacity || ''}
-                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                              placeholder="Opsional"
-                            />
-                          </div>
+                      <Tab.Panel className="max-h-[450px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                        <div className="bg-gradient-to-br from-purple-50/30 to-pink-50/30 rounded-2xl p-6 mb-6">
+                          <h4 className="text-lg font-bold text-gray-800 mb-2 flex items-center">
+                            <div className="w-2 h-6 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full mr-3"></div>
+                            Kapasitas & Konfigurasi
+                          </h4>
+                          <p className="text-gray-600 text-sm">Tentukan kapasitas kemasan dan pengaturan visual</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <FormInput 
+                            label="Kapasitas Pack (kg)" 
+                            name="pack_capacity" 
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            placeholder="Opsional - kosongkan jika tidak ada"
+                            formData={formData}
+                            onChange={handleChange}
+                          />
 
-                          {/* Bag Capacity */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Kapasitas Bag (kg) <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="number"
-                              name="bag_capacity"
-                              step="0.001"
-                              min="0"
-                              defaultValue={productToEdit?.bag_capacity || 20}
-                              required
-                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                            />
-                          </div>
+                          <FormInput 
+                            label="Kapasitas Bag (kg)" 
+                            name="bag_capacity" 
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            placeholder="Contoh: 20"
+                            formData={formData}
+                            onChange={handleChange}
+                            required
+                          />
 
                           {/* QR Color */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Warna QR Code <span className="text-red-500">*</span>
+                          <div className="space-y-2 lg:col-span-2">
+                            <label className="block text-sm font-semibold text-gray-800 tracking-wide">
+                              Warna QR Code <span className="text-red-500 ml-1">*</span>
                             </label>
-                            <div className="flex gap-2">
-                              <input
-                                type="color"
-                                name="qr_color_picker"
-                                defaultValue={`#${productToEdit?.qr_color || 'FFFFFF'}`}
-                                onChange={(e) => {
-                                  const colorInput = document.querySelector('input[name="qr_color"]') as HTMLInputElement;
-                                  if (colorInput) {
-                                    colorInput.value = e.target.value.substring(1).toUpperCase();
-                                  }
-                                }}
-                                className="h-10 w-20 rounded-md border-gray-300 cursor-pointer"
-                              />
-                              <input
-                                type="text"
-                                name="qr_color"
-                                defaultValue={productToEdit?.qr_color || 'FFFFFF'}
-                                required
-                                pattern="[A-Fa-f0-9]{6}"
-                                maxLength={6}
-                                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm uppercase"
-                                placeholder="FFFFFF"
-                              />
+                            <div className="flex gap-3 items-center p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200">
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="color"
+                                  name="qr_color_picker"
+                                  value={formData.qr_color_picker}
+                                  onChange={handleChange}
+                                  className="h-12 w-16 rounded-xl border-2 border-gray-300 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+                                />
+                                <div className="text-xs text-gray-500">
+                                  <div>Preview</div>
+                                  <div>Warna</div>
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <input
+                                  type="text"
+                                  name="qr_color"
+                                  value={formData.qr_color}
+                                  onChange={handleChange}
+                                  required
+                                  pattern="[A-Fa-f0-9]{6}"
+                                  maxLength={6}
+                                  className="w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all duration-200 text-gray-800 placeholder-gray-400 bg-white hover:border-gray-300 uppercase font-mono text-center text-lg tracking-wider"
+                                  placeholder="FFFFFF"
+                                />
+                              </div>
                             </div>
-                            <p className="mt-1 text-xs text-gray-500">Format: Hex color tanpa #</p>
+                            <p className="text-xs text-gray-500 ml-1">Format: Kode hex 6 digit tanpa tanda #</p>
                           </div>
                         </div>
                       </Tab.Panel>
@@ -492,22 +583,22 @@ export default function ProductForm({
                   </Tab.Group>
                   
                   {/* Action Buttons */}
-                  <div className="mt-6 pt-4 flex justify-end gap-x-3 border-t border-gray-200">
+                  <div className="mt-8 pt-6 flex justify-end gap-4 border-t border-gray-100">
                     <button 
                       type="button" 
                       onClick={onClose} 
-                      className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
+                      className="px-6 py-3 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 hover:scale-[0.98]"
                     >
-                      Tutup
+                      Batal
                     </button>
                     <button 
                       type="submit" 
                       disabled={isSubmitting} 
-                      className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center justify-center gap-3 px-8 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-lg hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 hover:shadow-xl hover:-translate-y-0.5"
                     >
                       {isSubmitting ? (
                         <>
-                          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
@@ -516,7 +607,7 @@ export default function ProductForm({
                       ) : (
                         <>
                           <CheckCircleIcon className="h-5 w-5" />
-                          <span>Simpan Produk</span>
+                          <span>{isEditMode ? 'Perbarui Produk' : 'Simpan Produk'}</span>
                         </>
                       )}
                     </button>
