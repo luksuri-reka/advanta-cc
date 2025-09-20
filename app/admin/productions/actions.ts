@@ -139,6 +139,8 @@ async function processProductionFormData(supabase: any, formData: FormData, isUp
         handleFileUpload('docs_sertifikasi', 'sertifikasi')
     ]);
 
+    const lotTotalValue = formData.get('lot_total') as string;
+
     const baseData = {
       product_id: productId,
       product: product,
@@ -175,7 +177,7 @@ async function processProductionFormData(supabase: any, formData: FormData, isUp
       lot_varietas: lot_varietas,
       lot_volume: Number(formData.get('lot_volume')),
       lot_content: Number(formData.get('lot_content')),
-      lot_total: Number(formData.get('lot_total')),
+      lot_total: lotTotalValue ? Math.round(parseFloat(lotTotalValue)) : 0,
       lab_result_certification_number: formData.get('lab_result_certification_number') as string,
       lab_result_test_result: Number(formData.get('lab_result_test_result')),
       lab_result_incoming_date: getNullIfEmpty(formData, 'lab_result_incoming_date'),
@@ -298,6 +300,92 @@ export async function deleteProduction(id: number) {
     return { data: { success: true } };
   } catch (error: any) {
     console.error('Error in deleteProduction:', error);
+    return { error: { message: error.message } };
+  }
+}
+
+export async function generateProductionRegisters(
+  productionId: number, 
+  token: string // Hanya token yang sekarang dibutuhkan sebagai argumen
+) {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 1. Ambil data induk yang lebih lengkap
+    const { data: production, error: productionError } = await supabase
+      .from('productions')
+      .select('id, lot_total, code_1, code_2, code_3, code_4, lab_result_serial_number')
+      .eq('id', productionId)
+      .single();
+
+    if (productionError || !production) {
+      throw new Error('Data produksi tidak ditemukan.');
+    }
+
+    // Validasi field yang diperlukan
+    if (!production.lot_total || !production.lab_result_serial_number) {
+        throw new Error('Data `lot_total` atau `lab_result_serial_number` pada produksi ini kosong. Harap lengkapi terlebih dahulu.');
+    }
+
+    // 2. Validasi untuk mencegah duplikasi (logika tetap sama)
+    const { count, error: countError } = await supabase
+      .from('production_registers')
+      .select('*', { count: 'exact', head: true })
+      .eq('production_id', productionId);
+      
+    if (countError) throw countError;
+    if (count !== null && count > 0) {
+      throw new Error(`Data register untuk produksi ini sudah pernah di-generate (${count} data ditemukan).`);
+    }
+
+    // 3. Siapkan data untuk di-insert berdasarkan logika baru
+    const registersToInsert = [];
+    const baseProductionCode = `${production.code_1}${production.code_2}${production.code_3}`;
+    const initialLastCharCode = production.code_4.charCodeAt(0);
+    const quantity = production.lot_total;
+    const startNumber = parseInt(production.lab_result_serial_number, 10);
+    const baseUrl = 'https://perbenihan.com/qrcodeverification.php';
+    const now = new Date().toISOString();
+
+    if (isNaN(startNumber)) {
+        throw new Error('Format `lab_result_serial_number` tidak valid (bukan angka).');
+    }
+
+    // --- LOGIKA BARU UNTUK KODE PRODUKSI DINAMIS ---
+    for (let i = 0; i < quantity; i++) {
+      const serialNumber = (startNumber + i).toString();
+      
+      // Hitung penambahan karakter berdasarkan kelipatan 1000
+      const increment = Math.floor(i / 1000);
+      const newLastChar = String.fromCharCode(initialLastCharCode + increment);
+      
+      const currentProductionCode = `${baseProductionCode}${newLastChar}`;
+      const currentSearchKey = `${currentProductionCode}${serialNumber}`;
+      
+      registersToInsert.push({
+        production_id: productionId,
+        serial_number: serialNumber,
+        production_code: currentProductionCode, // Kode produksi dinamis
+        search_key: currentSearchKey,           // Search key dinamis
+        qr_code_link: `${baseUrl}?token=${token}&seri=${serialNumber}`,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    const { error: insertError } = await supabase
+      .from('production_registers')
+      .insert(registersToInsert);
+
+    if (insertError) {
+      throw new Error(`Gagal menyimpan data: ${insertError.message}`);
+    }
+
+    revalidatePath('/admin/productions');
+    return { data: { generated: registersToInsert.length } };
+
+  } catch (error: any) {
+    console.error('Error in generateProductionRegisters:', error);
     return { error: { message: error.message } };
   }
 }

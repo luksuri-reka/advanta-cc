@@ -12,6 +12,8 @@ import ProductionForm from './ProductionForm';
 import ProductionViewModal from './ProductionViewModal';
 import ImportDataModal from './ImportDataModal';
 import { deleteProduction } from './actions';
+import GenerateRegistersModal from './GenerateRegistersModal';
+import QrCodeIcon from '@heroicons/react/24/solid/QrCodeIcon';
 
 // Types
 interface RelationalData {
@@ -274,6 +276,8 @@ export default function ProductionClient({
   // Memoized productions untuk mencegah re-render yang tidak perlu
   const memoizedProductions = useMemo(() => initialProductions, [initialProductions]);
 
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+
   const handleLogout = async () => {
     console.log('Logout clicked');
   };
@@ -355,6 +359,17 @@ export default function ProductionClient({
     }
   }, [router]);
 
+  const productionsForDropdown = useMemo(() => initialProductions.map(p => ({
+        id: p.id,
+        product: p.product,
+        company: p.company,
+        lot_number: p.lot_number
+    })), [initialProductions]);
+
+  const handleGenerateRegisters = useCallback(() => {
+    setIsGenerateModalOpen(true);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-center" reverseOrder={false} />
@@ -370,6 +385,14 @@ export default function ProductionClient({
             </p>
           </div>
           <div className="mt-4 flex md:ml-4 md:mt-0 space-x-3">
+            <button
+                type="button"
+                onClick={handleGenerateRegisters}
+                className="inline-flex items-center gap-x-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+            >
+                <QrCodeIcon className="-ml-0.5 h-5 w-5" />
+                Generate Registers
+            </button>
             <button
               type="button"
               onClick={handleImport}
@@ -438,7 +461,18 @@ export default function ProductionClient({
             </div>
           </div>
         </div>
+        <GenerateRegistersModal
+            isOpen={isGenerateModalOpen}
+            onClose={() => setIsGenerateModalOpen(false)}
+            productions={initialProductions} // Kirim data produksi ke modal
+        />
       </main>
+
+      <GenerateRegistersModal
+                isOpen={isGenerateModalOpen}
+                onClose={() => setIsGenerateModalOpen(false)}
+                productions={productionsForDropdown} // Kirim data yang sudah disederhanakan
+            />
 
       {/* Modal Form untuk Add/Edit */}
       <ProductionForm 
