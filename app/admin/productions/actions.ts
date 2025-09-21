@@ -381,6 +381,21 @@ export async function generateProductionRegisters(
       throw new Error(`Gagal menyimpan data: ${insertError.message}`);
     }
 
+    // *** PERBAIKAN UTAMA: UPDATE STATUS import_qr_at DI TABEL PRODUCTIONS ***
+    const { error: updateProductionError } = await supabase
+      .from('productions')
+      .update({ 
+        import_qr_at: now,
+        updated_at: now
+      })
+      .eq('id', productionId);
+
+    if (updateProductionError) {
+      console.error('Error updating production import_qr_at status:', updateProductionError);
+      // Tidak throw error karena data register sudah tersimpan, 
+      // tapi log untuk debugging
+    }
+
     revalidatePath('/admin/productions');
     return { data: { generated: registersToInsert.length } };
 
