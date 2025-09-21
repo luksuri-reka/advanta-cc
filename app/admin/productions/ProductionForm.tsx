@@ -316,9 +316,9 @@ export default function ProductionForm({
                     <Tab.Group>
                       <Tab.List className="flex space-x-1 rounded-2xl bg-gradient-to-r from-emerald-50 to-blue-50 p-2 shadow-inner">
                         {[
-                          { name: 'Info Umum', icon: '📋' },
+                          { name: 'Data Produksi', icon: '📋' },
                           { name: 'Target & Sumber Benih', icon: '🎯' },
-                          { name: 'Realisasi & Lab', icon: '🔬' },
+                          { name: 'Realisasi & Hasil Pemeriksaan', icon: '🔬' },
                           { name: 'Parameter Uji', icon: '📊' },
                           { name: 'Dokumen', icon: '📁' }
                         ].map((category) => (
@@ -344,10 +344,10 @@ export default function ProductionForm({
                           <div className="bg-gradient-to-br from-gray-50/80 to-white rounded-2xl p-8 border border-gray-200/50">
                             <h3 className="text-lg font-bold text-gray-800 mb-8 border-b border-gray-200 pb-4 flex items-center">
                               <span className="mr-3">📋</span>
-                              Informasi Umum Produksi
+                              Data Produksi
                             </h3>
                             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-                              <FormSelect label="Produk" name="product_id" formData={formData} onChange={handleChange} required>
+                              <FormSelect label="Nama Produk" name="product_id" formData={formData} onChange={handleChange} required>
                                 <option value="">Pilih Produk</option>
                                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                               </FormSelect>
@@ -356,7 +356,7 @@ export default function ProductionForm({
                                 label="Nomor Grup" 
                                 name="group_number" 
                                 type="text" 
-                                placeholder="Contoh: A-123" 
+                                placeholder="Contoh: NLH1A1001" 
                                 formData={formData} 
                                 onChange={handleChange} 
                                 required 
@@ -366,22 +366,22 @@ export default function ProductionForm({
                                 label="Nomor Lot" 
                                 name="lot_number" 
                                 type="text" 
-                                placeholder="Contoh: LOT-456" 
+                                placeholder="Contoh: NLH1A1001" 
                                 formData={formData} 
                                 onChange={handleChange} 
                                 required 
                               />
                               
-                              <FormSelect label="Perusahaan" name="company_id" formData={formData} onChange={handleChange} required>
+                              <FormSelect label="Nama Perusahaan" name="company_id" formData={formData} onChange={handleChange} required>
                                 <option value="">Pilih Perusahaan</option>
                                 {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                               </FormSelect>
                               
                               <FormInput 
-                                label="Nomor Izin" 
+                                label="Nomor Clearance" 
                                 name="clearance_number" 
                                 type="text" 
-                                placeholder="Contoh: CLR-789" 
+                                placeholder="Contoh: 40" 
                                 formData={formData} 
                                 onChange={handleChange} 
                               />
@@ -389,7 +389,7 @@ export default function ProductionForm({
                             
                             <div className="mt-8">
                               <label className="block text-sm font-semibold text-gray-800 mb-4">
-                                Kode Produksi (4 Digit) <span className="text-red-500">*</span>
+                                Kode Hybrid (4 Digit) <span className="text-red-500">*</span>
                               </label>
                               <div className="flex gap-3">
                                 {[1, 2, 3, 4].map(i => (
@@ -417,15 +417,15 @@ export default function ProductionForm({
                           <div className="bg-gradient-to-br from-blue-50/80 to-white rounded-2xl p-8 border border-blue-200/50">
                             <h4 className="text-lg font-bold text-blue-800 mb-8 border-b border-blue-200 pb-4 flex items-center">
                               <span className="mr-3">🎯</span>
-                              Target Sertifikasi
+                              Target
                             </h4>
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                              <FormInput label="Luas Target (Ha)" name="target_certification_wide" type="number" step="0.01" formData={formData} onChange={handleChange} />
-                              <FormSelect label="Kelas Benih Target" name="target_kelas_benih_id" formData={formData} onChange={handleChange}>
+                              <FormInput label="Luas Sertifikasi (Ha)" name="target_certification_wide" type="number" step="0.01" formData={formData} onChange={handleChange} />
+                              <FormSelect label="Kelas Benih" name="target_kelas_benih_id" formData={formData} onChange={handleChange}>
                                 <option value="">Pilih Kelas Benih</option>
                                 {kelasBenih.map(kb => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
                               </FormSelect>
-                              <FormInput label="Target Produksi Benih (Kg)" name="target_seed_production" type="number" step="0.01" formData={formData} onChange={handleChange} />
+                              <FormInput label="Produksi Benih" name="target_seed_production" type="number" step="0.01" formData={formData} onChange={handleChange} />
                             </div>
                           </div>
                           
@@ -433,10 +433,10 @@ export default function ProductionForm({
                           <div className="bg-gradient-to-br from-green-50/80 to-white rounded-2xl p-8 border border-green-200/50">
                             <h4 className="text-lg font-bold text-green-800 mb-8 border-b border-green-200 pb-4 flex items-center">
                               <span className="mr-3">🌱</span>
-                              Sumber Benih
+                              Asal Benih Sumber
                             </h4>
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                              <FormSelect label="Perusahaan Sumber" name="seed_source_company_id" formData={formData} onChange={handleChange} required>
+                              <FormSelect label="Produsen Benih" name="seed_source_company_id" formData={formData} onChange={handleChange} required>
                                 <option value="">Pilih Perusahaan</option>
                                 {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                               </FormSelect>
@@ -448,7 +448,7 @@ export default function ProductionForm({
                                 <option value="">Pilih Varietas</option>
                                 {varietas.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                               </FormSelect>
-                              <FormSelect label="Kelas Benih Sumber" name="seed_source_kelas_benih_id" formData={formData} onChange={handleChange} required>
+                              <FormSelect label="Kelas Benih" name="seed_source_kelas_benih_id" formData={formData} onChange={handleChange} required>
                                 <option value="">Pilih Kelas Benih</option>
                                 {kelasBenih.map(kb => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
                               </FormSelect>
@@ -462,10 +462,10 @@ export default function ProductionForm({
                           <div className="bg-gradient-to-br from-purple-50/80 to-white rounded-2xl p-8 border border-purple-200/50">
                             <h4 className="text-lg font-bold text-purple-800 mb-8 border-b border-purple-200 pb-4 flex items-center">
                               <span className="mr-3">📦</span>
-                              Informasi Lot
+                              Lot
                             </h4>
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                              <FormSelect label="Kelas Benih Lot" name="lot_kelas_benih_id" formData={formData} onChange={handleChange} required>
+                              <FormSelect label="Kelas Benih" name="lot_kelas_benih_id" formData={formData} onChange={handleChange} required>
                                 <option value="">Pilih Kelas Benih</option>
                                 {kelasBenih.map(kb => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
                               </FormSelect>
@@ -473,9 +473,9 @@ export default function ProductionForm({
                                 <option value="">Pilih Varietas</option>
                                 {varietas.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                               </FormSelect>
-                              <FormInput label="Volume (Kg)" name="lot_volume" type="number" step="0.01" formData={formData} onChange={handleChange} required />
-                              <FormInput label="Isi (Kg)" name="lot_content" type="number" step="0.01" formData={formData} onChange={handleChange} required />
-                              <FormInput label="Total" name="lot_total" type="number" step="0.01" formData={formData} onChange={handleChange} required />
+                              <FormInput label="Kemasan" name="lot_volume" type="number" step="0.01" formData={formData} onChange={handleChange} required />
+                              <FormInput label="Berat Bersih Per Kemasan" name="lot_content" type="number" step="0.01" formData={formData} onChange={handleChange} required />
+                              <FormInput label="Jumlah Produk" name="lot_total" type="number" step="0.01" formData={formData} onChange={handleChange} required />
                             </div>
                           </div>
                         </Tab.Panel>
@@ -486,11 +486,11 @@ export default function ProductionForm({
                           <div className="bg-gradient-to-br from-orange-50/80 to-white rounded-2xl p-8 border border-orange-200/50">
                             <h4 className="text-lg font-bold text-orange-800 mb-8 border-b border-orange-200 pb-4 flex items-center">
                               <span className="mr-3">📈</span>
-                              Realisasi Sertifikasi
+                              Realisasi
                             </h4>
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                              <FormInput label="Luas Realisasi (Ha)" name="cert_realization_wide" type="number" step="0.01" formData={formData} onChange={handleChange} />
-                              <FormInput label="Produksi Benih Realisasi" name="cert_realization_seed_production" type="text" formData={formData} onChange={handleChange} />
+                              <FormInput label="Luas Sertifikasi (Ha)" name="cert_realization_wide" type="number" step="0.01" formData={formData} onChange={handleChange} />
+                              <FormInput label="Produksi Calon Benih" name="cert_realization_seed_production" type="text" formData={formData} onChange={handleChange} />
                               <FormInput label="Tanggal Panen" name="cert_realization_tanggal_panen" type="date" formData={formData} onChange={handleChange} />
                             </div>
                           </div>
@@ -499,17 +499,17 @@ export default function ProductionForm({
                           <div className="bg-gradient-to-br from-cyan-50/80 to-white rounded-2xl p-8 border border-cyan-200/50">
                             <h4 className="text-lg font-bold text-cyan-800 mb-8 border-b border-cyan-200 pb-4 flex items-center">
                               <span className="mr-3">🔬</span>
-                              Hasil Laboratorium
+                              Hasil Pemeriksaan
                             </h4>
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                              <FormInput label="Nomor Sertifikasi" name="lab_result_certification_number" type="text" formData={formData} onChange={handleChange} required />
+                              <FormInput label="Nomor Induk Sertifikasi" name="lab_result_certification_number" type="text" formData={formData} onChange={handleChange} required />
                               <FormInput label="Hasil Uji (%)" name="lab_result_test_result" type="number" step="0.01" formData={formData} onChange={handleChange} required />
-                              <FormInput label="Tanggal Masuk" name="lab_result_incoming_date" type="date" formData={formData} onChange={handleChange} />
-                              <FormInput label="Tanggal Pengajuan" name="lab_result_filing_date" type="date" formData={formData} onChange={handleChange} required />
-                              <FormInput label="Tanggal Pengujian" name="lab_result_testing_date" type="date" formData={formData} onChange={handleChange} required />
+                              <FormInput label="Tanggal Masuk Lab" name="lab_result_incoming_date" type="date" formData={formData} onChange={handleChange} />
+                              <FormInput label="Tanggal Aju" name="lab_result_filing_date" type="date" formData={formData} onChange={handleChange} required />
+                              <FormInput label="Tanggal Uji" name="lab_result_testing_date" type="date" formData={formData} onChange={handleChange} required />
                               <FormInput label="Tanggal Selesai Uji" name="lab_result_tested_date" type="date" formData={formData} onChange={handleChange} required />
-                              <FormInput label="Nomor Seri" name="lab_result_serial_number" type="text" formData={formData} onChange={handleChange} required />
-                              <FormInput label="Tanggal Kadaluarsa" name="lab_result_expired_date" type="date" formData={formData} onChange={handleChange} required />
+                              <FormInput label="Nomor Seri Label" name="lab_result_serial_number" type="text" formData={formData} onChange={handleChange} required />
+                              <FormInput label="Tanggal Berakhir Label" name="lab_result_expired_date" type="date" formData={formData} onChange={handleChange} required />
                             </div>
                           </div>
                         </Tab.Panel>
@@ -519,7 +519,7 @@ export default function ProductionForm({
                           <div className="bg-gradient-to-br from-indigo-50/80 to-white rounded-2xl p-8 border border-indigo-200/50">
                             <h4 className="text-lg font-bold text-indigo-800 mb-8 border-b border-indigo-200 pb-4 flex items-center">
                               <span className="mr-3">📊</span>
-                              Parameter Pengujian Mutu Benih
+                              Parameter Uji
                             </h4>
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                               <FormInput label="Kadar Air (%)" name="test_param_kadar_air" type="number" step="0.01" formData={formData} onChange={handleChange} required />

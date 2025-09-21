@@ -153,7 +153,7 @@ export default function GenerateRegistersModal({
                   <div className="p-4 bg-gray-50 rounded-lg border animate-fade-in space-y-2">
                     <h4 className="font-semibold text-gray-800">Detail & Konfirmasi Data</h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li><strong>Kode Produksi:</strong> 
+                      <li><strong>Kode Hybrid:</strong> 
                         <span className="font-mono bg-gray-200 px-1 rounded">{startProductionCode}</span>
                         {startProductionCode !== endProductionCode && (
                           <>
@@ -170,7 +170,7 @@ export default function GenerateRegistersModal({
                 )}
                 
                 <div>
-                    <label htmlFor="qr_token" className="block text-sm font-medium text-zinc-700">Token untuk URL QR Code *</label>
+                    <label htmlFor="qr_token" className="block text-sm font-medium text-zinc-700">Token QR-Code Verification Perbenihan.com *</label>
                     <input 
                         type="text" 
                         name="qr_token" 

@@ -63,28 +63,28 @@ export default function ProductionViewModal({
 
                 <div className="max-h-[70vh] overflow-y-auto">
                   {/* Info Umum */}
-                  <SectionTitle title="Informasi Umum" />
+                  <SectionTitle title="Data Produksi" />
                   <dl>
-                    <InfoRow label="Produk" value={production.product?.name} />
-                    <InfoRow label="Perusahaan" value={production.company?.name} />
+                    <InfoRow label="Nama Produk" value={production.product?.name} />
+                    <InfoRow label="Nama Perusahaan" value={production.company?.name} />
                     <InfoRow label="Nomor Grup" value={production.group_number} />
-                    <InfoRow label="Kode Produksi" value={`${production.code_1}${production.code_2}${production.code_3}${production.code_4}`} />
+                    <InfoRow label="Kode Hybrid" value={`${production.code_1}${production.code_2}${production.code_3}${production.code_4}`} />
                     <InfoRow label="Nomor Lot" value={production.lot_number} />
-                    <InfoRow label="Nomor Izin" value={production.clearance_number} />
+                    <InfoRow label="Nomor Clearance" value={production.clearance_number} />
                   </dl>
 
                   {/* Target Sertifikasi */}
-                  <SectionTitle title="Target Sertifikasi" />
+                  <SectionTitle title="Target" />
                   <dl>
-                    <InfoRow label="Luas Target (Ha)" value={production.target_certification_wide} />
-                    <InfoRow label="Kelas Benih Target" value={production.target_kelas_benih?.name} />
-                    <InfoRow label="Target Produksi Benih (Kg)" value={production.target_seed_production} />
+                    <InfoRow label="Luas Sertifikasi (Ha)" value={production.target_certification_wide} />
+                    <InfoRow label="Kelas Benih" value={production.target_kelas_benih?.name} />
+                    <InfoRow label="Produksi Benih" value={production.target_seed_production} />
                   </dl>
 
                   {/* Sumber Benih */}
-                  <SectionTitle title="Sumber Benih" />
+                  <SectionTitle title="Asal Benih Sumber" />
                   <dl>
-                    <InfoRow label="Perusahaan Sumber" value={production.seed_source_company?.name} />
+                    <InfoRow label="Produsen Benih" value={production.seed_source_company?.name} />
                     <InfoRow label="Varietas Jantan" value={production.seed_source_male_varietas?.name} />
                     <InfoRow label="Varietas Betina" value={production.seed_source_female_varietas?.name} />
                     <InfoRow label="Kelas Benih Sumber" value={production.seed_source_kelas_benih?.name} />
@@ -94,38 +94,38 @@ export default function ProductionViewModal({
                   </dl>
 
                   {/* Info Lot */}
-                  <SectionTitle title="Informasi Lot" />
+                  <SectionTitle title="Lot" />
                   <dl>
-                    <InfoRow label="Kelas Benih Lot" value={production.lot_kelas_benih?.name} />
-                    <InfoRow label="Varietas Lot" value={production.lot_varietas?.name} />
-                    <InfoRow label="Volume (Kg)" value={production.lot_volume} />
-                    <InfoRow label="Isi (Kg)" value={production.lot_content} />
-                    <InfoRow label="Total" value={production.lot_total} />
+                    <InfoRow label="Kelas Benih" value={production.lot_kelas_benih?.name} />
+                    <InfoRow label="Varietas" value={production.lot_varietas?.name} />
+                    <InfoRow label="Kemasan" value={production.lot_volume} />
+                    <InfoRow label="Berat Bersih Per Kemasan" value={production.lot_content} />
+                    <InfoRow label="Jumlah Produk" value={production.lot_total} />
                   </dl>
 
                   {/* Realisasi Sertifikasi */}
-                  <SectionTitle title="Realisasi Sertifikasi" />
+                  <SectionTitle title="Realisasi" />
                   <dl>
-                    <InfoRow label="Luas Realisasi (Ha)" value={production.cert_realization_wide} />
-                    <InfoRow label="Produksi Benih Realisasi" value={production.cert_realization_seed_production} />
+                    <InfoRow label="Luas Sertifikasi (Ha)" value={production.cert_realization_wide} />
+                    <InfoRow label="Produksi Calon Benih" value={production.cert_realization_seed_production} />
                     <InfoRow label="Tanggal Panen" value={formatDate(production.cert_realization_tanggal_panen)} />
                   </dl>
 
                   {/* Hasil Laboratorium */}
-                  <SectionTitle title="Hasil Laboratorium" />
+                  <SectionTitle title="Hasil Pemeriksaan" />
                   <dl>
-                    <InfoRow label="Nomor Sertifikasi" value={production.lab_result_certification_number} />
+                    <InfoRow label="Nomor Induk Sertifikasi" value={production.lab_result_certification_number} />
                     <InfoRow label="Hasil Uji (%)" value={production.lab_result_test_result} />
-                    <InfoRow label="Tanggal Masuk" value={formatDate(production.lab_result_incoming_date)} />
-                    <InfoRow label="Tanggal Pengajuan" value={formatDate(production.lab_result_filing_date)} />
-                    <InfoRow label="Tanggal Pengujian" value={formatDate(production.lab_result_testing_date)} />
+                    <InfoRow label="Tanggal Masuk Lab" value={formatDate(production.lab_result_incoming_date)} />
+                    <InfoRow label="Tanggal Aju" value={formatDate(production.lab_result_filing_date)} />
+                    <InfoRow label="Tanggal Uji" value={formatDate(production.lab_result_testing_date)} />
                     <InfoRow label="Tanggal Selesai Uji" value={formatDate(production.lab_result_tested_date)} />
-                    <InfoRow label="Nomor Seri" value={production.lab_result_serial_number} />
-                    <InfoRow label="Tanggal Kadaluarsa" value={formatDate(production.lab_result_expired_date)} />
+                    <InfoRow label="Nomor Seri Label" value={production.lab_result_serial_number} />
+                    <InfoRow label="Tanggal Berakhir Label" value={formatDate(production.lab_result_expired_date)} />
                   </dl>
 
                   {/* Parameter Uji */}
-                  <SectionTitle title="Parameter Pengujian Mutu Benih" />
+                  <SectionTitle title="Parameter Uji" />
                   <dl>
                     <InfoRow label="Kadar Air (%)" value={production.test_param_kadar_air} />
                     <InfoRow label="Benih Murni (%)" value={production.test_param_benih_murni} />
@@ -201,22 +201,22 @@ export default function ProductionViewModal({
                   </dl>
 
                   {/* Status QR */}
-                  <SectionTitle title="Status Import QR" />
+                  <SectionTitle title="Status Generate Registers" />
                   <dl>
                     <InfoRow 
-                      label="Status QR" 
+                      label="Status Registers" 
                       value={
                         <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
                           production.import_qr_at
                             ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20'
                             : 'bg-yellow-50 text-yellow-800 ring-1 ring-inset ring-yellow-600/20'
                         }`}>
-                          {production.import_qr_at ? 'Sudah Impor' : 'Belum Impor'}
+                          {production.import_qr_at ? 'Sudah Generate' : 'Belum Generate'}
                         </span>
                       } 
                     />
                     {production.import_qr_at && (
-                      <InfoRow label="Tanggal Import QR" value={formatDate(production.import_qr_at)} />
+                      <InfoRow label="Tanggal Generate Registers" value={formatDate(production.import_qr_at)} />
                     )}
                   </dl>
 

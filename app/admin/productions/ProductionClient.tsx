@@ -146,7 +146,7 @@ const ProductionRow = ({
               : 'bg-yellow-50 text-yellow-800 ring-1 ring-inset ring-yellow-600/20'
           )}
         >
-          {prod.import_qr_at ? 'Sudah Impor' : 'Belum Impor'}
+          {prod.import_qr_at ? 'Sudah Generate' : 'Belum Generate'}
         </span>
       </td>
       <td className="py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 whitespace-nowrap">
@@ -419,10 +419,10 @@ export default function ProductionClient({
                 <thead className="bg-gray-50">
                   <tr>
                     <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Produk</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Kode Produksi</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Kode Hybrid</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Volume</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Tanggal Panen</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status QR</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status Registers</th>
                     <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6 text-right font-semibold text-gray-900">
                       Aksi
                     </th>
