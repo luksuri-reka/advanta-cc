@@ -288,6 +288,12 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
                         CERTIFIED
                       </div>
                     </div>
+                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-2 md:px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                      <div className="flex items-center gap-1">
+                        <BeakerIcon className="w-3 h-3" />
+                        TESTED
+                      </div>
+                    </div>
                   </div>
                 </div>
 

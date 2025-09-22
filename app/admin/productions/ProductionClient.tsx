@@ -360,11 +360,12 @@ export default function ProductionClient({
   }, [router]);
 
   const productionsForDropdown = useMemo(() => initialProductions.map(p => ({
-        id: p.id,
-        product: p.product,
-        company: p.company,
-        lot_number: p.lot_number
-    })), [initialProductions]);
+    id: p.id,
+    product: p.product,
+    company: p.company,
+    lot_number: p.lot_number,
+    import_qr_at: p.import_qr_at // Tambahkan field ini
+})), [initialProductions]);
 
   const handleGenerateRegisters = useCallback(() => {
     setIsGenerateModalOpen(true);
