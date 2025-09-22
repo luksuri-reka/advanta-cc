@@ -189,17 +189,52 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
 
       <div className={`relative z-10 w-full max-w-7xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         
-        {/* Success Header */}
-        <div className="text-center mb-6 md:mb-8 animate-scale-in">
-          <div className="inline-flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-full shadow-lg shadow-emerald-500/30 mb-3 md:mb-4">
-            <CheckBadgeIcon className="h-5 w-5 md:h-6 md:w-6" />
-            <span className="font-bold text-sm md:text-base lg:text-lg">Produk Asli Terverifikasi</span>
-            <SparklesIcon className="h-4 w-4 md:h-5 md:w-5 animate-pulse" />
+        {/* Premium Header */}
+        <div className="relative">
+          {/* Hero Success Section */}
+          <div className="text-center mb-8 md:mb-12 animate-scale-in relative">
+            {/* Floating Success Badge */}
+            <div className="relative inline-block mb-6 md:mb-8">
+              <div className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-500 text-white rounded-2xl shadow-2xl shadow-emerald-500/40 relative overflow-hidden group">
+                {/* Shine Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                <div className="relative z-10 flex items-center gap-2 md:gap-3">
+                  <div className="relative">
+                    <CheckBadgeIcon className="h-6 w-6 md:h-7 md:w-7" />
+                    <div className="absolute inset-0 bg-white/30 rounded-full animate-ping"></div>
+                  </div>
+                  <span className="font-bold text-base md:text-lg lg:text-xl">
+                    Produk Asli Terverifikasi
+                  </span>
+                  <SparklesIcon className="h-5 w-5 md:h-6 md:w-6 animate-bounce" />
+                </div>
+              </div>
+              
+              {/* Floating particles */}
+              <div className="absolute -top-2 -right-2 w-4 h-4 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
+              <div className="absolute -bottom-2 -left-2 w-3 h-3 bg-blue-400 rounded-full animate-ping opacity-75" style={{ animationDelay: '0.5s' }}></div>
+            </div>
+            
+            {/* Product Title with Enhanced Styling */}
+            <div className="relative">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black mb-4 md:mb-6 px-4">
+                <span className="bg-gradient-to-r from-emerald-700 via-slate-800 to-emerald-600 bg-clip-text text-transparent leading-tight block">
+                  {data.product_name}
+                </span>
+              </h1>
+              
+              {/* Subtitle with Premium Styling */}
+              <div className="relative inline-block">
+                <p className="text-xl md:text-2xl lg:text-3xl text-slate-600 font-semibold px-6 py-2 md:px-8 md:py-3 bg-gradient-to-r from-slate-50/80 to-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 shadow-lg">
+                  {data.varietas}
+                </p>
+                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 via-blue-500/10 to-purple-500/20 rounded-2xl blur-sm -z-10"></div>
+              </div>
+            </div>
+
+            
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-emerald-800 via-slate-800 to-emerald-700 bg-clip-text text-transparent mb-2 px-4">
-            {data.product_name}
-          </h1>
-          <p className="text-lg md:text-xl text-slate-600 font-medium px-4">{data.varietas}</p>
         </div>
 
         {/* Main Content Grid */}
@@ -238,19 +273,27 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
                   </div>
                 </div>
 
-                {/* Quality Indicators */}
-                <div className="mt-4 md:mt-6 grid grid-cols-3 gap-2 md:gap-3">
-                  <div className="text-center p-3 md:p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-white shadow-lg">
-                    <ShieldCheckIcon className="w-6 h-6 md:w-8 md:h-8 text-emerald-500 mx-auto mb-1 md:mb-2" />
-                    <div className="text-xs font-bold text-emerald-700">ASLI</div>
+                {/* Trust Indicators */}
+                <div className="flex justify-center items-center gap-6 md:gap-8 mt-8 md:mt-10">
+                  <div className="text-center group cursor-pointer">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-200 mx-auto mb-2">
+                      <ShieldCheckIcon className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                    </div>
+                    <span className="text-xs md:text-sm font-bold text-emerald-700">100% Asli</span>
                   </div>
-                  <div className="text-center p-3 md:p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-white shadow-lg">
-                    <CheckBadgeIcon className="w-6 h-6 md:w-8 md:h-8 text-blue-500 mx-auto mb-1 md:mb-2" />
-                    <div className="text-xs font-bold text-blue-700">BERSERTIFIKAT</div>
+                  
+                  <div className="text-center group cursor-pointer">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform duration-200 mx-auto mb-2">
+                      <DocumentCheckIcon className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                    </div>
+                    <span className="text-xs md:text-sm font-bold text-blue-700">Bersertifikat</span>
                   </div>
-                  <div className="text-center p-3 md:p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-white shadow-lg">
-                    <BeakerIcon className="w-6 h-6 md:w-8 md:h-8 text-purple-500 mx-auto mb-1 md:mb-2" />
-                    <div className="text-xs font-bold text-purple-700">TERUJI</div>
+                  
+                  <div className="text-center group cursor-pointer">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform duration-200 mx-auto mb-2">
+                      <BeakerIcon className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                    </div>
+                    <span className="text-xs md:text-sm font-bold text-purple-700">Teruji Lab</span>
                   </div>
                 </div>
               </div>

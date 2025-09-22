@@ -100,19 +100,60 @@ export default function VerificationPage() {
 
       <div className="relative z-10 min-h-screen flex flex-col">
         {result ? (
-          /* Result Display */
+          /* Result Display - UPDATED PREMIUM HEADER */
           <div className="flex flex-col w-full flex-grow animate-fade-in">
-            <header className="w-full p-4 sm:p-6 flex items-center justify-between backdrop-blur-lg bg-white/10 border-b border-white/20">
-              <img src="/advanta-logo.png" alt="Advanta Logo" className="h-8 sm:h-10 w-auto drop-shadow-lg" />
-              <button
-                onClick={handleReset}
-                className="px-6 py-3 bg-white/80 backdrop-blur-xl rounded-xl text-sm font-semibold text-gray-800 hover:bg-white hover:shadow-lg transition-all duration-300 flex items-center gap-2 border border-white/50 shadow-lg hover:scale-105"
-              >
-                <ArrowLeftIcon className="w-4 h-4" />
-                Verifikasi Lagi
-              </button>
+            {/* Premium Header Navigation */}
+            <header className="w-full p-4 sm:p-6 backdrop-blur-xl bg-white/90 border-b border-white/60 shadow-xl">
+              <div className="flex items-center justify-between max-w-7xl mx-auto">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <img 
+                    src="/advanta-logo.png" 
+                    alt="Advanta Logo" 
+                    className="h-8 md:h-12 w-auto drop-shadow-lg transition-all duration-300 hover:scale-105" 
+                  />
+                  <div className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-slate-300 to-transparent"></div>
+                  <div className="hidden sm:block">
+                    <h2 className="text-lg md:text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                      Sistem Verifikasi
+                    </h2>
+                    <p className="text-xs md:text-sm text-slate-500 font-medium">
+                      PT Advanta Seeds Indonesia
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 md:gap-4">
+                  {/* Status Badge */}
+                  <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-emerald-100/80 text-emerald-700 rounded-full text-sm font-bold border border-emerald-200/50 shadow-sm">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    HASIL VERIFIKASI
+                  </div>
+                  
+                  {/* Premium Back Button */}
+                  <button
+                    onClick={handleReset}
+                    className="group px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-slate-100 to-white hover:from-white hover:to-slate-50 rounded-xl md:rounded-2xl text-sm md:text-base font-semibold text-slate-700 hover:text-slate-900 border border-slate-200/80 hover:border-slate-300 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 backdrop-blur-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform duration-200" />
+                      <span className="hidden sm:inline">Verifikasi Lagi</span>
+                      <span className="sm:hidden">Kembali</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Mobile Status */}
+              <div className="lg:hidden flex justify-center mt-4 pt-4 border-t border-slate-100/80 max-w-7xl mx-auto">
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-emerald-100/80 text-emerald-700 rounded-full text-sm font-bold border border-emerald-200/50">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                  HASIL VERIFIKASI
+                </div>
+              </div>
             </header>
-            <div className="flex-grow flex items-center justify-center">
+
+            {/* Product Result Content */}
+            <div className="flex-grow">
               <ProductResult data={result.data} modelType={result.meta.model_type} />
             </div>
           </div>
