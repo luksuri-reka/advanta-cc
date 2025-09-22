@@ -32,7 +32,19 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
-    setIsVisible(true);
+    // Scroll to top when component mounts
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'smooth'
+    });
+    
+    // Delay visibility animation slightly for smooth experience
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const tabConfig = [
@@ -232,8 +244,6 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
                 <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 via-blue-500/10 to-purple-500/20 rounded-2xl blur-sm -z-10"></div>
               </div>
             </div>
-
-            
           </div>
         </div>
 
@@ -265,10 +275,18 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
                   )}
                   
                   {/* Premium Badge Overlay */}
-                  <div className="absolute top-3 right-3 md:top-4 md:right-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-2 md:px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                    <div className="flex items-center gap-1">
-                      <StarIcon className="w-3 h-3" />
-                      VERIFIED
+                  <div className="absolute top-3 right-3 md:top-4 md:right-4 flex flex-col gap-2">
+                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-2 md:px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                      <div className="flex items-center gap-1">
+                        <StarIcon className="w-3 h-3" />
+                        VERIFIED
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-2 md:px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                      <div className="flex items-center gap-1">
+                        <DocumentCheckIcon className="w-3 h-3" />
+                        CERTIFIED
+                      </div>
                     </div>
                   </div>
                 </div>
