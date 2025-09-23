@@ -574,14 +574,14 @@ export default function ProductionClient({
       </tr>
     );
   };
-
-  const productionsForDropdown = useMemo(() => initialProductions.map(p => ({
+  
+  const productionsForDropdown = useMemo(() => filteredAndSortedProductions.map(p => ({
     id: p.id,
     product: p.product,
     company: p.company,
     lot_number: p.lot_number,
     import_qr_at: p.import_qr_at
-  })), [initialProductions]);
+  })), [filteredAndSortedProductions]);
 
   return (
     <div className="min-h-screen bg-gray-50">
