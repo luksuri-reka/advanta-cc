@@ -1,13 +1,55 @@
-// app/api/productions/import/route.ts
+// app/api/productions/import/route.ts - Enhanced version
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import * as XLSX from 'xlsx';
 
 interface ImportRow {
   [key: string]: string;
+}
+
+// Helper function to parse Excel files
+async function parseExcelFile(file: File): Promise<{ headers: string[], dataRows: string[][] }> {
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer);
+  
+  // Ambil sheet pertama
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
+  
+  // Convert ke array
+  const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+  
+  if (jsonData.length < 2) {
+    throw new Error('File Excel kosong atau tidak memiliki data');
+  }
+  
+  const headers = (jsonData[0] as string[]).map(h => String(h).trim());
+  const dataRows = jsonData.slice(1).map(row => 
+    (row as any[]).map(cell => String(cell || '').trim())
+  );
+  
+  return { headers, dataRows };
+}
+
+// Helper function to parse CSV files
+async function parseCSVFile(file: File): Promise<{ headers: string[], dataRows: string[][] }> {
+  const fileContent = await file.text();
+  const lines = fileContent.split('\n').filter(line => line.trim());
+  
+  if (lines.length < 2) {
+    throw new Error('File CSV kosong atau tidak valid');
+  }
+
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const dataRows = lines.slice(1).map(line => 
+    line.split(',').map(v => v.trim().replace(/"/g, ''))
+  );
+  
+  return { headers, dataRows };
 }
 
 export async function POST(request: NextRequest) {
@@ -30,15 +72,21 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    const fileContent = await file.text();
-    const lines = fileContent.split('\n').filter(line => line.trim());
+    // Parse file berdasarkan tipe
+    let headers: string[];
+    let dataRows: string[][];
     
-    if (lines.length < 2) {
-      return NextResponse.json({ error: 'File kosong atau tidak valid' }, { status: 400 });
+    if (file.type.includes('sheet') || file.type.includes('excel')) {
+      // Excel file
+      const excelData = await parseExcelFile(file);
+      headers = excelData.headers;
+      dataRows = excelData.dataRows;
+    } else {
+      // CSV file
+      const csvData = await parseCSVFile(file);
+      headers = csvData.headers;
+      dataRows = csvData.dataRows;
     }
-
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    const dataRows = lines.slice(1);
 
     const errors: string[] = [];
     let imported = 0;
@@ -60,23 +108,28 @@ export async function POST(request: NextRequest) {
     const productionsToInsert = [];
 
     for (let i = 0; i < dataRows.length; i++) {
-      const rowNum = i + 2;
+      const rowNum = i + 2; // Excel/CSV row numbering starts from 2 (header is row 1)
       
       try {
-        const values = dataRows[i].split(',').map(v => v.trim().replace(/"/g, ''));
+        const values = dataRows[i];
         const row: ImportRow = {};
         
         headers.forEach((header, index) => {
           row[header] = values[index] || '';
         });
 
-        // --- PERBAIKAN UTAMA: Ambil data produk lengkap & modifikasi foto ---
+        // Validasi field wajib
+        if (!row.product_id || !row.company_id) {
+          errors.push(`Baris ${rowNum}: product_id dan company_id wajib diisi`);
+          skipped++;
+          continue;
+        }
+
+        // Ambil data produk lengkap & modifikasi foto
         const productDataFromMap = productMap.get(row.product_id);
         let finalProductJsonb = null;
         if (productDataFromMap) {
-            // Buat salinan untuk dimodifikasi
             finalProductJsonb = { ...productDataFromMap }; 
-            // Cek dan format URL foto
             if (finalProductJsonb.photo && !finalProductJsonb.photo.startsWith('http')) {
                 finalProductJsonb.photo = `https://bstxdyyglxrrfqgohllz.supabase.co/storage/v1/object/public/product-photos/${finalProductJsonb.photo}`;
             }
@@ -86,7 +139,7 @@ export async function POST(request: NextRequest) {
 
         const productionData = {
           product_id: parseInt(row.product_id),
-          product: finalProductJsonb, // Gunakan objek yang sudah dimodifikasi
+          product: finalProductJsonb,
           group_number: row.group_number,
           code_1: row.code_1,
           code_2: row.code_2,
@@ -138,6 +191,7 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
+        
         productionsToInsert.push(productionData);
 
       } catch (error: any) {

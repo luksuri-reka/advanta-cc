@@ -1,4 +1,4 @@
-// app/admin/productions/ImportDataModal.tsx
+// app/admin/productions/ImportDataModal.tsx - Enhanced version
 'use client';
 
 import { Fragment, useState, useRef } from 'react';
@@ -52,7 +52,7 @@ export default function ImportDataModal({
   };
 
   const handleFileSelect = (selectedFile: File) => {
-    // Validasi tipe file
+    // Validasi tipe file - Enhanced untuk mendukung Excel
     const allowedTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
       'application/vnd.ms-excel', // .xls
@@ -124,9 +124,12 @@ export default function ImportDataModal({
     }
   };
 
-  const downloadTemplate = () => {
-    // Download template Excel
-    window.open('/api/productions/template', '_blank');
+  // Enhanced template download with multiple format options
+  const downloadTemplate = (format: 'csv' | 'excel') => {
+    const url = format === 'excel' 
+      ? '/api/productions/template?format=excel'
+      : '/api/productions/template';
+    window.open(url, '_blank');
   };
 
   const resetModal = () => {
@@ -139,6 +142,14 @@ export default function ImportDataModal({
   const handleClose = () => {
     resetModal();
     onClose();
+  };
+
+  const getFileTypeDisplay = (file: File) => {
+    if (file.type.includes('sheet') || file.type.includes('excel')) {
+      return 'Excel (.xlsx/.xls)';
+    } else {
+      return 'CSV';
+    }
   };
 
   return (
@@ -171,29 +182,50 @@ export default function ImportDataModal({
                 </Dialog.Title>
 
                 <div className="space-y-6">
-                  {/* Template Download */}
+                  {/* Enhanced Template Download Section */}
                   <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mb-3">
                       <DocumentTextIcon className="h-6 w-6 text-blue-600" />
                       <div className="flex-1">
-                        <h4 className="font-medium text-blue-900">Template Excel</h4>
+                        <h4 className="font-medium text-blue-900">Template Import</h4>
                         <p className="text-sm text-blue-700">
                           Download template untuk memastikan format data yang benar
                         </p>
                       </div>
+                    </div>
+                    
+                    <div className="flex gap-3 mb-3">
                       <button
-                        onClick={downloadTemplate}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                        onClick={() => downloadTemplate('excel')}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm transition-colors"
                       >
-                        Download Template
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        Template Excel
                       </button>
+                      
+                      <button
+                        onClick={() => downloadTemplate('csv')}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm transition-colors"
+                      >
+                        <DocumentTextIcon className="w-4 h-4" />
+                        Template CSV
+                      </button>
+                    </div>
+                    
+                    <div className="p-3 bg-blue-100/50 rounded-md">
+                      <p className="text-xs text-blue-700">
+                        <strong>Format Excel:</strong> Lebih mudah untuk editing dan validasi data<br/>
+                        <strong>Format CSV:</strong> Kompatibel dengan sistem lama dan lebih ringan
+                      </p>
                     </div>
                   </div>
 
                   {/* File Upload Area */}
                   {!importResult && (
                     <div
-                      className={`border-2 border-dashed rounded-lg p-8 text-center ${
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
                         dragActive 
                           ? 'border-emerald-400 bg-emerald-50' 
                           : 'border-gray-300 hover:border-gray-400'
@@ -233,46 +265,62 @@ export default function ImportDataModal({
                           <div>
                             <p className="font-medium text-gray-900">{file.name}</p>
                             <p className="text-sm text-gray-500">
-                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                              {getFileTypeDisplay(file)} • {(file.size / 1024 / 1024).toFixed(2)} MB
                             </p>
                           </div>
                           
                           {previewData.length > 0 && (
-                            <div className="mt-4">
+                            <div className="mt-4 text-left">
                               <h4 className="font-medium text-gray-900 mb-2">Preview Data (5 baris pertama):</h4>
-                              <div className="overflow-x-auto max-h-48">
+                              <div className="overflow-x-auto max-h-48 bg-gray-50 rounded-lg p-2">
                                 <table className="min-w-full text-xs">
-                                  <thead className="bg-gray-50">
+                                  <thead className="bg-gray-100 rounded">
                                     <tr>
-                                      {Object.keys(previewData[0] || {}).map((key) => (
-                                        <th key={key} className="px-2 py-1 text-left font-medium text-gray-700">
+                                      {Object.keys(previewData[0] || {}).slice(0, 8).map((key) => (
+                                        <th key={key} className="px-2 py-1 text-left font-medium text-gray-700 truncate max-w-[100px]" title={key}>
                                           {key}
                                         </th>
                                       ))}
+                                      {Object.keys(previewData[0] || {}).length > 8 && (
+                                        <th className="px-2 py-1 text-left font-medium text-gray-500">
+                                          ... +{Object.keys(previewData[0] || {}).length - 8} kolom
+                                        </th>
+                                      )}
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {previewData.slice(0, 5).map((row, index) => (
                                       <tr key={index} className="border-t">
-                                        {Object.values(row).map((value: any, i) => (
-                                          <td key={i} className="px-2 py-1 text-gray-600">
+                                        {Object.values(row).slice(0, 8).map((value: any, i) => (
+                                          <td key={i} className="px-2 py-1 text-gray-600 truncate max-w-[100px]" title={String(value || '-')}>
                                             {String(value || '-')}
                                           </td>
                                         ))}
+                                        {Object.values(row).length > 8 && (
+                                          <td className="px-2 py-1 text-gray-400">...</td>
+                                        )}
                                       </tr>
                                     ))}
                                   </tbody>
                                 </table>
                               </div>
-                              <p className="text-sm text-gray-500 mt-2">
-                                Total {previewData.length} baris akan diimpor
-                              </p>
+                              <div className="flex justify-between items-center mt-2">
+                                <p className="text-sm text-gray-500">
+                                  Preview menampilkan {Math.min(previewData.length, 5)} dari total {previewData.length} baris
+                                </p>
+                                <p className="text-sm text-blue-600 font-medium">
+                                  {Object.keys(previewData[0] || {}).length} kolom terdeteksi
+                                </p>
+                              </div>
                             </div>
                           )}
                           
                           <div className="flex gap-3 justify-center">
                             <button
-                              onClick={() => setFile(null)}
+                              onClick={() => {
+                                setFile(null);
+                                setPreviewData([]);
+                              }}
                               className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                             >
                               Ganti File
@@ -280,8 +328,11 @@ export default function ImportDataModal({
                             <button
                               onClick={handleImport}
                               disabled={isUploading}
-                              className="px-6 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
+                              className="px-6 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
                             >
+                              {isUploading && (
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              )}
                               {isUploading ? 'Mengimpor...' : 'Mulai Import'}
                             </button>
                           </div>
@@ -309,12 +360,12 @@ export default function ImportDataModal({
                               {importResult.success ? 'Import Berhasil!' : 'Import Gagal'}
                             </h4>
                             <div className="text-sm mt-1">
-                              <p>Berhasil diimpor: {importResult.imported} data</p>
+                              <p>Berhasil diimpor: <strong>{importResult.imported}</strong> data</p>
                               {importResult.skipped > 0 && (
-                                <p>Dilewati: {importResult.skipped} data</p>
+                                <p>Dilewati: <strong>{importResult.skipped}</strong> data</p>
                               )}
                               {importResult.errors.length > 0 && (
-                                <p>Error: {importResult.errors.length} data</p>
+                                <p>Error: <strong>{importResult.errors.length}</strong> data</p>
                               )}
                             </div>
                           </div>
@@ -324,12 +375,14 @@ export default function ImportDataModal({
                       {importResult.errors.length > 0 && (
                         <div className="bg-red-50 p-4 rounded-lg">
                           <h4 className="font-medium text-red-900 mb-2">Error Details:</h4>
-                          <ul className="text-sm text-red-700 space-y-1">
+                          <ul className="text-sm text-red-700 space-y-1 max-h-40 overflow-y-auto">
                             {importResult.errors.slice(0, 10).map((error, index) => (
-                              <li key={index}>• {error}</li>
+                              <li key={index} className="font-mono">• {error}</li>
                             ))}
                             {importResult.errors.length > 10 && (
-                              <li>... dan {importResult.errors.length - 10} error lainnya</li>
+                              <li className="text-red-600 font-semibold">
+                                ... dan {importResult.errors.length - 10} error lainnya
+                              </li>
                             )}
                           </ul>
                         </div>
