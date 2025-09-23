@@ -1,4 +1,4 @@
-// app/admin/productions/ProductionClient.tsx - Enhanced with Filters and Sorting
+// app/admin/productions/ProductionClient.tsx - Enhanced with Export Feature
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   PlusIcon, EyeIcon, PencilIcon, TrashIcon, ArrowDownOnSquareIcon, 
   ChevronLeftIcon, ChevronRightIcon, FunnelIcon, XMarkIcon,
-  ChevronUpDownIcon, ChevronUpIcon, ChevronDownIcon
+  ChevronUpDownIcon, ChevronUpIcon, ChevronDownIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../Navbar';
@@ -15,6 +16,7 @@ import { formatDate } from '@/app/utils/dateFormat';
 import ProductionForm from './ProductionForm';
 import ProductionViewModal from './ProductionViewModal';
 import ImportDataModal from './ImportDataModal';
+import ExportDataModal from './ExportDataModal';
 import { deleteProduction } from './actions';
 import GenerateRegistersModal from './GenerateRegistersModal';
 import QrCodeIcon from '@heroicons/react/24/solid/QrCodeIcon';
@@ -70,7 +72,7 @@ interface FilterState {
   search: string;
 }
 
-// Filter Component
+// Filter Component (sama seperti sebelumnya)
 const FilterPanel = ({ 
   isOpen, 
   onClose, 
@@ -279,6 +281,7 @@ export default function ProductionClient({
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false); // New export modal state
   const [selectedProduction, setSelectedProduction] = useState<any>(null);
   const [viewingProduction, setViewingProduction] = useState<any>(null);
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
@@ -301,7 +304,7 @@ export default function ProductionClient({
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Filter and sort logic
+  // Filter and sort logic (sama seperti sebelumnya)
   const filteredAndSortedProductions = useMemo(() => {
     let result = [...initialProductions];
 
@@ -314,14 +317,13 @@ export default function ProductionClient({
 
       // Product filter
       if (filters.product && prod.product?.name) {
-        // Find product ID by name (since we're filtering by product ID)
         const selectedProduct = products.find(p => p.id.toString() === filters.product);
         if (selectedProduct && prod.product.name !== selectedProduct.name) {
           return false;
         }
       }
 
-      // Company filter - similar logic
+      // Company filter
       if (filters.company && prod.company?.name) {
         const selectedCompany = companies.find(c => c.id.toString() === filters.company);
         if (selectedCompany && prod.company.name !== selectedCompany.name) {
@@ -379,7 +381,7 @@ export default function ProductionClient({
             bValue = new Date(b.cert_realization_tanggal_panen);
             break;
           case 'status':
-            aValue = a.import_qr_at ? 1 : 0; // Generated = 1, Not generated = 0
+            aValue = a.import_qr_at ? 1 : 0;
             bValue = b.import_qr_at ? 1 : 0;
             break;
           default:
@@ -453,6 +455,11 @@ export default function ProductionClient({
     setIsImportModalOpen(true);
   }, []);
 
+  // New export handler
+  const handleExport = useCallback(() => {
+    setIsExportModalOpen(true);
+  }, []);
+
   const handleImportSuccess = useCallback(() => {
     router.refresh();
   }, [router]);
@@ -519,7 +526,7 @@ export default function ProductionClient({
     setIsGenerateModalOpen(true);
   }, []);
 
-  // Production Row Component (updated)
+  // Production Row Component (unchanged)
   const ProductionRow = ({ prod }: { prod: ProductionList }) => {
     const classNames = (...classes: string[]) => classes.filter(Boolean).join(' ');
 
@@ -580,7 +587,8 @@ export default function ProductionClient({
     product: p.product,
     company: p.company,
     lot_number: p.lot_number,
-    import_qr_at: p.import_qr_at
+    import_qr_at: p.import_qr_at,
+    cert_realization_tanggal_panen: p.cert_realization_tanggal_panen
   })), [filteredAndSortedProductions]);
 
   return (
@@ -619,6 +627,14 @@ export default function ProductionClient({
                   {activeFiltersCount}
                 </span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex items-center gap-x-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500"
+            >
+              <DocumentArrowDownIcon className="-ml-0.5 h-5 w-5" />
+              Export Excel
             </button>
             <button
               type="button"
@@ -736,10 +752,9 @@ export default function ProductionClient({
                 </tbody>
               </table>
               
-              {/* Enhanced Pagination Component */}
+              {/* Pagination - keeping the existing enhanced pagination component */}
               {totalFilteredItems > 0 && (
                 <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-                  {/* Items per page selector */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-700">Tampilkan:</span>
                     <select
@@ -761,30 +776,6 @@ export default function ProductionClient({
                     <span className="text-sm text-gray-700">per halaman</span>
                   </div>
 
-                  {/* Mobile pagination */}
-                  <div className="flex flex-1 justify-between sm:hidden">
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage <= 1}
-                      className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Previous
-                    </button>
-                    <div className="flex items-center">
-                      <span className="text-sm text-gray-700">
-                        Halaman {currentPage} dari {totalPages}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage >= totalPages}
-                      className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Next
-                    </button>
-                  </div>
-
-                  {/* Desktop pagination */}
                   <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-gray-700">
@@ -797,7 +788,6 @@ export default function ProductionClient({
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {/* Jump to page input */}
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-700">Halaman:</span>
                         <input
@@ -814,7 +804,6 @@ export default function ProductionClient({
                         <span className="text-sm text-gray-700">dari {totalPages}</span>
                       </div>
                       
-                      {/* Pagination navigation */}
                       <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
                         <button
                           onClick={() => setCurrentPage(1)}
@@ -904,6 +893,12 @@ export default function ProductionClient({
       <GenerateRegistersModal
         isOpen={isGenerateModalOpen}
         onClose={() => setIsGenerateModalOpen(false)}
+        productions={productionsForDropdown}
+      />
+
+      <ExportDataModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
         productions={productionsForDropdown}
       />
 

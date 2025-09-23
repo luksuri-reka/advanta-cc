@@ -1,4 +1,4 @@
-// app/admin/productions/actions.ts
+// app/admin/productions/actions.ts - Enhanced with Bulk Generation
 'use server';
 
 import { createServerClient } from '@supabase/ssr';
@@ -304,9 +304,10 @@ export async function deleteProduction(id: number) {
   }
 }
 
+// Enhanced single generate function with better error handling
 export async function generateProductionRegisters(
   productionId: number, 
-  token: string // Hanya token yang sekarang dibutuhkan sebagai argumen
+  token: string
 ) {
   try {
     const supabase = await createSupabaseServerClient();
@@ -314,7 +315,7 @@ export async function generateProductionRegisters(
     // 1. Ambil data induk yang lebih lengkap
     const { data: production, error: productionError } = await supabase
       .from('productions')
-      .select('id, lot_total, code_1, code_2, code_3, code_4, lab_result_serial_number')
+      .select('id, lot_total, code_1, code_2, code_3, code_4, lab_result_serial_number, lot_number')
       .eq('id', productionId)
       .single();
 
@@ -335,7 +336,7 @@ export async function generateProductionRegisters(
       
     if (countError) throw countError;
     if (count !== null && count > 0) {
-      throw new Error(`Data register untuk produksi ini sudah pernah di-generate (${count} data ditemukan).`);
+      throw new Error(`Data register untuk produksi ${production.lot_number} sudah pernah di-generate (${count} data ditemukan).`);
     }
 
     // 3. Siapkan data untuk di-insert berdasarkan logika baru
@@ -381,7 +382,7 @@ export async function generateProductionRegisters(
       throw new Error(`Gagal menyimpan data: ${insertError.message}`);
     }
 
-    // *** PERBAIKAN UTAMA: UPDATE STATUS import_qr_at DI TABEL PRODUCTIONS ***
+    // *** UPDATE STATUS import_qr_at DI TABEL PRODUCTIONS ***
     const { error: updateProductionError } = await supabase
       .from('productions')
       .update({ 
@@ -392,8 +393,6 @@ export async function generateProductionRegisters(
 
     if (updateProductionError) {
       console.error('Error updating production import_qr_at status:', updateProductionError);
-      // Tidak throw error karena data register sudah tersimpan, 
-      // tapi log untuk debugging
     }
 
     revalidatePath('/admin/productions');
@@ -402,5 +401,100 @@ export async function generateProductionRegisters(
   } catch (error: any) {
     console.error('Error in generateProductionRegisters:', error);
     return { error: { message: error.message } };
+  }
+}
+
+// New bulk generate function
+export async function bulkGenerateProductionRegisters(
+  entries: { productionId: number; token: string }[]
+) {
+  if (!entries || entries.length === 0) {
+    return { error: { message: 'Tidak ada data untuk di-generate.' } };
+  }
+
+  const results = [];
+  let totalGenerated = 0;
+  let successCount = 0;
+  let failureCount = 0;
+
+  try {
+    for (const entry of entries) {
+      try {
+        const result = await generateProductionRegisters(entry.productionId, entry.token);
+
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+
+        const generated = result.data?.generated || 0;
+        totalGenerated += generated;
+        successCount++;
+
+        results.push({
+          productionId: entry.productionId,
+          generated,
+          success: true,
+          error: null
+        });
+
+      } catch (error: any) {
+        failureCount++;
+        results.push({
+          productionId: entry.productionId,
+          generated: 0,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    const bulkResult = {
+      success: successCount > 0,
+      results,
+      totalGenerated,
+      successCount,
+      failureCount,
+      summary: `Berhasil: ${successCount}, Gagal: ${failureCount}, Total Records: ${totalGenerated}`
+    };
+
+    revalidatePath('/admin/productions');
+    return { data: bulkResult };
+
+  } catch (error: any) {
+    console.error('Error in bulkGenerateProductionRegisters:', error);
+    return { error: { message: `Bulk generate gagal: ${error.message}` } };
+  }
+}
+
+// Utility function untuk validasi CSV token file
+export async function validateTokenCsvFile(fileContent: string): Promise<{
+  isValid: boolean;
+  token?: string;
+  error?: string;
+}> {
+  try {
+    const lines = fileContent.split('\n');
+    
+    // Skip header and get first data row
+    const dataLines = lines.slice(1).filter(line => line.trim());
+    if (dataLines.length === 0) {
+      return { isValid: false, error: 'File CSV kosong atau tidak memiliki data' };
+    }
+
+    // Parse first row to get token
+    const firstRow = dataLines[0].split(',');
+    if (firstRow.length < 2) {
+      return { isValid: false, error: 'Format CSV tidak valid. Minimal harus ada kolom Token' };
+    }
+
+    const token = firstRow[1]?.replace(/"/g, '').trim();
+    if (!token) {
+      return { isValid: false, error: 'Token tidak ditemukan di baris pertama' };
+    }
+
+    return { isValid: true, token };
+
+  } catch (error: any) {
+    return { isValid: false, error: `Error parsing CSV: ${error.message}` };
   }
 }
