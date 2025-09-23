@@ -229,7 +229,7 @@ export default function VerificationPage() {
                       {/* Enhanced Input Field */}
                       <div className="relative group">
                         <label className="block text-sm font-semibold text-slate-700 mb-3">
-                          Nomor Seri Produk
+                          Nomor Seri Label
                         </label>
                         <div className="relative">
                           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
