@@ -1047,7 +1047,7 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                 <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-blue-600 px-8 py-6 text-white relative overflow-hidden">
                   <div className='absolute inset-0 bg-[url("data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%23ffffff%22 fill-opacity=%220.05%22%3E%3Ccircle cx=%2230%22 cy=%2230%22 r=%224%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")] opacity-30' />
                   <div className="relative flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div className="flex gap-4">
                       <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
                         <QrCodeIcon className="h-8 w-8 text-white" />
                       </div>
@@ -1075,7 +1075,7 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                 {/* Step Indicator */}
                 <div className="px-8 py-6 border-b border-gray-200/50">
                   <div className="flex items-center justify-center space-x-8">
-                    <div className="flex items-center space-x-3">
+                    <div className="flex space-x-3">
                       <StepIndicator 
                         stepNum={1} 
                         active={step === 'select'} 
