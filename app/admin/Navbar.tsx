@@ -58,8 +58,8 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
         { name: 'Peran & Izin', href: '/admin/roles' },
         { name: 'Data Produk', href: '/admin/products' },
         { name: 'Data Produksi', href: '/admin/productions' },
-        { name: 'Manajemen Kantong', href: '/admin/bags' },
-        { name: 'Generate QR Code', href: '/admin/qr-bags' },
+        // { name: 'Manajemen Kantong', href: '/admin/bags' },
+        // { name: 'Generate QR Code', href: '/admin/qr-bags' },
       ],
     },
     {
