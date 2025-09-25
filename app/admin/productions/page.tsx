@@ -34,7 +34,8 @@ async function fetchAllDataInBatches() {
         .select(`
           id, 
           group_number, 
-          lot_number, 
+          lot_number,
+          clearance_number,
           product_id,
           company_id,
           lot_kelas_benih_id,
@@ -98,6 +99,7 @@ async function fetchAllDataInBatches() {
       id: prod.id,
       group_number: prod.group_number,
       lot_number: prod.lot_number,
+      clearance_number: prod.clearance_number,
       product: productMap.get(prod.product_id) || null,
       company: companyMap.get(prod.company_id) || null,
       lot_kelas_benih: kelasBenihMap.get(prod.lot_kelas_benih_id) || null,
@@ -166,4 +168,4 @@ export default async function ProductionsPage() {
       </div>
     );
   }
-} 
+}

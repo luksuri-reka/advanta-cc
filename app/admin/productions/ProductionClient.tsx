@@ -32,6 +32,7 @@ interface ProductionList {
   group_number: string;
   lot_number: string;
   product: { name: string } | null;
+  clearance_number: string;
   company: { name: string } | null;
   lot_kelas_benih: { name: string } | null;
   lot_varietas: { name: string } | null;
@@ -60,7 +61,7 @@ interface ProductionClientProps {
 }
 
 // Filter and Sort Types
-type SortField = 'product' | 'hybrid_code' | 'volume' | 'harvest_date' | 'status';
+type SortField = 'product' | 'hybrid_code' | 'clearance_number' | 'lot_number' | 'volume' | 'harvest_date' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 interface FilterState {
@@ -372,6 +373,14 @@ export default function ProductionClient({
             aValue = `${a.code_1}${a.code_2}${a.code_3}${a.code_4}`;
             bValue = `${b.code_1}${b.code_2}${b.code_3}${b.code_4}`;
             break;
+          case 'clearance_number':
+            aValue = a.clearance_number;
+            bValue = b.clearance_number;
+            break;
+          case 'lot_number':
+            aValue = a.lot_number;
+            bValue = b.lot_number;
+            break;  
           case 'volume':
             aValue = a.lot_volume;
             bValue = b.lot_volume;
@@ -539,6 +548,8 @@ export default function ProductionClient({
         <td className="px-3 py-4 text-sm text-gray-500 font-mono">
           {`${prod.code_1}${prod.code_2}${prod.code_3}${prod.code_4}`}
         </td>
+        <td className="px-3 py-4 text-sm text-gray-500">{prod.clearance_number}</td>
+        <td className="hidden px-3 py-4 text-sm text-gray-500 sm:table-cell">{prod.lot_number}</td>
         <td className="hidden px-3 py-4 text-sm text-gray-500 sm:table-cell">{prod.lot_volume} kg</td>
         <td className="px-3 py-4 text-sm text-gray-500">{formatDate(prod.cert_realization_tanggal_panen)}</td>
         <td className="px-3 py-4 text-sm text-gray-500">
@@ -701,6 +712,26 @@ export default function ProductionClient({
                     </th>
                     <th scope="col" className="px-3 py-0 text-left">
                       <SortableHeader
+                        field="clearance_number"
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={handleSort}
+                      >
+                        No. Clearance
+                      </SortableHeader>
+                    </th>
+                    <th scope="col" className="px-3 py-0 text-left">
+                      <SortableHeader
+                        field="lot_number"
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={handleSort}
+                      >
+                        Nomor Lot
+                      </SortableHeader>
+                    </th>
+                    <th scope="col" className="px-3 py-0 text-left">
+                      <SortableHeader
                         field="volume"
                         sortField={sortField}
                         sortDirection={sortDirection}
@@ -737,7 +768,7 @@ export default function ProductionClient({
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {paginatedProductions.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-8 text-sm text-gray-500 text-center">
+                      <td colSpan={8} className="px-3 py-8 text-sm text-gray-500 text-center">
                         {activeFiltersCount > 0 
                           ? "Tidak ada data yang sesuai dengan filter yang dipilih."
                           : "Belum ada data produksi. Klik tombol \"Tambah Produksi\" untuk memulai."
