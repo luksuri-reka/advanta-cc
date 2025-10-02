@@ -1,7 +1,7 @@
-// app/admin/Navbar.tsx
+// app/admin/Navbar.tsx - With read tracking
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
@@ -11,16 +11,20 @@ import {
   UserCircleIcon, 
   PowerIcon,
   BellIcon,
-  MagnifyingGlassIcon,
   CogIcon,
   QuestionMarkCircleIcon,
   ShieldCheckIcon,
   HomeIcon,
   Squares2X2Icon,
   ChartBarIcon,
-  EllipsisHorizontalIcon
+  ChatBubbleLeftRightIcon,
+  ExclamationTriangleIcon,
+  DocumentTextIcon,
+  ChartBarSquareIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { useComplaintNotifications } from './hooks/useComplaintNotifications';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
@@ -29,6 +33,7 @@ function classNames(...classes: string[]) {
 interface DisplayUser {
   name: string;
   roles?: string[];
+  complaint_permissions?: Record<string, boolean>;
 }
 
 interface NavItem {
@@ -36,14 +41,28 @@ interface NavItem {
   href?: string;
   icon?: React.ElementType;
   children?: NavItem[];
-  badge?: string;
+  badge?: number;
+  requiresPermission?: string;
 }
 
 export default function Navbar({ user, onLogout }: { user: DisplayUser | null; onLogout: () => void }) {
   const pathname = usePathname();
-  const [notificationCount] = useState(3);
 
-  // Simplified navigation dengan grouping yang lebih strategic
+  // Check user permissions for complaint system
+  const hasComplaintPermission = (permission: string) => {
+    if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
+      return true;
+    }
+    return user?.complaint_permissions?.[permission] === true;
+  };
+
+  // Use custom hook for complaint notifications
+  const { stats, markAllAsRead } = useComplaintNotifications(hasComplaintPermission('canViewComplaints'));
+  
+  // Use unreadCount for notifications instead of pendingCount
+  const totalNotifications = stats.unreadCount;
+  const customerCareBadge = stats.unreadCount > 0 ? stats.unreadCount : undefined;
+
   const navigation: NavItem[] = [
     { 
       name: 'Dashboard', 
@@ -58,9 +77,39 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
         { name: 'Peran & Izin', href: '/admin/roles' },
         { name: 'Data Produk', href: '/admin/products' },
         { name: 'Data Produksi', href: '/admin/productions' },
-        // { name: 'Manajemen Kantong', href: '/admin/bags' },
-        // { name: 'Generate QR Code', href: '/admin/qr-bags' },
       ],
+    },
+    {
+      name: 'Customer Care',
+      icon: ChatBubbleLeftRightIcon,
+      badge: customerCareBadge,
+      children: [
+        { 
+          name: 'Dashboard Komplain', 
+          href: '/admin/complaints', 
+          icon: ExclamationTriangleIcon,
+          requiresPermission: 'canViewComplaints',
+          badge: stats.unreadCount > 0 ? stats.unreadCount : undefined
+        },
+        { 
+          name: 'Survey Analytics', 
+          href: '/admin/surveys', 
+          icon: DocumentTextIcon,
+          requiresPermission: 'canViewComplaints'
+        },
+        { 
+          name: 'Analytics & Reports', 
+          href: '/admin/analytics', 
+          icon: ChartBarSquareIcon,
+          requiresPermission: 'canViewComplaintAnalytics'
+        },
+        { 
+          name: 'Pengaturan Komplain', 
+          href: '/admin/settings/complaints', 
+          icon: CogIcon,
+          requiresPermission: 'canConfigureComplaintSystem'
+        }
+      ].filter(item => !item.requiresPermission || hasComplaintPermission(item.requiresPermission)),
     },
     {
       name: 'Master Data',
@@ -76,39 +125,39 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
   ];
   
   return (
-    <Disclosure as="nav" className="bg-white/95 backdrop-blur-2xl shadow-xl border-b border-gray-200/30 sticky top-0 z-50">
+    <Disclosure as="nav" className="bg-white/95 backdrop-blur-2xl shadow-lg border-b border-gray-200/50 sticky top-0 z-50">
       {({ open }) => (
         <>
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex h-20 justify-between items-center">
+          <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
+            <div className="flex h-16 lg:h-20 justify-between items-center">
               
-              {/* Logo & Brand - Enhanced */}
-              <div className="flex items-center">
-                <Link href="/admin" className="flex flex-shrink-0 items-center group">
-                  <div className="relative">
+              {/* Logo & Brand */}
+              <div className="flex items-center min-w-0 flex-shrink">
+                <Link href="/admin" className="flex items-center group gap-2 lg:gap-3 min-w-0">
+                  <div className="relative flex-shrink-0">
                     <img
-                      className="h-8 w-auto drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
+                      className="h-6 sm:h-7 lg:h-8 w-auto drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
                       src="/advanta-logo.png"
                       alt="Advanta Logo"
                     />
                     <div className="absolute -top-1 -right-1 h-2 w-2 bg-emerald-500 rounded-full animate-pulse"></div>
                   </div>
-                  <div className="ml-3 hidden lg:block">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold bg-gradient-to-r from-gray-900 to-emerald-800 bg-clip-text text-transparent">
+                  <div className="hidden sm:block min-w-0">
+                    <div className="flex items-center gap-1.5 lg:gap-2">
+                      <span className="text-sm lg:text-base font-bold bg-gradient-to-r from-gray-900 to-emerald-800 bg-clip-text text-transparent truncate">
                         Admin Console
                       </span>
-                      <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 rounded-full text-xs font-bold text-emerald-800">
-                        <ShieldCheckIcon className="w-3 h-3" />
-                        <span>SECURE</span>
+                      <div className="hidden md:flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 rounded-full text-xs font-bold text-emerald-800 flex-shrink-0">
+                        <ShieldCheckIcon className="w-2.5 h-2.5" />
+                        <span className="hidden lg:inline">SECURE</span>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">Advanta Seeds Indonesia</p>
+                    <p className="text-xs text-gray-500 hidden lg:block truncate">Advanta Seeds</p>
                   </div>
                 </Link>
                 
-                {/* Simplified Desktop Navigation */}
-                <div className="hidden xl:ml-8 xl:flex xl:items-center xl:space-x-2">
+                {/* Desktop Navigation */}
+                <div className="hidden xl:flex xl:items-center xl:space-x-1 xl:ml-6">
                   {navigation.map((item) =>
                     item.href ? (
                       <Link
@@ -116,15 +165,15 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                         href={item.href}
                         className={classNames(
                           pathname === item.href
-                            ? 'bg-emerald-50 text-emerald-700 shadow-md'
+                            ? 'bg-emerald-50 text-emerald-700 shadow-sm'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                          'relative inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-all duration-300 rounded-xl group'
+                          'relative inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold transition-all duration-200 rounded-lg group'
                         )}
                       >
-                        {item.icon && <item.icon className="h-4 w-4" />}
-                        <span>{item.name}</span>
-                        {item.badge && (
-                          <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-sm">
+                        {item.icon && <item.icon className="h-4 w-4 flex-shrink-0" />}
+                        <span className="truncate">{item.name}</span>
+                        {item.badge && item.badge > 0 && (
+                          <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-sm flex-shrink-0 animate-pulse">
                             {item.badge}
                           </span>
                         )}
@@ -134,15 +183,15 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                       </Link>
                     ) : (
                       <Menu as="div" key={item.name} className="relative">
-                        <Menu.Button className="inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all duration-300 rounded-xl group">
-                          {item.icon && <item.icon className="h-4 w-4" />}
-                          <span>{item.name}</span>
-                          {item.badge && (
-                            <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-sm">
+                        <Menu.Button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 rounded-lg group">
+                          {item.icon && <item.icon className="h-4 w-4 flex-shrink-0" />}
+                          <span className="truncate">{item.name}</span>
+                          {item.badge && item.badge > 0 && (
+                            <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-sm animate-pulse flex-shrink-0">
                               {item.badge}
                             </span>
                           )}
-                          <ChevronDownIcon className="h-3 w-3 transition-transform duration-200 group-hover:rotate-180" />
+                          <ChevronDownIcon className="h-3 w-3 transition-transform duration-200 group-hover:rotate-180 flex-shrink-0" />
                         </Menu.Button>
                         <Transition
                           as={Fragment}
@@ -153,11 +202,16 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                           leaveFrom="transform opacity-100 scale-100"
                           leaveTo="transform opacity-0 scale-95"
                         >
-                          <Menu.Items className="absolute top-full left-0 mt-3 w-56 origin-top-left rounded-2xl bg-white/95 backdrop-blur-2xl py-3 shadow-2xl ring-1 ring-black/5 focus:outline-none border border-gray-200/50">
-                            <div className="px-4 py-2 border-b border-gray-100/80">
+                          <Menu.Items className="absolute top-full left-0 mt-2 w-56 origin-top-left rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black/5 focus:outline-none border border-gray-200 z-50">
+                            <div className="px-3 py-2 border-b border-gray-100">
                               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                                 {item.icon && <item.icon className="h-3 w-3" />}
-                                {item.name}
+                                <span className="truncate">{item.name}</span>
+                                {item.badge && item.badge > 0 && (
+                                  <span className="bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full font-bold ml-auto flex-shrink-0">
+                                    {item.badge} baru
+                                  </span>
+                                )}
                               </p>
                             </div>
                             <div className="py-1">
@@ -168,10 +222,16 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                                       href={child.href || '#'}
                                       className={classNames(
                                         active ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700',
-                                        'block px-4 py-3 text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors duration-200 mx-2 rounded-xl'
+                                        'flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors duration-150 mx-1.5 rounded-lg'
                                       )}
                                     >
-                                      {child.name}
+                                      {child.icon && <child.icon className="h-4 w-4 flex-shrink-0" />}
+                                      <span className="truncate flex-1">{child.name}</span>
+                                      {child.badge && child.badge > 0 && (
+                                        <span className="bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">
+                                          {child.badge}
+                                        </span>
+                                      )}
                                     </Link>
                                   )}
                                 </Menu.Item>
@@ -185,21 +245,136 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                 </div>
               </div>
 
-              {/* Right Actions - Optimized */}
-              <div className="flex items-center space-x-2">
+              {/* Right Actions */}
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                {/* Notification Bell */}
+                {hasComplaintPermission('canViewComplaints') && totalNotifications > 0 && (
+                  <Menu as="div" className="relative">
+                    <Menu.Button className="relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors">
+                      <BellIcon className="h-5 w-5" />
+                      <span className="absolute top-0.5 right-0.5 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold animate-pulse">
+                        {totalNotifications > 9 ? '9+' : totalNotifications}
+                      </span>
+                    </Menu.Button>
+                    
+                    <Transition
+                      as={Fragment}
+                      enter="transition ease-out duration-200"
+                      enterFrom="transform opacity-0 scale-95"
+                      enterTo="transform opacity-100 scale-100"
+                      leave="transition ease-in duration-75"
+                      leaveFrom="transform opacity-100 scale-100"
+                      leaveTo="transform opacity-0 scale-95"
+                    >
+                      <Menu.Items className="absolute right-0 mt-2 w-80 origin-top-right rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black/5 focus:outline-none border border-gray-200 z-50">
+                        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-bold text-gray-900">Notifikasi</h3>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {totalNotifications} komplain belum dibaca
+                            </p>
+                          </div>
+                          {totalNotifications > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                markAllAsRead();
+                              }}
+                              className="text-xs text-emerald-600 hover:text-emerald-500 font-semibold flex items-center gap-1"
+                            >
+                              <CheckIcon className="h-3 w-3" />
+                              Tandai Semua
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div className="py-1 max-h-96 overflow-y-auto">
+                          {stats.criticalCount > 0 && (
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  href="/admin/complaints?priority=critical"
+                                  className={classNames(
+                                    active ? 'bg-red-50' : '',
+                                    'flex items-start gap-3 px-4 py-3 hover:bg-red-50 transition-colors'
+                                  )}
+                                >
+                                  <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
+                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-600" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {stats.criticalCount} Komplain Kritis
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                      Memerlukan tindakan segera
+                                    </p>
+                                  </div>
+                                  <span className="text-xs text-red-600 font-bold flex-shrink-0">
+                                    {stats.criticalCount}
+                                  </span>
+                                </Link>
+                              )}
+                            </Menu.Item>
+                          )}
+                          
+                          {stats.pendingCount > 0 && (
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  href="/admin/complaints?status=submitted"
+                                  className={classNames(
+                                    active ? 'bg-yellow-50' : '',
+                                    'flex items-start gap-3 px-4 py-3 hover:bg-yellow-50 transition-colors'
+                                  )}
+                                >
+                                  <div className="p-2 bg-yellow-100 rounded-lg flex-shrink-0">
+                                    <ChatBubbleLeftRightIcon className="h-4 w-4 text-yellow-600" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {stats.pendingCount} Komplain Pending
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                      Menunggu review
+                                    </p>
+                                  </div>
+                                  <span className="text-xs text-yellow-600 font-bold flex-shrink-0">
+                                    {stats.pendingCount}
+                                  </span>
+                                </Link>
+                              )}
+                            </Menu.Item>
+                          )}
+                        </div>
+                        
+                        <div className="border-t border-gray-100 px-4 py-2">
+                          <Link
+                            href="/admin/complaints"
+                            className="text-sm text-emerald-600 font-semibold hover:text-emerald-500 flex items-center justify-center gap-1"
+                          >
+                            Lihat Semua Komplain
+                          </Link>
+                        </div>
+                      </Menu.Items>
+                    </Transition>
+                  </Menu>
+                )}
 
-                {/* Compact Profile Menu */}
-                <Menu as="div" className="relative">
+                {/* Profile Menu - Same as before */}
+                <Menu as="div" className="relative flex-shrink-0">
                   <div>
-                    <Menu.Button className="flex items-center gap-2 rounded-xl bg-white border border-gray-200/50 px-3 py-2 text-sm hover:bg-gray-50 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-300 group">
-                      <div className="h-7 w-7 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg group-hover:shadow-emerald-500/25 transition-shadow">
+                    <Menu.Button className="flex items-center gap-1.5 sm:gap-2 rounded-lg bg-white border border-gray-200/50 px-2 sm:px-3 py-1.5 sm:py-2 text-sm hover:bg-gray-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 group max-w-[200px] sm:max-w-none">
+                      <div className="h-6 w-6 sm:h-7 sm:w-7 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg group-hover:shadow-emerald-500/25 transition-shadow flex-shrink-0">
                         {user?.name?.charAt(0) || 'A'}
                       </div>
-                      <div className="text-left hidden sm:block">
-                        <p className="font-semibold text-gray-900 text-sm">{user?.name || 'Admin'}</p>
-                        <p className="text-xs text-gray-500">{user?.roles?.[0] || 'Administrator'}</p>
+                      <div className="text-left hidden sm:block min-w-0">
+                        <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{user?.name || 'Admin'}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {user?.roles?.[0] || 'Admin'}
+                        </p>
                       </div>
-                      <ChevronDownIcon className="h-3 w-3 text-gray-400 group-hover:rotate-180 transition-transform duration-200" />
+                      <ChevronDownIcon className="h-3 w-3 text-gray-400 group-hover:rotate-180 transition-transform duration-200 flex-shrink-0 hidden sm:block" />
                     </Menu.Button>
                   </div>
                   <Transition
@@ -211,15 +386,17 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                     leaveFrom="transform opacity-100 scale-100"
                     leaveTo="transform opacity-0 scale-95"
                   >
-                    <Menu.Items className="absolute right-0 z-10 mt-3 w-52 origin-top-right rounded-2xl bg-white/95 backdrop-blur-2xl py-3 shadow-2xl ring-1 ring-black/5 focus:outline-none border border-gray-200/50">
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+                    <Menu.Items className="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black/5 focus:outline-none border border-gray-200">
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <div className="h-9 w-9 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
                             {user?.name?.charAt(0) || 'A'}
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">{user?.name || 'Administrator'}</p>
-                            <p className="text-xs text-gray-500">{user?.roles?.join(', ') || 'Superadmin'}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'Administrator'}</p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {user?.roles?.join(', ') || 'Superadmin'}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -231,10 +408,10 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                               href="/admin/profile"
                               className={classNames(
                                 active ? 'bg-gray-50' : '',
-                                'flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200'
+                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150'
                               )}
                             >
-                              <UserCircleIcon className="h-4 w-4" />
+                              <UserCircleIcon className="h-4 w-4 flex-shrink-0" />
                               <span>Profil Saya</span>
                             </Link>
                           )}
@@ -246,10 +423,10 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                               href="/admin/settings"
                               className={classNames(
                                 active ? 'bg-gray-50' : '',
-                                'flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200'
+                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150'
                               )}
                             >
-                              <CogIcon className="h-4 w-4" />
+                              <CogIcon className="h-4 w-4 flex-shrink-0" />
                               <span>Pengaturan</span>
                             </Link>
                           )}
@@ -261,10 +438,10 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                               href="/admin/help"
                               className={classNames(
                                 active ? 'bg-gray-50' : '',
-                                'flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200'
+                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150'
                               )}
                             >
-                              <QuestionMarkCircleIcon className="h-4 w-4" />
+                              <QuestionMarkCircleIcon className="h-4 w-4 flex-shrink-0" />
                               <span>Bantuan</span>
                             </Link>
                           )}
@@ -278,10 +455,10 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                               onClick={onLogout}
                               className={classNames(
                                 active ? 'bg-red-50 text-red-700' : 'text-gray-700',
-                                'w-full text-left flex items-center gap-3 px-4 py-3 text-sm hover:bg-red-50 hover:text-red-700 transition-colors duration-200'
+                                'w-full text-left flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 hover:text-red-700 transition-colors duration-150'
                               )}
                             >
-                              <PowerIcon className="h-4 w-4" />
+                              <PowerIcon className="h-4 w-4 flex-shrink-0" />
                               <span>Keluar</span>
                             </button>
                           )}
@@ -293,7 +470,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
 
                 {/* Mobile Menu Button */}
                 <div className="xl:hidden">
-                  <Disclosure.Button className="inline-flex items-center justify-center rounded-2xl p-3 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500/20 transition-all duration-300">
+                  <Disclosure.Button className="inline-flex items-center justify-center rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500/20 transition-all duration-200">
                     <span className="sr-only">Open main menu</span>
                     {open ? (
                       <XMarkIcon className="block h-5 w-5" aria-hidden="true" />
@@ -306,11 +483,10 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
             </div>
           </div>
 
-          {/* Enhanced Mobile Menu Panel */}
+          {/* Mobile Menu Panel */}
           <Disclosure.Panel className="xl:hidden border-t border-gray-200/50">
-            <div className="bg-white/95 backdrop-blur-2xl">
-              {/* Mobile Navigation */}
-              <div className="px-4 py-4 space-y-2">
+            <div className="bg-white max-h-[calc(100vh-4rem)] overflow-y-auto">
+              <div className="px-3 py-3 space-y-1">
                 {navigation.map((item) => (
                   item.href ? (
                     <Disclosure.Button
@@ -319,39 +495,45 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                       href={item.href}
                       className={classNames(
                         pathname === item.href
-                          ? 'bg-emerald-50 text-emerald-700 shadow-md'
+                          ? 'bg-emerald-50 text-emerald-700 shadow-sm'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                        'flex items-center gap-3 py-3 px-4 text-sm font-medium rounded-2xl transition-all duration-200'
+                        'flex items-center gap-2 py-2.5 px-3 text-sm font-medium rounded-lg transition-all duration-150'
                       )}
                     >
-                      {item.icon && <item.icon className="h-5 w-5" />}
-                      <span>{item.name}</span>
-                      {item.badge && (
-                        <span className="ml-auto bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                      {item.icon && <item.icon className="h-5 w-5 flex-shrink-0" />}
+                      <span className="flex-1">{item.name}</span>
+                      {item.badge && item.badge > 0 && (
+                        <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0 animate-pulse">
                           {item.badge}
                         </span>
                       )}
                     </Disclosure.Button>
                   ) : (
                     <div key={item.name} className="py-2">
-                      <div className="flex items-center gap-3 px-4 py-2 mb-2">
-                        {item.icon && <item.icon className="h-5 w-5 text-gray-500" />}
-                        <p className="text-sm font-bold text-gray-900 uppercase tracking-wide">{item.name}</p>
-                        {item.badge && (
-                          <span className="ml-auto bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                      <div className="flex items-center gap-2 px-3 py-1.5 mb-1">
+                        {item.icon && <item.icon className="h-5 w-5 text-gray-500 flex-shrink-0" />}
+                        <p className="text-sm font-bold text-gray-900 uppercase tracking-wide flex-1">{item.name}</p>
+                        {item.badge && item.badge > 0 && (
+                          <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0 animate-pulse">
                             {item.badge}
                           </span>
                         )}
                       </div>
-                      <div className="ml-12 space-y-1">
+                      <div className="ml-9 space-y-0.5">
                         {item.children?.map(child => (
                           <Disclosure.Button
                             key={child.name}
                             as={Link}
                             href={child.href || '#'}
-                            className="block rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors duration-200"
+                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors duration-150"
                           >
-                            {child.name}
+                            {child.icon && <child.icon className="h-4 w-4 flex-shrink-0" />}
+                            <span className="flex-1">{child.name}</span>
+                            {child.badge && child.badge > 0 && (
+                              <span className="bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">
+                                {child.badge}
+                              </span>
+                            )}
                           </Disclosure.Button>
                         ))}
                       </div>
