@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
   ExclamationTriangleIcon,
   PaperAirplaneIcon,
@@ -29,6 +29,7 @@ interface ComplaintFormData {
 
 export default function ComplaintForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -189,22 +190,22 @@ export default function ComplaintForm() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30">
       {/* Header */}
       <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img src="/advanta-logo.png" alt="Advanta Logo" className="h-8" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Formulir Komplain</h1>
-                <p className="text-sm text-gray-600">PT Advanta Seeds Indonesia</p>
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <img src="/advanta-logo.png" alt="Advanta Logo" className="h-6 sm:h-8 flex-shrink-0" />
+              <div className="min-w-0">
+                <h1 className="text-sm sm:text-xl font-bold text-gray-900 truncate">Formulir Komplain</h1>
+                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">PT Advanta Seeds Indonesia</p>
               </div>
             </div>
-            <Link
-              href="/"
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-xl hover:bg-gray-100 transition-colors"
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-xl hover:bg-gray-100 transition-colors flex-shrink-0"
             >
-              <ArrowLeftIcon className="h-5 w-5" />
-              Kembali
-            </Link>
+              <ArrowLeftIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">Kembali</span>
+            </button>
           </div>
         </div>
       </div>
