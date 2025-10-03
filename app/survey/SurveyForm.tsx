@@ -40,11 +40,16 @@ export default function SurveyForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  
+  // Get serial and product from URL params
+  const serial = searchParams?.get('serial') || '';
+  const product = searchParams?.get('product') || '';
+  
   const [formData, setFormData] = useState<SurveyFormData>({
     customer_name: '',
     customer_email: '',
     customer_phone: '',
-    verification_serial: searchParams?.get('serial') || '',
+    verification_serial: serial,
     survey_type: 'post_verification',
     ratings: {
       overall_satisfaction: 0,

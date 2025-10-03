@@ -34,6 +34,11 @@ export default function ComplaintForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [complaintNumber, setComplaintNumber] = useState('');
+  
+  // Get serial and product from URL params
+  const serial = searchParams?.get('serial') || '';
+  const product = searchParams?.get('product') || '';
+  
   const [formData, setFormData] = useState<ComplaintFormData>({
     customer_name: '',
     customer_email: '',
@@ -42,8 +47,8 @@ export default function ComplaintForm() {
     priority: 'medium',
     subject: '',
     description: '',
-    related_product_serial: searchParams?.get('serial') || '',
-    related_product_name: searchParams?.get('product') || ''
+    related_product_serial: serial,
+    related_product_name: product
   });
 
   useEffect(() => {
