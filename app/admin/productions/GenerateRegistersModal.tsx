@@ -1,6 +1,7 @@
 // app/admin/productions/GenerateRegistersModal.tsx - Clean Implementation
 'use client';
 
+import ProgressModal from './ProgressModal';
 import { Fragment, useState, useEffect, useMemo, useRef } from 'react';
 import { Dialog, Transition, Tab } from '@headlessui/react';
 import { 
@@ -21,7 +22,8 @@ import {
   CloudArrowUpIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
-import { generateProductionRegisters } from './actions';
+import { generateProductionRegisters, getProgress } from './actions';
+import XCircleIcon from '@heroicons/react/16/solid/XCircleIcon';
 
 // Types
 interface ProductionForDropdown {
@@ -77,6 +79,18 @@ interface Props {
   productions: ProductionForDropdown[];
 }
 
+interface ProgressData {
+  currentBatch: number;
+  totalBatches: number;
+  totalInserted: number;
+  totalRecords: number;
+  status: 'processing' | 'completed' | 'error';
+  percentage?: number;
+  estimatedTimeRemaining?: number;
+  error?: string;
+  lotNumber?: string;
+}
+
 type Mode = 'single' | 'bulk';
 type Step = 'select' | 'confirm' | 'processing' | 'success';
 
@@ -91,11 +105,17 @@ function generateId() {
 
 // Main component
 export default function GenerateRegistersModal({ isOpen, onClose, productions }: Props) {
+
+  // State variables
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
+
   // Core state
   const [mode, setMode] = useState<Mode>('single');
   const [step, setStep] = useState<Step>('select');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [progress, setProgress] = useState<ProgressData | null>(null);
   const [generatedCount, setGeneratedCount] = useState(0);
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
 
@@ -177,6 +197,52 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
       setIsLoadingDetails(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    // Hanya jalankan jika kita berada di step 'processing' dan punya job ID
+    if (step !== 'processing' || !currentJobId) {
+      setProgress(null); // Reset progress jika keluar dari step processing
+      return;
+    }
+
+    let isPolling = true;
+
+    const pollProgress = async () => {
+      if (!isPolling) return;
+      
+      try {
+        const data = await getProgress(currentJobId);
+        
+        if (data) {
+          setProgress(data);
+          
+          if (data.status === 'completed' || data.status === 'error') {
+            isPolling = false;
+            
+            // Pindah ke step success setelah jeda singkat
+            if (data.status === 'completed') {
+              setGeneratedCount(data.totalInserted);
+              toast.success(`Berhasil! ${data.totalInserted} data register telah di-generate!`);
+              setTimeout(() => {
+                setStep('success');
+              }, 1500); // Jeda agar user bisa melihat status 100%
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+        isPolling = false; // Stop polling jika ada error
+      }
+    };
+
+    const intervalId = setInterval(pollProgress, 300); // Poll setiap 300ms
+
+    // Cleanup function untuk menghentikan interval saat komponen unmount atau step berubah
+    return () => {
+      isPolling = false;
+      clearInterval(intervalId);
+    };
+  }, [step, currentJobId]); // <-- Dependensi diubah
 
   useEffect(() => {
     // Fetch production details when selection changes in single mode
@@ -327,6 +393,13 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
         toast.error('Silakan pilih produksi dan isi token QR');
         return;
       }
+      
+      // TAMBAHKAN: Client-side check untuk status import_qr_at
+      const selectedProd = availableProductions.find(p => p.id === parseInt(selectedProductionId));
+      if (selectedProd?.import_qr_at) {
+        toast.error(`Produksi ${selectedProd.lot_number} sudah pernah di-generate pada ${new Date(selectedProd.import_qr_at).toLocaleString()}`);
+        return;
+      }
     } else {
       if (validBulkEntries.length === 0) {
         toast.error('Silakan tambahkan minimal satu data untuk generate');
@@ -356,18 +429,30 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
   };
 
   const handleSingleGenerate = async () => {
-    const result = await generateProductionRegisters(
+    // Generate unique job ID
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentJobId(jobId);
+    
+    // Pindah ke step processing, useEffect akan mengambil alih dari sini
+    setStep('processing'); 
+
+    // Panggil server action tanpa 'await' (fire-and-forget)
+    // Server akan memproses di background, dan kita akan memantau via polling
+    generateProductionRegisters(
       parseInt(selectedProductionId),
-      qrToken
-    );
-
-    if (result.error) {
-      throw new Error(result.error.message);
-    }
-
-    setGeneratedCount(result.data?.generated || 0);
-    setStep('success');
-    toast.success(`${result.data?.generated || 0} data register berhasil di-generate!`);
+      qrToken,
+      jobId // Pass job ID untuk progress tracking
+    ).then(result => {
+      // Kita bisa menangani error awal di sini jika server action langsung gagal
+      if (result.error) {
+        toast.error(`Gagal memulai proses: ${result.error.message}`);
+        setProgress(prev => prev ? { ...prev, status: 'error', error: result.error.message } : {
+            currentBatch: 0, totalBatches: 0, totalInserted: 0, totalRecords: 0,
+            status: 'error', error: result.error.message
+        });
+        setStep('confirm'); // Kembali ke konfirmasi jika gagal mulai
+      }
+    });
   };
 
   const handleBulkGenerate = async () => {
@@ -936,23 +1021,272 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
     </div>
   );
 
+  const formatTime = (seconds: number) => {
+    if (!seconds || seconds < 0) return '...';
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.round(seconds % 60);
+    return `${mins}m ${secs}s`;
+  };
+
+  
+
   const ProcessingContent = () => (
-    <div className="text-center py-12">
-      <div className="relative inline-flex items-center justify-center w-24 h-24 mb-6">
-        <div className="absolute inset-0 rounded-full border-4 border-emerald-200"></div>
-        <div className="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin"></div>
-        <QrCodeIcon className="h-10 w-10 text-emerald-600" />
-      </div>
-      <h3 className="text-xl font-semibold text-gray-800 mb-2">Sedang Memproses...</h3>
-      <p className="text-gray-600">
-        {mode === 'single' 
-          ? `Membuat ${quantity} production registers`
-          : `Memproses ${validBulkEntries.length} produksi`
-        }
-      </p>
-      <div className="mt-6 bg-gray-100 rounded-full h-2 w-64 mx-auto overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full animate-pulse"></div>
-      </div>
+    <div className="py-8 px-4">
+      {progress ? (
+        <div className="max-w-2xl mx-auto">
+          {/* Premium Header with Animated Background */}
+          <div className="relative mb-8 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 animate-pulse"></div>
+            <div className="relative text-center py-4">
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                Generating Production Registers
+              </h3>
+              {selectedProduction?.lot_number && (
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
+                  <span className="text-sm text-gray-600">Lot Number:</span>
+                  <span className="font-mono font-bold text-emerald-600">{selectedProduction.lot_number}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Main Progress Display */}
+          <div className="bg-gradient-to-br from-white via-gray-50 to-white rounded-3xl shadow-2xl border border-gray-200/50 p-8 mb-6">
+            {/* Status Icon & Percentage - Larger and More Premium */}
+            <div className="flex justify-center mb-8">
+              {progress.status === 'processing' && (
+                <div className="relative">
+                  {/* Outer glow ring */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                  {/* Main spinner */}
+                  <div className="relative w-32 h-32 border-[6px] border-gray-200 rounded-full">
+                    <div className="absolute inset-0 border-[6px] border-transparent border-t-emerald-500 border-r-blue-500 rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <span className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                          {progress.percentage || 0}%
+                        </span>
+                        <div className="text-xs text-gray-500 font-medium mt-1">Processing</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {progress.status === 'completed' && (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-emerald-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
+                  <div className="relative w-32 h-32 bg-gradient-to-br from-emerald-100 to-green-100 rounded-full flex items-center justify-center animate-bounce shadow-lg">
+                    <CheckCircleIcon className="h-20 w-20 text-emerald-600" />
+                  </div>
+                </div>
+              )}
+              {progress.status === 'error' && (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-red-400 rounded-full blur-2xl opacity-40"></div>
+                  <div className="relative w-32 h-32 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center shadow-lg">
+                    <XCircleIcon className="h-20 w-20 text-red-600" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Enhanced Progress Bar with Gradient */}
+            <div className="mb-6">
+              <div className="flex justify-between text-sm font-semibold text-gray-700 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                  <span>Batch {progress.currentBatch} of {progress.totalBatches}</span>
+                </div>
+                <span className="font-mono">
+                  {progress.totalInserted.toLocaleString()} / {progress.totalRecords.toLocaleString()}
+                </span>
+              </div>
+              
+              {/* Multi-layer progress bar */}
+              <div className="relative">
+                <div className="w-full h-6 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full shadow-inner overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-blue-500 rounded-full relative overflow-hidden transition-all duration-700 ease-out shadow-lg"
+                    style={{ width: `${progress.percentage || 0}%` }}
+                  >
+                    {/* Animated shimmer effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-shimmer-progress"></div>
+                    {/* Subtle pattern overlay */}
+                    <div className="absolute inset-0 opacity-20" style={{
+                      backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)`
+                    }}></div>
+                  </div>
+                </div>
+                {/* Percentage label on top */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs font-bold text-white drop-shadow-lg">
+                    {progress.percentage || 0}% Complete
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats Grid - More Visual */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border-2 border-blue-200/50 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-blue-400/10 rounded-full -mr-10 -mt-10"></div>
+                <div className="relative">
+                  <div className="text-3xl font-bold text-blue-600 mb-1">
+                    {progress.totalInserted.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-blue-700 font-semibold uppercase tracking-wide">Records Inserted</div>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-4 border-2 border-emerald-200/50 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-400/10 rounded-full -mr-10 -mt-10"></div>
+                <div className="relative">
+                  <div className="text-3xl font-bold text-emerald-600 mb-1">
+                    {progress.status === 'processing' && progress.estimatedTimeRemaining
+                      ? formatTime(progress.estimatedTimeRemaining)
+                      : progress.status === 'completed'
+                      ? '✓'
+                      : '...'
+                    }
+                  </div>
+                  <div className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">
+                    {progress.status === 'completed' ? 'Completed' : 'Time Remaining'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 border-2 border-purple-200/50 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-purple-400/10 rounded-full -mr-10 -mt-10"></div>
+                <div className="relative">
+                  <div className="text-3xl font-bold text-purple-600 mb-1">
+                    {progress.currentBatch}
+                  </div>
+                  <div className="text-xs text-purple-700 font-semibold uppercase tracking-wide">Current Batch</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Message - Enhanced */}
+            <div className={`relative overflow-hidden rounded-2xl p-5 shadow-lg border-2 ${
+              progress.status === 'processing' 
+                ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-blue-200' :
+              progress.status === 'completed' 
+                ? 'bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 border-emerald-200' :
+                'bg-gradient-to-r from-red-50 via-orange-50 to-red-50 border-red-200'
+            }`}>
+              <div className="absolute top-0 left-0 w-full h-1 overflow-hidden">
+                {progress.status === 'processing' && (
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 animate-shimmer-progress"></div>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                  progress.status === 'processing' ? 'bg-blue-100' :
+                  progress.status === 'completed' ? 'bg-emerald-100' :
+                  'bg-red-100'
+                }`}>
+                  {progress.status === 'processing' && (
+                    <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
+                  )}
+                  {progress.status === 'completed' && (
+                    <CheckCircleIcon className="h-6 w-6 text-emerald-600" />
+                  )}
+                  {progress.status === 'error' && (
+                    <XCircleIcon className="h-6 w-6 text-red-600" />
+                  )}
+                </div>
+                
+                <div className="flex-1">
+                  <p className={`text-sm font-bold mb-1 ${
+                    progress.status === 'processing' ? 'text-blue-900' :
+                    progress.status === 'completed' ? 'text-emerald-900' :
+                    'text-red-900'
+                  }`}>
+                    {progress.status === 'processing' && `Processing Batch ${progress.currentBatch} of ${progress.totalBatches}`}
+                    {progress.status === 'completed' && "All Registers Generated Successfully!"}
+                    {progress.status === 'error' && "Generation Failed"}
+                  </p>
+                  <p className={`text-xs ${
+                    progress.status === 'processing' ? 'text-blue-700' :
+                    progress.status === 'completed' ? 'text-emerald-700' :
+                    'text-red-700'
+                  }`}>
+                    {progress.status === 'processing' && `Estimated completion in ${formatTime(progress.estimatedTimeRemaining || 0)}`}
+                    {progress.status === 'completed' && "Preparing results and updating database..."}
+                    {progress.status === 'error' && progress.error}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance Info - Enhanced */}
+            {progress.status === 'processing' && (
+              <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CpuChipIcon className="h-5 w-5 text-gray-600" />
+                    <span className="text-xs font-semibold text-gray-700">Optimized Batch Size:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-gray-900 text-sm">
+                      {progress.totalRecords > 50000 ? '2,000' :
+                       progress.totalRecords > 20000 ? '1,000' :
+                       progress.totalRecords < 100 ? '50' : '500'}
+                    </span>
+                    <span className="text-xs text-gray-600">records/batch</span>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  Auto-optimized for {progress.totalRecords.toLocaleString()} total records
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        // Enhanced initial loading state
+        <div className="max-w-lg mx-auto">
+          <div className="bg-gradient-to-br from-white via-blue-50/30 to-white rounded-3xl shadow-2xl border border-blue-200/50 p-12">
+            <div className="text-center">
+              {/* Animated logo/icon */}
+              <div className="relative inline-flex mb-8">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full blur-2xl opacity-40 animate-pulse"></div>
+                <div className="relative">
+                  <div className="w-24 h-24 border-4 border-gray-200 rounded-full relative">
+                    <div className="absolute inset-0 border-4 border-transparent border-t-emerald-500 border-r-blue-500 rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <QrCodeIcon className="h-12 w-12 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Initializing Generation Process
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Setting up batch processor and preparing database connections...
+              </p>
+              
+              {/* Loading steps */}
+              <div className="space-y-3 text-left max-w-sm mx-auto">
+                {['Validating production data', 'Checking for duplicates', 'Optimizing batch size', 'Starting generation'].map((step, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 animate-pulse"
+                    style={{ animationDelay: `${index * 0.2}s` }}
+                  >
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
+                    <span className="text-sm text-gray-700">{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -1205,6 +1539,15 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
           </div>
         </div>
       </Dialog>
+      <ProgressModal
+        isOpen={isProgressModalOpen}
+        onClose={() => {
+          setIsProgressModalOpen(false);
+          setCurrentJobId(null);
+        }}
+        jobId={currentJobId}
+        lotNumber={selectedProduction?.lot_number}
+      />
     </Transition>
   );
 }

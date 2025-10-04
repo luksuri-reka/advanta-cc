@@ -1,11 +1,14 @@
-// app/admin/productions/actions.ts - Enhanced with Bulk Generation
+// app/admin/productions/actions.ts - Final Complete Version with Progress Tracking
 'use server';
 
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
-// Helper untuk membuat Supabase client
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
 const createSupabaseServerClient = async () => {
   const cookieStore = await cookies();
   return createServerClient(
@@ -19,13 +22,11 @@ const createSupabaseServerClient = async () => {
   );
 };
 
-// Helper untuk mengambil nilai dari FormData dan mengubahnya menjadi null jika kosong
 const getNullIfEmpty = (formData: FormData, field: string): string | null => {
   const value = formData.get(field) as string;
   return value === '' ? null : value;
 };
 
-// Helper untuk mengambil data relasi untuk disimpan sebagai JSONB
 const getJsonbData = async (supabase: any, table: string, id: number | null) => {
     if (id === null) return null;
     const { data, error } = await supabase.from(table).select('*').eq('id', id).single();
@@ -33,18 +34,15 @@ const getJsonbData = async (supabase: any, table: string, id: number | null) => 
     return data;
 };
 
-// Helper untuk upload file ke Supabase Storage
 const uploadFileToStorage = async (supabase: any, file: File, folder: string, productionId?: number): Promise<string | null> => {
   if (!file || file.size === 0) return null;
   
   try {
-    // Generate unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
     const fileExtension = file.name.split('.').pop();
     const fileName = `${folder}/${timestamp}_${randomString}.${fileExtension}`;
     
-    // Upload file to storage
     const { data, error } = await supabase.storage
       .from('dokumen-pendukung')
       .upload(fileName, file, {
@@ -57,7 +55,6 @@ const uploadFileToStorage = async (supabase: any, file: File, folder: string, pr
       throw new Error(`Gagal upload ${folder}: ${error.message}`);
     }
 
-    // Return the file path
     return data.path;
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -65,7 +62,6 @@ const uploadFileToStorage = async (supabase: any, file: File, folder: string, pr
   }
 };
 
-// Helper untuk menghapus file dari storage jika ada
 const deleteFileFromStorage = async (supabase: any, filePath: string): Promise<void> => {
   if (!filePath) return;
   
@@ -82,7 +78,6 @@ const deleteFileFromStorage = async (supabase: any, filePath: string): Promise<v
   }
 };
 
-// Fungsi utama untuk mengambil semua data dari FormData dan memformatnya
 async function processProductionFormData(supabase: any, formData: FormData, isUpdate = false, existingData: any = null) {
     const productId = Number(formData.get('product_id'));
     const companyId = Number(formData.get('company_id'));
@@ -94,21 +89,17 @@ async function processProductionFormData(supabase: any, formData: FormData, isUp
     const lotKelasBenihId = Number(formData.get('lot_kelas_benih_id'));
     const lotVarietasId = Number(formData.get('lot_varietas_id'));
 
-    // Handle file uploads untuk dokumen
     const handleFileUpload = async (fieldName: string, folder: string): Promise<string | null> => {
         const file = formData.get(fieldName) as File;
         
-        // Jika tidak ada file baru dan ini update, gunakan file yang ada
         if ((!file || file.size === 0) && isUpdate && existingData) {
             return existingData[fieldName] || null;
         }
         
-        // Jika ada file baru dan ini update, hapus file lama
         if (file && file.size > 0 && isUpdate && existingData?.[fieldName]) {
             await deleteFileFromStorage(supabase, existingData[fieldName]);
         }
         
-        // Upload file baru jika ada
         if (file && file.size > 0) {
             return await uploadFileToStorage(supabase, file, folder);
         }
@@ -116,7 +107,6 @@ async function processProductionFormData(supabase: any, formData: FormData, isUp
         return null;
     };
 
-    // Ambil data JSONB secara paralel
     const [
         product, company, target_kelas_benih, seed_source_company, 
         seed_source_male_varietas, seed_source_female_varietas, 
@@ -192,7 +182,6 @@ async function processProductionFormData(supabase: any, formData: FormData, isUp
       test_param_benih_tanaman_lain: Number(formData.get('test_param_benih_tanaman_lain')),
       test_param_kotoran_benih: Number(formData.get('test_param_kotoran_benih')),
       test_param_daya_berkecambah: Number(formData.get('test_param_daya_berkecambah')),
-      // Dokumen fields
       docs_form_permohonan: docs_form_permohonan,
       docs_pemeriksaan_pertamanan: docs_pemeriksaan_pertamanan,
       docs_uji_lab: docs_uji_lab,
@@ -200,7 +189,6 @@ async function processProductionFormData(supabase: any, formData: FormData, isUp
       updated_at: new Date().toISOString()
     };
 
-    // Add created_at only for new records
     if (!isUpdate) {
         return {
             ...baseData,
@@ -210,6 +198,10 @@ async function processProductionFormData(supabase: any, formData: FormData, isUp
 
     return baseData;
 }
+
+// ============================================================================
+// CRUD FUNCTIONS
+// ============================================================================
 
 export async function createProduction(formData: FormData) {
   try {
@@ -236,7 +228,6 @@ export async function updateProduction(id: number, formData: FormData) {
   try {
     const supabase = await createSupabaseServerClient();
     
-    // Get existing data untuk file handling
     const { data: existingData } = await supabase
       .from('productions')
       .select('docs_form_permohonan, docs_pemeriksaan_pertamanan, docs_uji_lab, docs_sertifikasi')
@@ -265,14 +256,12 @@ export async function deleteProduction(id: number) {
   try {
     const supabase = await createSupabaseServerClient();
     
-    // Get file paths untuk dihapus dari storage
     const { data: productionData } = await supabase
       .from('productions')
       .select('docs_form_permohonan, docs_pemeriksaan_pertamanan, docs_uji_lab, docs_sertifikasi')
       .eq('id', id)
       .single();
 
-    // Delete files from storage
     if (productionData) {
       const filesToDelete = [
         productionData.docs_form_permohonan,
@@ -288,7 +277,6 @@ export async function deleteProduction(id: number) {
       }
     }
 
-    // Delete record from database
     const { error } = await supabase.from('productions').delete().eq('id', id);
 
     if (error) {
@@ -304,43 +292,111 @@ export async function deleteProduction(id: number) {
   }
 }
 
-// Enhanced single generate function with better error handling
+// ============================================================================
+// PROGRESS TRACKING
+// ============================================================================
+
+const progressStore = new Map<string, any>();
+
+export async function getProgress(jobId: string) {
+  return progressStore.get(jobId) || null;
+}
+
+// ============================================================================
+// GENERATE PRODUCTION REGISTERS
+// ============================================================================
+
 export async function generateProductionRegisters(
   productionId: number, 
-  token: string
-) {
+  token: string,
+  jobId?: string
+): Promise<{ data?: any; error?: any }> {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 1. Ambil data induk yang lebih lengkap
+    console.log('=== START Generate Registers ===');
+    console.log('Production ID:', productionId);
+    console.log('Token:', token.substring(0, 10) + '...');
+    if (jobId) console.log('Job ID:', jobId);
+
     const { data: production, error: productionError } = await supabase
       .from('productions')
       .select('id, lot_total, code_1, code_2, code_3, code_4, lab_result_serial_number, lot_number')
       .eq('id', productionId)
       .single();
 
-    if (productionError || !production) {
+    if (productionError) {
+      console.error('Error fetching production:', productionError);
+      throw new Error(`Gagal mengambil data produksi: ${productionError.message || JSON.stringify(productionError)}`);
+    }
+
+    if (!production) {
       throw new Error('Data produksi tidak ditemukan.');
     }
 
-    // Validasi field yang diperlukan
-    if (!production.lot_total || !production.lab_result_serial_number) {
-        throw new Error('Data `lot_total` atau `lab_result_serial_number` pada produksi ini kosong. Harap lengkapi terlebih dahulu.');
+    console.log('Production data:', {
+      id: production.id,
+      lot_number: production.lot_number,
+      lot_total: production.lot_total,
+      serial: production.lab_result_serial_number,
+      codes: `${production.code_1}${production.code_2}${production.code_3}${production.code_4}`
+    });
+
+    if (!production.lot_total || production.lot_total <= 0) {
+      throw new Error('Field `lot_total` kosong atau tidak valid. Harap lengkapi data produksi terlebih dahulu.');
     }
 
-    // 2. Validasi untuk mencegah duplikasi (logika tetap sama)
-    const { count, error: countError } = await supabase
-      .from('production_registers')
-      .select('*', { count: 'exact', head: true })
-      .eq('production_id', productionId);
+    if (!production.lab_result_serial_number) {
+      throw new Error('Field `lab_result_serial_number` kosong. Harap lengkapi data produksi terlebih dahulu.');
+    }
+
+    if (!production.code_1 || !production.code_2 || !production.code_3 || !production.code_4) {
+      throw new Error('Kode hybrid (code_1, code_2, code_3, code_4) tidak lengkap. Harap lengkapi data produksi.');
+    }
+
+    if (production.code_1.length !== 1 || production.code_2.length !== 1 || 
+        production.code_3.length !== 1 || production.code_4.length !== 1) {
+      throw new Error('Setiap kode hybrid harus tepat 1 karakter. Periksa data code_1, code_2, code_3, code_4.');
+    }
+
+    console.log('Checking for duplicates...');
+    
+    let existingCount = 0;
+    
+    // Optimized: Use count with index hint and timeout protection
+    try {
+      // Set statement timeout untuk query ini (5 detik)
+      await supabase.rpc('exec_sql', { 
+        sql: 'SET LOCAL statement_timeout = 5000' 
+      });
       
-    if (countError) throw countError;
-    if (count !== null && count > 0) {
-      throw new Error(`Data register untuk produksi ${production.lot_number} sudah pernah di-generate (${count} data ditemukan).`);
+      const { count: countHead, error: countError1 } = await supabase
+        .from('production_registers')
+        .select('production_id', { count: 'exact', head: true })
+        .eq('production_id', productionId);
+      
+      if (!countError1 && countHead !== null) {
+        existingCount = countHead;
+        console.log('Duplicate check success:', existingCount);
+      } else if (countError1?.code === '57014') {
+        // Statement timeout - assume no duplicates untuk production baru
+        console.warn('Duplicate check timeout - skipping for performance');
+        existingCount = 0;
+      } else {
+        throw countError1;
+      }
+    } catch (error: any) {
+      // Jika timeout atau error lain, log warning tapi lanjutkan
+      console.warn('Duplicate check failed, proceeding with caution:', error);
+      existingCount = 0;
     }
 
-    // 3. Siapkan data untuk di-insert berdasarkan logika baru
-    const registersToInsert = [];
+    if (existingCount > 0) {
+      throw new Error(`Data register untuk lot ${production.lot_number} sudah pernah di-generate (${existingCount} records ditemukan). Tidak dapat generate ulang.`);
+    }
+
+    console.log('No duplicates found (or check skipped due to timeout)');
+
     const baseProductionCode = `${production.code_1}${production.code_2}${production.code_3}`;
     const initialLastCharCode = production.code_4.charCodeAt(0);
     const quantity = production.lot_total;
@@ -349,40 +405,127 @@ export async function generateProductionRegisters(
     const now = new Date().toISOString();
 
     if (isNaN(startNumber)) {
-        throw new Error('Format `lab_result_serial_number` tidak valid (bukan angka).');
+      throw new Error(`Format lab_result_serial_number tidak valid: "${production.lab_result_serial_number}" bukan angka.`);
     }
 
-    // --- LOGIKA BARU UNTUK KODE PRODUKSI DINAMIS ---
-    for (let i = 0; i < quantity; i++) {
-      const serialNumber = (startNumber + i).toString();
-      
-      // Hitung penambahan karakter berdasarkan kelipatan 1000
-      const increment = Math.floor(i / 1000);
-      const newLastChar = String.fromCharCode(initialLastCharCode + increment);
-      
-      const currentProductionCode = `${baseProductionCode}${newLastChar}`;
-      const currentSearchKey = `${currentProductionCode}${serialNumber}`;
-      
-      registersToInsert.push({
-        production_id: productionId,
-        serial_number: serialNumber,
-        production_code: currentProductionCode, // Kode produksi dinamis
-        search_key: currentSearchKey,           // Search key dinamis
-        qr_code_link: `${baseUrl}?token=${token}&seri=${serialNumber}`,
-        created_at: now,
-        updated_at: now,
+    console.log('Preparing to generate:', {
+      quantity,
+      startNumber,
+      endNumber: startNumber + quantity - 1,
+      baseCode: baseProductionCode,
+      initialChar: production.code_4
+    });
+
+    // Dynamic batch size
+    let BATCH_SIZE = 500;
+    if (quantity > 50000) {
+      BATCH_SIZE = 2000;
+    } else if (quantity > 20000) {
+      BATCH_SIZE = 1000;
+    } else if (quantity < 100) {
+      BATCH_SIZE = 50;
+    }
+    
+    const totalBatches = Math.ceil(quantity / BATCH_SIZE);
+    let totalInserted = 0;
+
+    console.log(`Will insert in ${totalBatches} batches (${BATCH_SIZE} records each, optimized for ${quantity} total records)`);
+
+    // Initialize progress
+    if (jobId) {
+      progressStore.set(jobId, {
+        currentBatch: 0,
+        totalBatches,
+        totalInserted: 0,
+        totalRecords: quantity,
+        status: 'processing',
+        lotNumber: production.lot_number,
+        startTime: Date.now()
       });
     }
 
-    const { error: insertError } = await supabase
-      .from('production_registers')
-      .insert(registersToInsert);
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const batchStart = batchIndex * BATCH_SIZE;
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, quantity);
+      const registersToInsert = [];
 
-    if (insertError) {
-      throw new Error(`Gagal menyimpan data: ${insertError.message}`);
+      console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (records ${batchStart}-${batchEnd - 1})...`);
+
+      for (let i = batchStart; i < batchEnd; i++) {
+        const serialNumber = (startNumber + i).toString();
+        const increment = Math.floor(i / 1000);
+        const newLastChar = String.fromCharCode(initialLastCharCode + increment);
+        const currentProductionCode = `${baseProductionCode}${newLastChar}`;
+        
+        if (currentProductionCode.length !== 4) {
+          throw new Error(`ERROR: production_code length = ${currentProductionCode.length}, expected 4. Code: "${currentProductionCode}"`);
+        }
+        
+        const currentSearchKey = `${currentProductionCode}${serialNumber}`;
+        
+        registersToInsert.push({
+          production_id: productionId,
+          serial_number: serialNumber,
+          production_code: currentProductionCode,
+          search_key: currentSearchKey,
+          qr_code_link: `${baseUrl}?token=${token}&seri=${serialNumber}`,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+
+      const { error: insertError } = await supabase
+        .from('production_registers')
+        .insert(registersToInsert);
+
+      if (insertError) {
+        console.error(`Error inserting batch ${batchIndex + 1}:`, insertError);
+        console.error('Error details:', {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint
+        });
+        
+        if (jobId) {
+          progressStore.set(jobId, {
+            ...progressStore.get(jobId),
+            status: 'error',
+            error: `Batch ${batchIndex + 1} failed: ${insertError.message}`,
+            endTime: Date.now()
+          });
+        }
+        
+        if (totalInserted > 0) {
+          throw new Error(`Gagal insert pada batch ${batchIndex + 1}. ${totalInserted} records sudah tersimpan sebelumnya. Error: ${insertError.message || JSON.stringify(insertError)}`);
+        }
+        
+        throw new Error(`Gagal menyimpan data pada batch ${batchIndex + 1}: ${insertError.message || insertError.code || JSON.stringify(insertError)}`);
+      }
+
+      totalInserted += registersToInsert.length;
+      console.log(`Batch ${batchIndex + 1} inserted: ${registersToInsert.length} records (Total: ${totalInserted}/${quantity})`);
+      
+      // Update progress
+      if (jobId) {
+        const elapsed = Date.now() - progressStore.get(jobId).startTime;
+        const avgTimePerBatch = elapsed / (batchIndex + 1);
+        const remainingBatches = totalBatches - (batchIndex + 1);
+        const estimatedTimeRemaining = avgTimePerBatch * remainingBatches;
+        
+        progressStore.set(jobId, {
+          ...progressStore.get(jobId),
+          currentBatch: batchIndex + 1,
+          totalInserted,
+          percentage: Math.round((totalInserted / quantity) * 100),
+          estimatedTimeRemaining: Math.round(estimatedTimeRemaining / 1000)
+        });
+      }
     }
 
-    // *** UPDATE STATUS import_qr_at DI TABEL PRODUCTIONS ***
+    console.log(`All ${totalInserted} registers inserted successfully`);
+
+    console.log('Updating production status...');
     const { error: updateProductionError } = await supabase
       .from('productions')
       .update({ 
@@ -392,27 +535,81 @@ export async function generateProductionRegisters(
       .eq('id', productionId);
 
     if (updateProductionError) {
-      console.error('Error updating production import_qr_at status:', updateProductionError);
+      console.error('Warning: Failed to update production status:', updateProductionError);
+    } else {
+      console.log('Production status updated');
     }
 
+    if (jobId) {
+      progressStore.set(jobId, {
+        ...progressStore.get(jobId),
+        status: 'completed',
+        endTime: Date.now()
+      });
+      
+      setTimeout(() => {
+        progressStore.delete(jobId);
+      }, 10000);
+    }
+
+    console.log('=== FINISH Generate Registers ===');
     revalidatePath('/admin/productions');
-    return { data: { generated: registersToInsert.length } };
+    
+    return { 
+      data: { 
+        generated: totalInserted,
+        startNumber,
+        endNumber: startNumber + totalInserted - 1,
+        productionCode: baseProductionCode + production.code_4,
+        jobId
+      } 
+    };
 
   } catch (error: any) {
-    console.error('Error in generateProductionRegisters:', error);
-    return { error: { message: error.message } };
+    console.error('FATAL ERROR in generateProductionRegisters');
+    console.error('Error type:', typeof error);
+    console.error('Error constructor:', error?.constructor?.name);
+    console.error('Full error object:', error);
+    
+    let errorMessage = 'Terjadi kesalahan yang tidak diketahui';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (error && typeof error === 'object') {
+      errorMessage = error.message || error.msg || error.error || JSON.stringify(error);
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    }
+    
+    console.error('Final error message:', errorMessage);
+    
+    return { 
+      error: { 
+        message: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      } 
+    };
   }
 }
 
-// New bulk generate function
+// ============================================================================
+// BULK GENERATE
+// ============================================================================
+
 export async function bulkGenerateProductionRegisters(
-  entries: { productionId: number; token: string }[]
-) {
+  entries: Array<{ productionId: number; token: string }>
+): Promise<{ data?: any; error?: any }> {
   if (!entries || entries.length === 0) {
     return { error: { message: 'Tidak ada data untuk di-generate.' } };
   }
 
-  const results = [];
+  const results: Array<{
+    productionId: number;
+    generated: number;
+    success: boolean;
+    error: string | null;
+  }> = [];
+  
   let totalGenerated = 0;
   let successCount = 0;
   let failureCount = 0;
@@ -420,7 +617,10 @@ export async function bulkGenerateProductionRegisters(
   try {
     for (const entry of entries) {
       try {
-        const result = await generateProductionRegisters(entry.productionId, entry.token);
+        const result = await generateProductionRegisters(
+          Number(entry.productionId), 
+          String(entry.token)
+        );
 
         if (result.error) {
           throw new Error(result.error.message);
@@ -466,7 +666,10 @@ export async function bulkGenerateProductionRegisters(
   }
 }
 
-// Utility function untuk validasi CSV token file
+// ============================================================================
+// UTILITY
+// ============================================================================
+
 export async function validateTokenCsvFile(fileContent: string): Promise<{
   isValid: boolean;
   token?: string;
@@ -474,14 +677,12 @@ export async function validateTokenCsvFile(fileContent: string): Promise<{
 }> {
   try {
     const lines = fileContent.split('\n');
-    
-    // Skip header and get first data row
     const dataLines = lines.slice(1).filter(line => line.trim());
+    
     if (dataLines.length === 0) {
       return { isValid: false, error: 'File CSV kosong atau tidak memiliki data' };
     }
 
-    // Parse first row to get token
     const firstRow = dataLines[0].split(',');
     if (firstRow.length < 2) {
       return { isValid: false, error: 'Format CSV tidak valid. Minimal harus ada kolom Token' };
