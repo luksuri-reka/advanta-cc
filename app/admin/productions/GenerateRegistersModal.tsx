@@ -1036,16 +1036,18 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
       {progress ? (
         <div className="max-w-2xl mx-auto">
           {/* Premium Header with Animated Background */}
-          <div className="relative mb-8 overflow-hidden">
+          <div className="relative mb-8 overflow-hidden rounded-2xl">
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 animate-pulse"></div>
-            <div className="relative text-center py-4">
-              <h3 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                Generating Production Registers
+            <div className="relative text-center py-6 px-4">
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                {progress.status === 'processing' && 'Generating Production Registers'}
+                {progress.status === 'completed' && 'Generation Completed'}
+                {progress.status === 'error' && 'Generation Failed'}
               </h3>
-              {selectedProduction?.lot_number && (
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
-                  <span className="text-sm text-gray-600">Lot Number:</span>
-                  <span className="font-mono font-bold text-emerald-600">{selectedProduction.lot_number}</span>
+              {progress.lotNumber && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
+                  <span className="text-sm text-gray-600 font-medium">Lot Number:</span>
+                  <span className="font-mono font-bold text-emerald-600">{progress.lotNumber}</span>
                 </div>
               )}
             </div>
@@ -1053,21 +1055,22 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
 
           {/* Main Progress Display */}
           <div className="bg-gradient-to-br from-white via-gray-50 to-white rounded-3xl shadow-2xl border border-gray-200/50 p-8 mb-6">
-            {/* Status Icon & Percentage - Larger and More Premium */}
+            
+            {/* Spinner with Percentage in Center */}
             <div className="flex justify-center mb-8">
               {progress.status === 'processing' && (
                 <div className="relative">
                   {/* Outer glow ring */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full blur-2xl opacity-50 animate-pulse"></div>
                   {/* Main spinner */}
                   <div className="relative w-32 h-32 border-[6px] border-gray-200 rounded-full">
                     <div className="absolute inset-0 border-[6px] border-transparent border-t-emerald-500 border-r-blue-500 rounded-full animate-spin"></div>
+                    {/* Percentage Display in Center */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-center">
-                        <span className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                        <span className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-blue-600 bg-clip-text text-transparent">
                           {progress.percentage || 0}%
                         </span>
-                        <div className="text-xs text-gray-500 font-medium mt-1">Processing</div>
                       </div>
                     </div>
                   </div>
@@ -1076,58 +1079,79 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
               {progress.status === 'completed' && (
                 <div className="relative">
                   <div className="absolute inset-0 bg-emerald-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
-                  <div className="relative w-32 h-32 bg-gradient-to-br from-emerald-100 to-green-100 rounded-full flex items-center justify-center animate-bounce shadow-lg">
-                    <CheckCircleIcon className="h-20 w-20 text-emerald-600" />
+                  <div className="relative w-32 h-32 bg-gradient-to-br from-emerald-100 to-green-100 rounded-full flex items-center justify-center shadow-2xl border-4 border-emerald-200">
+                    <CheckCircleIcon className="h-20 w-20 text-emerald-600 animate-bounce" />
                   </div>
                 </div>
               )}
               {progress.status === 'error' && (
                 <div className="relative">
                   <div className="absolute inset-0 bg-red-400 rounded-full blur-2xl opacity-40"></div>
-                  <div className="relative w-32 h-32 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center shadow-lg">
+                  <div className="relative w-32 h-32 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center shadow-2xl border-4 border-red-200">
                     <XCircleIcon className="h-20 w-20 text-red-600" />
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Enhanced Progress Bar with Gradient */}
+            {/* Batch Counter and Records Counter */}
             <div className="mb-6">
-              <div className="flex justify-between text-sm font-semibold text-gray-700 mb-3">
-                <div className="flex items-center gap-2">
+              <div className="flex justify-between items-center text-sm font-bold text-gray-700 mb-3">
+                <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-200">
                   <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                  <span>Batch {progress.currentBatch} of {progress.totalBatches}</span>
+                  <span>Batch {progress.currentBatch}/{progress.totalBatches}</span>
                 </div>
-                <span className="font-mono">
-                  {progress.totalInserted.toLocaleString()} / {progress.totalRecords.toLocaleString()}
-                </span>
+                <div className="flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200">
+                  <span className="font-mono">{progress.totalInserted.toLocaleString()} / {progress.totalRecords.toLocaleString()}</span>
+                </div>
               </div>
               
-              {/* Multi-layer progress bar */}
+              {/* Real-time Progress Bar with Smooth Animation */}
               <div className="relative">
-                <div className="w-full h-6 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full shadow-inner overflow-hidden">
+                <div className="w-full h-8 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full shadow-inner overflow-hidden border-2 border-gray-300">
                   <div 
                     className="h-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-blue-500 rounded-full relative overflow-hidden transition-all duration-700 ease-out shadow-lg"
                     style={{ width: `${progress.percentage || 0}%` }}
                   >
                     {/* Animated shimmer effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-shimmer-progress"></div>
-                    {/* Subtle pattern overlay */}
-                    <div className="absolute inset-0 opacity-20" style={{
-                      backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)`
-                    }}></div>
                   </div>
                 </div>
-                {/* Percentage label on top */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-xs font-bold text-white drop-shadow-lg">
+                {/* Percentage label overlay */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-sm font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                     {progress.percentage || 0}% Complete
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Stats Grid - More Visual */}
+            {/* Time Remaining - Dynamic Estimation */}
+            {progress.status === 'processing' && progress.estimatedTimeRemaining !== undefined && (
+              <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="text-xs text-purple-700 font-semibold uppercase tracking-wide">Time Remaining</div>
+                      <div className="text-2xl font-bold text-purple-900">{formatTime(progress.estimatedTimeRemaining)}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-purple-600 font-medium">Est. Completion</div>
+                    <div className="text-sm font-mono text-purple-800">
+                      {new Date(Date.now() + progress.estimatedTimeRemaining * 1000).toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border-2 border-blue-200/50 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-blue-400/10 rounded-full -mr-10 -mt-10"></div>
@@ -1143,16 +1167,9 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                 <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-400/10 rounded-full -mr-10 -mt-10"></div>
                 <div className="relative">
                   <div className="text-3xl font-bold text-emerald-600 mb-1">
-                    {progress.status === 'processing' && progress.estimatedTimeRemaining
-                      ? formatTime(progress.estimatedTimeRemaining)
-                      : progress.status === 'completed'
-                      ? '✓'
-                      : '...'
-                    }
+                    {progress.currentBatch}
                   </div>
-                  <div className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">
-                    {progress.status === 'completed' ? 'Completed' : 'Time Remaining'}
-                  </div>
+                  <div className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">Current Batch</div>
                 </div>
               </div>
 
@@ -1160,14 +1177,14 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                 <div className="absolute top-0 right-0 w-20 h-20 bg-purple-400/10 rounded-full -mr-10 -mt-10"></div>
                 <div className="relative">
                   <div className="text-3xl font-bold text-purple-600 mb-1">
-                    {progress.currentBatch}
+                    {progress.totalBatches}
                   </div>
-                  <div className="text-xs text-purple-700 font-semibold uppercase tracking-wide">Current Batch</div>
+                  <div className="text-xs text-purple-700 font-semibold uppercase tracking-wide">Total Batches</div>
                 </div>
               </div>
             </div>
 
-            {/* Status Message - Enhanced */}
+            {/* Status Indicators with Icons */}
             <div className={`relative overflow-hidden rounded-2xl p-5 shadow-lg border-2 ${
               progress.status === 'processing' 
                 ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-blue-200' :
@@ -1175,26 +1192,26 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                 ? 'bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 border-emerald-200' :
                 'bg-gradient-to-r from-red-50 via-orange-50 to-red-50 border-red-200'
             }`}>
-              <div className="absolute top-0 left-0 w-full h-1 overflow-hidden">
-                {progress.status === 'processing' && (
+              {progress.status === 'processing' && (
+                <div className="absolute top-0 left-0 w-full h-1 overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 animate-shimmer-progress"></div>
-                )}
-              </div>
+                </div>
+              )}
               
               <div className="flex items-center gap-3">
-                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                  progress.status === 'processing' ? 'bg-blue-100' :
-                  progress.status === 'completed' ? 'bg-emerald-100' :
-                  'bg-red-100'
+                <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
+                  progress.status === 'processing' ? 'bg-blue-100 border-2 border-blue-300' :
+                  progress.status === 'completed' ? 'bg-emerald-100 border-2 border-emerald-300' :
+                  'bg-red-100 border-2 border-red-300'
                 }`}>
                   {progress.status === 'processing' && (
-                    <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
+                    <div className="w-4 h-4 bg-blue-600 rounded-full animate-pulse"></div>
                   )}
                   {progress.status === 'completed' && (
-                    <CheckCircleIcon className="h-6 w-6 text-emerald-600" />
+                    <CheckCircleIcon className="h-7 w-7 text-emerald-600" />
                   )}
                   {progress.status === 'error' && (
-                    <XCircleIcon className="h-6 w-6 text-red-600" />
+                    <XCircleIcon className="h-7 w-7 text-red-600" />
                   )}
                 </div>
                 
@@ -1213,33 +1230,33 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                     progress.status === 'completed' ? 'text-emerald-700' :
                     'text-red-700'
                   }`}>
-                    {progress.status === 'processing' && `Estimated completion in ${formatTime(progress.estimatedTimeRemaining || 0)}`}
-                    {progress.status === 'completed' && "Preparing results and updating database..."}
+                    {progress.status === 'processing' && `${progress.totalInserted.toLocaleString()} records inserted, estimated ${formatTime(progress.estimatedTimeRemaining || 0)} remaining`}
+                    {progress.status === 'completed' && "Auto-closing in 2 seconds and reloading page..."}
                     {progress.status === 'error' && progress.error}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Performance Info - Enhanced */}
+            {/* Auto-optimization Info */}
             {progress.status === 'processing' && (
               <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <CpuChipIcon className="h-5 w-5 text-gray-600" />
+                  <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Auto-Optimization</span>
+                </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CpuChipIcon className="h-5 w-5 text-gray-600" />
-                    <span className="text-xs font-semibold text-gray-700">Optimized Batch Size:</span>
+                  <div className="text-xs text-gray-600">
+                    Optimized batch size for {progress.totalRecords.toLocaleString()} records
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-gray-900 text-sm">
+                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
+                    <span className="font-mono font-bold text-gray-900 text-base">
                       {progress.totalRecords > 50000 ? '2,000' :
                        progress.totalRecords > 20000 ? '1,000' :
                        progress.totalRecords < 100 ? '50' : '500'}
                     </span>
                     <span className="text-xs text-gray-600">records/batch</span>
                   </div>
-                </div>
-                <div className="mt-2 text-xs text-gray-500">
-                  Auto-optimized for {progress.totalRecords.toLocaleString()} total records
                 </div>
               </div>
             )}
