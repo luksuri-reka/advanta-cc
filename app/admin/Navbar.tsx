@@ -1,4 +1,4 @@
-// app/admin/Navbar.tsx - With read tracking
+// app/admin/Navbar.tsx - With Complaint Team Management
 'use client';
 
 import { Fragment } from 'react';
@@ -21,7 +21,8 @@ import {
   ExclamationTriangleIcon,
   DocumentTextIcon,
   ChartBarSquareIcon,
-  CheckIcon
+  CheckIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { useComplaintNotifications } from './hooks/useComplaintNotifications';
@@ -102,6 +103,12 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
           href: '/admin/analytics', 
           icon: ChartBarSquareIcon,
           requiresPermission: 'canViewComplaintAnalytics'
+        },
+        { 
+          name: 'Complaint Team', 
+          href: '/admin/complaint-users', 
+          icon: UserGroupIcon,
+          requiresPermission: 'canManageComplaintUsers'
         },
         { 
           name: 'Pengaturan Komplain', 
@@ -361,7 +368,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                   </Menu>
                 )}
 
-                {/* Profile Menu - Same as before */}
+                {/* Profile Menu */}
                 <Menu as="div" className="relative flex-shrink-0">
                   <div>
                     <Menu.Button className="flex items-center gap-1.5 sm:gap-2 rounded-lg bg-white border border-gray-200/50 px-2 sm:px-3 py-1.5 sm:py-2 text-sm hover:bg-gray-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 group max-w-[200px] sm:max-w-none">

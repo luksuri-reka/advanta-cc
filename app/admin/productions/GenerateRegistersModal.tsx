@@ -1105,23 +1105,17 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                   <span className="font-mono">{progress.totalInserted.toLocaleString()} / {progress.totalRecords.toLocaleString()}</span>
                 </div>
               </div>
-              
+
               {/* Real-time Progress Bar with Smooth Animation */}
               <div className="relative">
                 <div className="w-full h-8 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full shadow-inner overflow-hidden border-2 border-gray-300">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-blue-500 rounded-full relative overflow-hidden transition-all duration-700 ease-out shadow-lg"
                     style={{ width: `${progress.percentage || 0}%` }}
                   >
                     {/* Animated shimmer effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-shimmer-progress"></div>
                   </div>
-                </div>
-                {/* Percentage label overlay */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span className="text-sm font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                    {progress.percentage || 0}% Complete
-                  </span>
                 </div>
               </div>
             </div>
@@ -1152,7 +1146,7 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border-2 border-blue-200/50 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-blue-400/10 rounded-full -mr-10 -mt-10"></div>
                 <div className="relative">
@@ -1162,7 +1156,7 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                   <div className="text-xs text-blue-700 font-semibold uppercase tracking-wide">Records Inserted</div>
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-4 border-2 border-emerald-200/50 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-400/10 rounded-full -mr-10 -mt-10"></div>
                 <div className="relative">
