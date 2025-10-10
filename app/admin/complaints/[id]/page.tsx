@@ -8,6 +8,7 @@ import type { User } from '@supabase/supabase-js';
 import Navbar from '../../Navbar';
 import {
   ArrowLeftIcon,
+  ArrowPathIcon,
   ExclamationTriangleIcon,
   ClockIcon,
   CheckCircleIcon,
@@ -16,7 +17,9 @@ import {
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
   XMarkIcon,
-  CheckIcon
+  CheckIcon,
+  UserPlusIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -38,6 +41,9 @@ interface Complaint {
   related_product_name?: string;
   customer_satisfaction_rating?: number;
   customer_feedback?: string;
+  assigned_to?: string;
+  assigned_at?: string;
+  department?: string;
   complaint_responses: Array<{
     id: number;
     message: string;
@@ -53,6 +59,15 @@ interface DisplayUser {
   complaint_permissions?: Record<string, boolean>;
 }
 
+interface ComplaintProfile {
+  user_id: string;
+  full_name: string;
+  department: string;
+  is_active: boolean;
+  current_assigned_count: number;
+  max_assigned_complaints: number;
+}
+
 export default function ComplaintDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -66,6 +81,13 @@ export default function ComplaintDetailPage() {
   const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  
+  // Assignment states
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [availableProfiles, setAvailableProfiles] = useState<ComplaintProfile[]>([]);
+  const [selectedAssignee, setSelectedAssignee] = useState('');
+  const [assignmentReason, setAssignmentReason] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -128,6 +150,62 @@ export default function ComplaintDetailPage() {
       console.error('Error loading complaint:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAvailableProfiles = async () => {
+    try {
+      const response = await fetch('/api/complaint-profiles');
+      const result = await response.json();
+      
+      if (response.ok && result.data) {
+        // Filter hanya user yang aktif
+        const activeProfiles = result.data.filter((p: ComplaintProfile) => p.is_active);
+        setAvailableProfiles(activeProfiles);
+      }
+    } catch (error) {
+      console.error('Error loading profiles:', error);
+    }
+  };
+
+  const handleOpenAssignmentModal = () => {
+    loadAvailableProfiles();
+    setShowAssignmentModal(true);
+    setSelectedAssignee('');
+    setAssignmentReason('');
+  };
+
+  const handleAssignComplaint = async () => {
+    if (!selectedAssignee) {
+      alert('Pilih user untuk ditugaskan');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const response = await fetch(`/api/complaints/${complaintId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assigned_to: selectedAssignee,
+          assignment_reason: assignmentReason || 'Manual assignment'
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('Komplain berhasil ditugaskan!');
+        setShowAssignmentModal(false);
+        await loadComplaintDetail();
+      } else {
+        alert(result.error || 'Gagal menugaskan komplain');
+      }
+    } catch (error) {
+      console.error('Error assigning complaint:', error);
+      alert('Terjadi kesalahan saat menugaskan komplain');
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -218,6 +296,16 @@ export default function ComplaintDetailPage() {
       critical: 'bg-red-100 text-red-800'
     };
     return priorityMap[priority as keyof typeof priorityMap] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getDepartmentLabel = (dept?: string) => {
+    const deptMap: Record<string, string> = {
+      customer_service: 'Customer Service',
+      quality_assurance: 'Quality Assurance',
+      technical: 'Technical',
+      management: 'Management'
+    };
+    return dept ? deptMap[dept] || dept : '-';
   };
 
   if (!mounted || loading) {
@@ -464,6 +552,60 @@ export default function ComplaintDetailPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             
+            {/* Assignment Info */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <UserGroupIcon className="h-5 w-5 text-purple-600" />
+                Penugasan
+              </h2>
+              
+              {complaint.assigned_to ? (
+                <div className="space-y-3">
+                  <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                    <p className="text-xs font-semibold text-purple-600 mb-2">Ditugaskan Kepada</p>
+                    <p className="text-sm font-bold text-purple-900">{complaint.assigned_to}</p>
+                    {complaint.department && (
+                      <p className="text-xs text-purple-700 mt-1">
+                        {getDepartmentLabel(complaint.department)}
+                      </p>
+                    )}
+                    {complaint.assigned_at && (
+                      <p className="text-xs text-purple-600 mt-2">
+                        {new Date(complaint.assigned_at).toLocaleString('id-ID')}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {hasComplaintPermission('canAssignComplaints') && (
+                    <button
+                      onClick={handleOpenAssignmentModal}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 font-semibold rounded-xl hover:bg-purple-200 transition-colors"
+                    >
+                      <ArrowPathIcon className="h-4 w-4" />
+                      Tugaskan Ulang
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 text-center">
+                    <UserPlusIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Belum ditugaskan</p>
+                  </div>
+                  
+                  {hasComplaintPermission('canAssignComplaints') && (
+                    <button
+                      onClick={handleOpenAssignmentModal}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-500 transition-colors"
+                    >
+                      <UserPlusIcon className="h-5 w-5" />
+                      Tugaskan Komplain
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Customer Info */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -586,6 +728,167 @@ export default function ComplaintDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* Assignment Modal */}
+      {showAssignmentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  <UserPlusIcon className="h-7 w-7 text-purple-600" />
+                  Tugaskan Komplain
+                </h3>
+                <button
+                  onClick={() => setShowAssignmentModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6 text-gray-500" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                <div className="flex items-start gap-3">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900 mb-1">
+                      Komplain: {complaint.complaint_number}
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      {complaint.subject}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Pilih Admin / User *
+                </label>
+                
+                {availableProfiles.length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-xl border border-gray-200">
+                    <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-sm text-gray-600">Tidak ada user yang tersedia</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Semua user mungkin sudah mencapai beban kerja maksimal
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {availableProfiles.map((profile) => {
+                      const loadPercentage = (profile.current_assigned_count / profile.max_assigned_complaints) * 100;
+                      const isNearLimit = loadPercentage >= 80;
+                      const isAtLimit = profile.current_assigned_count >= profile.max_assigned_complaints;
+                      
+                      return (
+                        <label
+                          key={profile.user_id}
+                          className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                            selectedAssignee === profile.user_id
+                              ? 'border-purple-500 bg-purple-50'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          } ${isAtLimit ? 'opacity-60' : ''}`}
+                        >
+                          <input
+                            type="radio"
+                            name="assignee"
+                            value={profile.user_id}
+                            checked={selectedAssignee === profile.user_id}
+                            onChange={(e) => setSelectedAssignee(e.target.value)}
+                            className="w-4 h-4 text-purple-600"
+                          />
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="font-bold text-gray-900">{profile.full_name}</p>
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                isAtLimit 
+                                  ? 'bg-red-100 text-red-800' 
+                                  : isNearLimit 
+                                  ? 'bg-yellow-100 text-yellow-800' 
+                                  : 'bg-green-100 text-green-800'
+                              }`}>
+                                {profile.current_assigned_count}/{profile.max_assigned_complaints}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 text-xs text-gray-600 mb-2">
+                              <span className="px-2 py-1 bg-gray-100 rounded-full">
+                                {getDepartmentLabel(profile.department)}
+                              </span>
+                              {isAtLimit && (
+                                <span className="text-red-600 font-semibold">
+                                  ⚠️ Beban Penuh
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Load Bar */}
+                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                              <div
+                                className={`h-full transition-all ${
+                                  isAtLimit 
+                                    ? 'bg-red-500' 
+                                    : isNearLimit 
+                                    ? 'bg-yellow-500' 
+                                    : 'bg-green-500'
+                                }`}
+                                style={{ width: `${Math.min(loadPercentage, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Alasan Penugasan (Opsional)
+                </label>
+                <textarea
+                  value={assignmentReason}
+                  onChange={(e) => setAssignmentReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                  placeholder="Contoh: Memiliki expertise di bidang ini, beban kerja paling rendah, dll..."
+                />
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-8 py-6 rounded-b-2xl flex justify-end gap-3">
+              <button
+                onClick={() => setShowAssignmentModal(false)}
+                className="px-6 py-3 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleAssignComplaint}
+                disabled={isAssigning || !selectedAssignee}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isAssigning ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Menugaskan...
+                  </>
+                ) : (
+                  <>
+                    <CheckIcon className="h-5 w-5" />
+                    Tugaskan
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

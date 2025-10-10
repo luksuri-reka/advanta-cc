@@ -1,19 +1,23 @@
 // app/api/admin/auth-users/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    // Check auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Create admin client with service role key
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
 
     // Get all users from auth.users
-    const { data: { users }, error } = await supabase.auth.admin.listUsers();
+    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
 
     if (error) {
       console.error('Error fetching users:', error);
@@ -21,7 +25,7 @@ export async function GET() {
     }
 
     // Get existing complaint profiles to exclude them
-    const { data: existingProfiles } = await supabase
+    const { data: existingProfiles } = await supabaseAdmin
       .from('user_complaint_profiles')
       .select('user_id');
 
