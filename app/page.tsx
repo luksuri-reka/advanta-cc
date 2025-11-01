@@ -420,7 +420,7 @@ export default function HomePage() {
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
                     )}
                     <div className="relative flex flex-col items-center gap-1 sm:gap-2">
-                      <span className="text-xl sm:text-2xl">🥕</span>
+                      <span className="text-xl sm:text-2xl">🍅</span>
                       <div className="text-center">
                         <div className="font-bold text-[11px] sm:text-sm">Sweetcorn & Sayuran</div>
                         <div className={`text-[9px] sm:text-xs mt-0.5 ${productType === 'sweetcorn' ? 'text-white/90' : 'text-slate-500'}`}>
