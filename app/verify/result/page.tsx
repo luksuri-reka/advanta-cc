@@ -1,161 +1,140 @@
+// app/verify/result/page.tsx
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import ProductResult from '../../components/ProductResult';
-import { searchProduct, ApiResponse } from '../../utils/api';
+import ProductResult from '@/app/components/ProductResult';
+import { verifyProduct, ApiResponse } from '@/app/utils/api';
+import { 
+  ShieldCheckIcon, 
+  ExclamationCircleIcon,
+  ArrowPathIcon 
+} from '@heroicons/react/24/solid';
 
 function VerifyResultContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ApiResponse | null>(null);
+  const [productData, setProductData] = useState<ApiResponse | null>(null);
 
-  const serial = searchParams?.get('serial') || '';
-  const product = searchParams?.get('product') || '';
+  const type = searchParams.get('type') as 'serial' | 'lot' | null;
+  const code = searchParams.get('code');
 
   useEffect(() => {
-    // Jika tidak ada serial, redirect ke homepage
-    if (!serial) {
-      router.push('/');
-      return;
-    }
+    const fetchProduct = async () => {
+      // Validasi parameter
+      if (!type || !code) {
+        setError('Parameter verifikasi tidak lengkap');
+        setLoading(false);
+        return;
+      }
 
-    // Fetch data berdasarkan serial
-    const fetchProductData = async () => {
-      setLoading(true);
-      setError(null);
-      
+      if (type !== 'serial' && type !== 'lot') {
+        setError('Jenis verifikasi tidak valid');
+        setLoading(false);
+        return;
+      }
+
       try {
-        const response = await searchProduct(serial);
-        setResult(response);
-      } catch (err: any) {
-        setError(err.message || 'Gagal memverifikasi produk.');
-        console.error('Error:', err);
+        setLoading(true);
+        setError(null);
+
+        // Panggil API untuk verifikasi
+        const response = await verifyProduct(code, type);
+        setProductData(response);
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError(err instanceof Error ? err.message : 'Terjadi kesalahan saat memverifikasi produk');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProductData();
-  }, [serial, router]);
+    fetchProduct();
+  }, [type, code]);
 
-  // Loading state
+  // Loading State
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-semibold">Memuat data produk...</p>
+          <div className="relative w-20 h-20 mx-auto mb-6">
+            <div className="absolute inset-0 border-4 border-emerald-200 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-emerald-600 rounded-full border-t-transparent animate-spin"></div>
+            <ShieldCheckIcon className="absolute inset-0 m-auto w-10 h-10 text-emerald-600 animate-pulse" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+            Memverifikasi Produk
+          </h2>
+          <p className="text-slate-600">
+            {type === 'serial' 
+              ? 'Sedang memeriksa nomor seri...' 
+              : 'Sedang memeriksa nomor lot...'}
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-500">
+            <ArrowPathIcon className="w-4 h-4 animate-spin" />
+            <span>Mohon tunggu sebentar</span>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Error state
-  if (error || !result) {
+  // Error State
+  if (error || !productData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50/30 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-white/80 overflow-hidden">
-          <div className="bg-gradient-to-r from-red-500 to-red-600 px-8 py-12 text-center">
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-5xl">❌</span>
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-3xl shadow-2xl border-2 border-red-200 p-8 text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-500/30">
+              <ExclamationCircleIcon className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Produk Tidak Ditemukan
-            </h1>
-            <p className="text-red-100">
-              Serial: {serial}
-            </p>
-          </div>
-          
-          <div className="p-8 text-center">
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              {error || 'Data produk tidak dapat ditemukan. Pastikan nomor seri yang Anda masukkan benar.'}
-            </p>
             
-            <button
-              onClick={() => router.push('/')}
-              className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-emerald-500 transition-all duration-300 shadow-lg hover:shadow-xl mx-auto"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-              Kembali ke Verifikasi
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+            <h2 className="text-2xl font-bold text-slate-900 mb-3">
+              Verifikasi Gagal
+            </h2>
+            
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+              <p className="text-red-800 font-semibold text-sm">
+                {error || 'Produk tidak ditemukan'}
+              </p>
+            </div>
 
-  // Success state - show ProductResult
-  return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="w-full p-4 sm:p-6 backdrop-blur-md bg-white/93 border-b border-emerald-100/60 shadow-xl shadow-emerald-500/5 sticky top-0 z-50">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 md:gap-4">
-            <img 
-              src="/advanta-logo.png" 
-              alt="Advanta Logo" 
-              className="h-8 md:h-12 w-auto drop-shadow-md transition-transform duration-300 hover:scale-105" 
-            />
-            <div className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-emerald-300/60 to-transparent" />
-            <div className="hidden sm:block">
-              <h2 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
-                Sistem Verifikasi
-              </h2>
-              <p className="text-xs md:text-sm text-emerald-600 font-semibold">
-                PT Advanta Seeds Indonesia
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push('/')}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+              >
+                <ShieldCheckIcon className="w-5 h-5" />
+                <span>Coba Verifikasi Lagi</span>
+              </button>
+
+              <p className="text-xs text-slate-500">
+                Pastikan kode yang Anda masukkan benar
               </p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3 md:gap-4">
-            {/* Status Badge */}
-            <div className="hidden lg:flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-50 to-emerald-100/90 text-emerald-800 rounded-full text-sm font-bold border border-emerald-200/80 shadow-sm backdrop-blur-sm">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-              HASIL VERIFIKASI
-            </div>
-            
-            {/* Back Button */}
-            <button
-              onClick={() => router.push('/')}
-              className="group px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-white to-slate-50/95 hover:from-slate-50 hover:to-white rounded-xl md:rounded-2xl text-sm md:text-base font-semibold text-slate-800 hover:text-slate-900 border border-slate-200/90 hover:border-emerald-200 shadow-lg hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 backdrop-blur-sm transform hover:scale-105 active:scale-95"
-            >
-              <div className="flex items-center gap-2">
-                <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform duration-200" />
-                <span className="hidden sm:inline">Verifikasi Lagi</span>
-                <span className="sm:hidden">Kembali</span>
-              </div>
-            </button>
-          </div>
         </div>
-        
-        {/* Mobile Status */}
-        <div className="lg:hidden flex justify-center mt-4 pt-4 border-t border-emerald-100/60 max-w-7xl mx-auto">
-          <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-emerald-100/90 text-emerald-800 rounded-full text-sm font-bold border border-emerald-200/80">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            HASIL VERIFIKASI
-          </div>
-        </div>
-      </header>
+      </div>
+    );
+  }
 
-      {/* Product Result Content */}
-      <ProductResult data={result.data} modelType={result.meta.model_type} />
-    </div>
+  // Success State - Tampilkan ProductResult
+  return (
+    <ProductResult 
+      data={productData.data} 
+      modelType={productData.meta.model_type}
+      verificationType={productData.meta.verification_type}
+    />
   );
 }
 
 export default function VerifyResultPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-semibold">Memuat halaman...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
       </div>
     }>
       <VerifyResultContent />

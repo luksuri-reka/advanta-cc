@@ -8,7 +8,10 @@ body {
   background-color: #f0f2f5;
 }
 
-/* Simplified, GPU-accelerated animations */
+/* ========================================
+   ANIMATIONS - GPU Accelerated
+   ======================================== */
+
 @keyframes fadeIn {
   from { 
     opacity: 0; 
@@ -42,6 +45,17 @@ body {
   }
 }
 
+@keyframes slide-in-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes scaleIn {
   from { 
     opacity: 0; 
@@ -53,7 +67,17 @@ body {
   }
 }
 
+/* Shimmer Animations */
 @keyframes shimmer {
+  0% { 
+    transform: translateX(-100%); 
+  }
+  100% { 
+    transform: translateX(100%); 
+  }
+}
+
+@keyframes shimmer-bg {
   0% { 
     background-position: -200px 0; 
   }
@@ -71,7 +95,23 @@ body {
   }
 }
 
-/* Simplified animation classes with better performance */
+/* Gradient Shift Animation */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ========================================
+   ANIMATION CLASSES
+   ======================================== */
+
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
@@ -81,7 +121,7 @@ body {
 }
 
 .animate-slide-in-bottom {
-  animation: slideInFromBottom 0.3s ease-out forwards;
+  animation: slide-in-bottom 0.3s ease-out;
 }
 
 .animate-scale-in {
@@ -89,21 +129,30 @@ body {
 }
 
 .animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-shimmer-bg {
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer-bg 1.5s infinite;
 }
 
 .animate-shimmer-progress {
   animation: shimmer-progress 2s infinite;
 }
 
-/* Optimized utility classes using transform3d for GPU acceleration */
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
 @layer utilities {
+  /* Text Effects */
   .text-shadow {
-    text-shadow: 0 2px 4px rgb(0 0 0 / 10%);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
   
+  /* Shadow Effects */
   .shadow-premium {
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   }
@@ -112,13 +161,14 @@ body {
     box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);
   }
   
+  /* Glass Morphism */
   .glass-morphism {
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
   
-  /* Simplified button effects */
+  /* Button Shine Effect */
   .btn-shine {
     position: relative;
     overflow: hidden;
@@ -133,14 +183,14 @@ body {
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
     transition: left 0.3s ease;
-    transform: translateZ(0); /* GPU acceleration */
+    transform: translateZ(0);
   }
   
   .btn-shine:hover::before {
     left: 100%;
   }
   
-  /* Optimized gradient text - use solid colors on mobile */
+  /* Gradient Text */
   .gradient-text {
     color: #10b981;
   }
@@ -154,16 +204,16 @@ body {
     }
   }
   
-  /* Simplified skeleton */
+  /* Skeleton Loading */
   .skeleton {
     background: #e5e7eb;
-    animation: shimmer 1.5s infinite;
+    animation: shimmer-bg 1.5s infinite;
   }
   
-  /* Optimized interactive elements */
+  /* Interactive Scale */
   .interactive-scale {
     transition: transform 0.15s ease;
-    transform: translateZ(0); /* GPU acceleration */
+    transform: translateZ(0);
   }
   
   .interactive-scale:hover {
@@ -174,7 +224,7 @@ body {
     transform: scale(0.98) translateZ(0);
   }
   
-  /* Simplified focus ring */
+  /* Focus Ring */
   .focus-ring-premium {
     outline: 2px solid transparent;
     outline-offset: 2px;
@@ -185,7 +235,7 @@ body {
     outline-offset: 2px;
   }
   
-  /* Simplified product card hover */
+  /* Product Card Hover */
   .product-card-hover {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateZ(0);
@@ -196,7 +246,7 @@ body {
     box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15);
   }
   
-  /* Simplified tab styles */
+  /* Premium Tab Styles */
   .premium-tab {
     position: relative;
     transition: all 0.2s ease;
@@ -218,7 +268,7 @@ body {
     width: 80%;
   }
   
-  /* Form validation - simplified */
+  /* Form Validation */
   .form-field-valid {
     border-color: #10b981;
   }
@@ -227,12 +277,12 @@ body {
     border-color: #ef4444;
   }
   
-  /* Staggered animation utilities */
+  /* Staggered Animations */
   .stagger-1 { animation-delay: 0.1s; }
   .stagger-2 { animation-delay: 0.2s; }
   .stagger-3 { animation-delay: 0.3s; }
   
-  /* Simplified scrollbar */
+  /* Custom Scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
   }
@@ -247,8 +297,16 @@ body {
   }
 }
 
+/* ========================================
+   RESPONSIVE OPTIMIZATIONS
+   ======================================== */
+
 /* Reduce animations on mobile for better performance */
 @media (max-width: 768px) {
+  .text-shadow {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  }
+  
   .animate-fade-in,
   .animate-slide-in-left,
   .animate-slide-in-bottom,
@@ -273,6 +331,10 @@ body {
   }
 }
 
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -285,7 +347,10 @@ body {
   }
 }
 
-/* Dark mode support (simplified) */
+/* ========================================
+   DARK MODE SUPPORT
+   ======================================== */
+
 @media (prefers-color-scheme: dark) {
   .glass-morphism {
     background: rgba(0, 0, 0, 0.8);

@@ -1,4 +1,4 @@
-// app/components/ProductResult.tsx - Enhanced with survey and complaint CTA
+// app/components/ProductResult.tsx - Enhanced with dual verification support
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,9 +15,7 @@ import {
   SparklesIcon,
   ClipboardDocumentCheckIcon,
   StarIcon,
-  ChatBubbleLeftRightIcon,
   ExclamationTriangleIcon,
-  HandThumbUpIcon,
   FaceSmileIcon
 } from '@heroicons/react/24/solid';
 import { 
@@ -25,13 +23,15 @@ import {
   ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface ProductResultProps {
   data: ProductData;
-  modelType: 'bag' | 'production';
+  modelType: 'bag' | 'production' | 'lot';
+  verificationType: 'serial' | 'lot';
 }
 
-export default function ProductResult({ data, modelType }: ProductResultProps) {
+export default function ProductResult({ data, modelType, verificationType }: ProductResultProps) {
   const [activeTab, setActiveTab] = useState('details');
   const [isVisible, setIsVisible] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -71,13 +71,22 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
     }
   ];
 
+  // Determine identifier based on verification type
+  const identifier = verificationType === 'serial' 
+    ? data.serial_number || data.search_key 
+    : data.lot_number || data.search_key;
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'details':
         return (
           <div className="grid gap-3 md:gap-4">
             {[
-              { label: 'No. Seri Lengkap', value: data.search_key || data.serial_number, highlight: true },
+              { 
+                label: verificationType === 'serial' ? 'No. Seri Lengkap' : 'No. Lot Produksi', 
+                value: identifier, 
+                highlight: true 
+              },
               { label: 'Jenis Tanaman', value: data.jenis_tanaman },
               { label: 'Kelas Benih', value: data.kelas_benih },
               { label: 'Kode Produksi', value: data.production_code },
@@ -195,6 +204,59 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 relative overflow-hidden">
+      {/* Navigation Header */}
+      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-4">
+          <div className="flex items-center justify-between">
+            {/* Left: Logo & Title */}
+            <div className="flex items-center gap-3 md:gap-4">
+              <img 
+                src="/advanta-logo.png" 
+                alt="Advanta Logo" 
+                className="h-8 md:h-12"
+              />
+              <div className="hidden sm:block">
+                <h2 className="text-lg md:text-xl font-bold text-slate-900">Sistem Verifikasi</h2>
+                <p className="text-xs md:text-sm text-emerald-600 font-semibold">PT Advanta Seeds Indonesia</p>
+              </div>
+            </div>
+
+            {/* Right: Action Buttons */}
+            <div className="flex items-center gap-2 md:gap-3">
+              {/* Success Badge - Desktop Only */}
+              <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-emerald-100/50 text-emerald-700 rounded-xl border border-emerald-200">
+                <CheckBadgeIcon className="w-5 h-5" />
+                <span className="text-sm font-bold">HASIL VERIFIKASI</span>
+              </div>
+
+              {/* Back Button */}
+              <Link
+                href="/"
+                className="group flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-2 md:py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl border-2 border-slate-200 hover:border-slate-300 transition-all duration-200 shadow-sm hover:shadow-md active:scale-95"
+              >
+                <svg 
+                  className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform duration-200" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span className="text-xs md:text-base">Verifikasi Lagi</span>
+              </Link>
+            </div>
+          </div>
+          
+          {/* Mobile Success Badge */}
+          <div className="lg:hidden mt-3 flex justify-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-emerald-100/50 text-emerald-700 rounded-lg border border-emerald-200">
+              <CheckBadgeIcon className="w-4 h-4" />
+              <span className="text-xs font-bold">HASIL VERIFIKASI</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-32 h-32 md:w-72 md:h-72 bg-emerald-400/5 rounded-full blur-3xl animate-float"></div>
@@ -202,7 +264,7 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
         <div className="absolute top-1/2 left-1/3 w-24 h-24 md:w-48 md:h-48 bg-purple-400/5 rounded-full blur-2xl animate-float" style={{ animationDelay: '2s' }}></div>
       </div>
 
-      <div className={`relative z-10 w-full max-w-7xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+      <div className={`relative z-10 w-full max-w-7xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8 pt-6 md:pt-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         
         {/* Premium Header */}
         <div className="relative">
@@ -370,35 +432,38 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
 
               {/* Action Buttons */}
               <div className="border-t border-gray-100 p-4 md:p-6 lg:p-8 bg-gradient-to-r from-gray-50/50 to-white space-y-4">
-                {/* Official Certificate Button */}
+                {/* Official Certificate Button - only for production model */}
                 {modelType === 'production' && data.qr_code_link && (
-                  <a
-                    href={data.qr_code_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group relative flex items-center justify-center w-full gap-2 md:gap-3 px-4 md:px-8 py-3 md:py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold rounded-xl md:rounded-2xl hover:from-emerald-500 hover:to-emerald-400 transition-all duration-300 shadow-lg md:shadow-xl shadow-emerald-500/30 hover:shadow-xl md:hover:shadow-2xl hover:shadow-emerald-500/40 hover:scale-[1.02] md:hover:scale-105 overflow-hidden"
-                  >
-                    {/* Button Shine Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                    
-                    <div className="relative z-10 flex items-center gap-2 md:gap-3">
-                      <DocumentCheckIcon className="h-5 w-5 md:h-6 md:w-6" />
-                      <span className="text-sm md:text-base lg:text-lg text-center">
-                        Lihat Sertifikat Resmi di Kementan
-                      </span>
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 md:h-5 md:w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-200" />
-                    </div>
-                  </a>
+                  <>
+                    <a
+                      href={data.qr_code_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative flex items-center justify-center w-full gap-2 md:gap-3 px-4 md:px-8 py-3 md:py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold rounded-xl md:rounded-2xl hover:from-emerald-500 hover:to-emerald-400 transition-all duration-300 shadow-lg md:shadow-xl shadow-emerald-500/30 hover:shadow-xl md:hover:shadow-2xl hover:shadow-emerald-500/40 hover:scale-[1.02] md:hover:scale-105 overflow-hidden"
+                    >
+                      {/* Button Shine Effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                      
+                      <div className="relative z-10 flex items-center gap-2 md:gap-3">
+                        <DocumentCheckIcon className="h-5 w-5 md:h-6 md:w-6" />
+                        <span className="text-sm md:text-base lg:text-lg text-center">
+                          Lihat Sertifikat Resmi di Kementan
+                        </span>
+                        <ArrowTopRightOnSquareIcon className="h-4 w-4 md:h-5 md:w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-200" />
+                      </div>
+                    </a>
+                    <p className="text-center text-slate-500 text-xs md:text-sm mt-3 md:mt-4 flex items-center justify-center gap-2 px-4">
+                      <ShieldCheckIcon className="w-3 h-3 md:w-4 md:h-4 text-emerald-500 flex-shrink-0" />
+                      <span>Dokumen resmi dari Kementerian Pertanian RI</span>
+                    </p>
+                  </>
                 )}
-<p className="text-center text-slate-500 text-xs md:text-sm mt-3 md:mt-4 flex items-center justify-center gap-2 px-4">
-                    <ShieldCheckIcon className="w-3 h-3 md:w-4 md:h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Dokumen resmi dari Kementerian Pertanian RI</span>
-                  </p>
-                {/* NEW: Customer Feedback Section */}
+
+                {/* Customer Feedback Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                   {/* Survey CTA */}
                   <Link
-                    href={`/survey?serial=${data.search_key || data.serial_number}&product=${encodeURIComponent(data.product_name)}`}
+                    href={`/survey?${verificationType === 'serial' ? 'serial' : 'lot'}=${identifier}&product=${encodeURIComponent(data.product_name)}`}
                     className="group relative flex items-center justify-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-400 hover:to-blue-500 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
@@ -417,7 +482,7 @@ export default function ProductResult({ data, modelType }: ProductResultProps) {
 
                   {/* Complaint CTA */}
                   <Link
-                    href={`/complaint?serial=${data.search_key || data.serial_number}&product=${encodeURIComponent(data.product_name)}`}
+                    href={`/complaint?${verificationType === 'serial' ? 'serial' : 'lot'}=${identifier}&product=${encodeURIComponent(data.product_name)}`}
                     className="group relative flex items-center justify-center gap-3 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl hover:from-orange-400 hover:to-red-400 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
