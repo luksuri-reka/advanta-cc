@@ -1,4 +1,4 @@
-/* app/globals.css - Optimized Version */
+/* app/globals.css - Enhanced Responsive Version */
 
 @tailwind base;
 @tailwind components;
@@ -6,6 +6,91 @@
 
 body {
   background-color: #f0f2f5;
+}
+
+/* ========================================
+   PREMIUM HEADER STYLES
+   ======================================== */
+
+/* Sticky header with smooth scroll */
+nav.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Header backdrop blur optimization */
+@supports (backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px)) {
+  nav .backdrop-blur-xl {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+@supports not (backdrop-filter: blur(20px)) {
+  nav .backdrop-blur-xl {
+    background: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* Header shadow on scroll */
+.header-scrolled {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Premium button ripple effect */
+@keyframes button-ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  animation: button-ripple 0.6s ease-out;
+}
+
+/* Tooltip styles */
+.premium-tooltip {
+  position: absolute;
+  bottom: -3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.75rem;
+  background: #1e293b;
+  color: white;
+  font-size: 0.75rem;
+  border-radius: 0.5rem;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+.premium-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -0.25rem;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 0.5rem;
+  height: 0.5rem;
+  background: #1e293b;
+}
+
+button:hover .premium-tooltip {
+  opacity: 1;
 }
 
 /* ========================================
@@ -301,12 +386,13 @@ body {
    RESPONSIVE OPTIMIZATIONS
    ======================================== */
 
-/* Reduce animations on mobile for better performance */
+/* Mobile Optimizations (< 768px) */
 @media (max-width: 768px) {
   .text-shadow {
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
   
+  /* Disable heavy animations on mobile for better performance */
   .animate-fade-in,
   .animate-slide-in-left,
   .animate-slide-in-bottom,
@@ -324,10 +410,190 @@ body {
     transform: none;
   }
   
-  /* Disable blur effects on mobile */
+  /* Disable blur effects on mobile for performance */
   .glass-morphism {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: none;
+  }
+  
+  /* Reduce shadow complexity */
+  .shadow-premium {
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  }
+}
+
+/* Tablet Portrait (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Optimize spacing for tablets */
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+  
+  /* Adjust card sizes */
+  .product-card-hover {
+    transform: none;
+  }
+  
+  .product-card-hover:hover {
+    transform: translateY(-1px) translateZ(0);
+  }
+}
+
+/* Tablet Landscape (768px - 1024px, landscape) */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  /* Reduce vertical padding */
+  .py-20 {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+  
+  .py-32 {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+  
+  /* Optimize hero section */
+  .min-h-screen {
+    min-height: auto;
+  }
+}
+
+/* Mobile Landscape (< 768px, landscape) */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Compact spacing for landscape mode */
+  .py-12, .py-16, .py-20, .py-32 {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+  
+  .mb-12, .mb-16 {
+    margin-bottom: 1.5rem !important;
+  }
+  
+  /* Reduce header/footer padding */
+  nav, footer {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+  
+  /* Make modals more compact */
+  .max-h-\[95vh\] {
+    max-height: 85vh;
+  }
+  
+  /* Reduce text sizes */
+  .text-3xl {
+    font-size: 1.5rem;
+  }
+  
+  .text-4xl {
+    font-size: 1.75rem;
+  }
+  
+  .text-5xl {
+    font-size: 2rem;
+  }
+}
+
+/* Extra Small Devices (< 360px) */
+@media (max-width: 360px) {
+  /* Further reduce text sizes */
+  .text-3xl {
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem;
+  }
+  
+  /* Tighter padding */
+  .px-4 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .px-6 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Smaller buttons */
+  .py-4 {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+  
+  .py-5 {
+    padding-top: 0.875rem;
+    padding-bottom: 0.875rem;
+  }
+}
+
+/* Very Small Devices (< 320px) */
+@media (max-width: 320px) {
+  /* Prevent horizontal overflow */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Full width containers */
+  .max-w-7xl {
+    max-width: 100%;
+  }
+  
+  /* Minimum font sizes */
+  .text-xs {
+    font-size: 0.65rem;
+  }
+  
+  .text-sm {
+    font-size: 0.75rem;
+  }
+  
+  /* Compact cards */
+  .rounded-2xl {
+    border-radius: 1rem;
+  }
+  
+  .rounded-3xl {
+    border-radius: 1.25rem;
+  }
+}
+
+/* Large Tablets & Small Laptops (1024px - 1280px) */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  /* Optimize for medium screens */
+  .max-w-7xl {
+    max-width: 90%;
+  }
+}
+
+/* ========================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ======================================== */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets for mobile */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Remove hover states on touch devices */
+  .hover\:scale-105:hover {
+    transform: none;
+  }
+  
+  .hover\:shadow-xl:hover {
+    box-shadow: none;
+  }
+  
+  /* Use active states instead */
+  button:active {
+    transform: scale(0.98);
+    opacity: 0.9;
   }
 }
 
@@ -347,13 +613,174 @@ body {
   }
 }
 
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass-morphism {
+    background: rgba(255, 255, 255, 1);
+    border: 2px solid rgba(0, 0, 0, 0.8);
+  }
+  
+  .text-slate-600 {
+    color: #000;
+  }
+  
+  .shadow-lg, .shadow-xl, .shadow-2xl {
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.8);
+  }
+}
+
 /* ========================================
-   DARK MODE SUPPORT
+   DARK MODE SUPPORT - Enhanced
    ======================================== */
 
+/* CSS Variables for Easy Theme Customization */
+:root {
+  /* Light Mode Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-gradient-from: #f0fdf4;
+  --bg-gradient-via: #ffffff;
+  --bg-gradient-to: #eff6ff;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  
+  --border-light: #e2e8f0;
+  --border-medium: #cbd5e1;
+  
+  --card-bg: #ffffff;
+  --card-border: rgba(226, 232, 240, 0.8);
+  --card-shadow: rgba(0, 0, 0, 0.1);
+  
+  --accent-emerald: #10b981;
+  --accent-emerald-light: #d1fae5;
+  --accent-blue: #3b82f6;
+  --accent-blue-light: #dbeafe;
+}
+
+/* Dark Mode Variables */
 @media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-gradient-from: #064e3b;
+    --bg-gradient-via: #0f172a;
+    --bg-gradient-to: #1e3a8a;
+    
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    
+    --border-light: #334155;
+    --border-medium: #475569;
+    
+    --card-bg: #1e293b;
+    --card-border: rgba(71, 85, 105, 0.5);
+    --card-shadow: rgba(0, 0, 0, 0.5);
+    
+    --accent-emerald: #34d399;
+    --accent-emerald-light: #064e3b;
+    --accent-blue: #60a5fa;
+    --accent-blue-light: #1e3a8a;
+  }
+}
+
+/* Apply theme variables */
+body {
+  background: linear-gradient(135deg, var(--bg-gradient-from), var(--bg-gradient-via), var(--bg-gradient-to));
+  color: var(--text-primary);
+}
+
+/* Adaptive Card Styles */
+.theme-card {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+  box-shadow: 0 10px 30px var(--card-shadow);
+}
+
+.theme-text-primary {
+  color: var(--text-primary);
+}
+
+.theme-text-secondary {
+  color: var(--text-secondary);
+}
+
+.theme-text-tertiary {
+  color: var(--text-tertiary);
+}
+
+.theme-border {
+  border-color: var(--border-light);
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+  /* Enhance glass morphism for dark mode */
   .glass-morphism {
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    backdrop-filter: blur(12px);
+  }
+  
+  /* Improve input visibility */
+  input, textarea, select {
+    background-color: #1e293b;
+    color: #f1f5f9;
+    border-color: #475569;
+  }
+  
+  input::placeholder,
+  textarea::placeholder {
+    color: #64748b;
+  }
+  
+  /* Better button contrast */
+  .bg-white:not(.hover\:bg-white):not([class*="gradient"]) {
+    background-color: #1e293b;
+    color: #f1f5f9;
+  }
+  
+  /* Improve shadow visibility */
+  .shadow-lg, .shadow-xl, .shadow-2xl {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  }
+  
+  /* Better footer contrast */
+  footer {
+    background-color: #0f172a;
+    border-top-color: #334155;
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+  /* Hide non-essential elements */
+  nav, footer, button {
+    display: none !important;
+  }
+  
+  /* Optimize for printing */
+  * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+  
+  a {
+    text-decoration: underline;
+  }
+  
+  /* Page breaks */
+  h2, h3 {
+    page-break-after: avoid;
+  }
+  
+  img {
+    max-width: 100% !important;
   }
 }
