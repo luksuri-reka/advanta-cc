@@ -41,15 +41,15 @@ export default function SurveyForm() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   
-  // Get serial and product from URL params
   const serial = searchParams?.get('serial') || '';
+  const lot = searchParams?.get('lot') || '';
   const product = searchParams?.get('product') || '';
   
   const [formData, setFormData] = useState<SurveyFormData>({
     customer_name: '',
     customer_email: '',
     customer_phone: '',
-    verification_serial: serial,
+    verification_serial: serial || lot,
     survey_type: 'post_verification',
     ratings: {
       overall_satisfaction: 0,
@@ -137,7 +137,7 @@ export default function SurveyForm() {
 
   const RatingStars = ({ rating, onRate, label }: { rating: number, onRate: (rating: number) => void, label: string }) => (
     <div className="space-y-2">
-      <label className="block text-sm font-semibold text-gray-700">{label}</label>
+      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">{label}</label>
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map(star => (
           <button
@@ -147,14 +147,14 @@ export default function SurveyForm() {
             className="p-1 hover:scale-110 transition-transform"
           >
             {star <= rating ? (
-              <StarSolid className="h-8 w-8 text-yellow-400" />
+              <StarSolid className="h-8 w-8 text-yellow-400 dark:text-yellow-500" />
             ) : (
-              <StarIcon className="h-8 w-8 text-gray-300 hover:text-yellow-200" />
+              <StarIcon className="h-8 w-8 text-gray-300 dark:text-slate-600 hover:text-yellow-200 dark:hover:text-yellow-300" />
             )}
           </button>
         ))}
       </div>
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-gray-500 dark:text-slate-400">
         {rating === 0 ? 'Belum dinilai' : `${rating} dari 5 bintang`}
       </div>
     </div>
@@ -162,18 +162,20 @@ export default function SurveyForm() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 dark:border-emerald-400"></div>
       </div>
     );
   }
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
         <div className="container mx-auto px-4 py-8 max-w-2xl">
-          <div className="bg-white rounded-3xl shadow-2xl border border-white/80 overflow-hidden">
-            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-12 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
+            
+            {/* Success Header */}
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 px-8 py-12 text-center">
               <div className="relative inline-block mb-6">
                 <CheckCircleIcon className="h-20 w-20 text-white mx-auto" />
                 <div className="absolute inset-0 bg-white/30 rounded-full animate-ping"></div>
@@ -181,13 +183,13 @@ export default function SurveyForm() {
               <h1 className="text-3xl font-bold text-white mb-2">
                 Terima Kasih!
               </h1>
-              <p className="text-emerald-100 text-lg">
+              <p className="text-emerald-100 dark:text-emerald-200 text-lg">
                 Survey Anda telah berhasil dikirim
               </p>
             </div>
 
             <div className="p-8 text-center">
-              <p className="text-gray-600 mb-8 leading-relaxed">
+              <p className="text-gray-600 dark:text-slate-300 mb-8 leading-relaxed">
                 Feedback Anda sangat berharga bagi kami untuk terus meningkatkan kualitas produk dan layanan. 
                 Tim kami akan meninjau masukan Anda dengan seksama.
               </p>
@@ -195,7 +197,7 @@ export default function SurveyForm() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Link
                   href="/"
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold rounded-xl hover:from-emerald-400 hover:to-emerald-500 transition-all duration-300 shadow-lg hover:shadow-xl"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 text-white font-semibold rounded-xl hover:from-emerald-400 hover:to-emerald-500 dark:hover:from-emerald-500 dark:hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
                   <SparklesIcon className="h-5 w-5" />
                   Kembali ke Beranda
@@ -203,7 +205,7 @@ export default function SurveyForm() {
                 
                 <Link
                   href="/complaint"
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 font-semibold rounded-xl hover:from-gray-200 hover:to-gray-300 transition-all duration-300"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 text-gray-700 dark:text-slate-200 font-semibold rounded-xl hover:from-gray-200 hover:to-gray-300 dark:hover:from-slate-600 dark:hover:to-slate-500 transition-all duration-300"
                 >
                   Ada Masalah?
                 </Link>
@@ -216,21 +218,22 @@ export default function SurveyForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
+      
       {/* Header */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-10">
+      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <img src="/advanta-logo.png" alt="Advanta Logo" className="h-6 sm:h-8 flex-shrink-0" />
               <div className="min-w-0">
-                <h1 className="text-sm sm:text-xl font-bold text-gray-900 truncate">Survey Kepuasan Pelanggan</h1>
-                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">PT Advanta Seeds Indonesia</p>
+                <h1 className="text-sm sm:text-xl font-bold text-gray-900 dark:text-slate-100 truncate">Survey Kepuasan Pelanggan</h1>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 hidden sm:block">PT Advanta Seeds Indonesia</p>
               </div>
             </div>
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-xl hover:bg-gray-100 transition-colors flex-shrink-0"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 font-medium rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
             >
               <ArrowLeftIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="hidden sm:inline">Kembali</span>
@@ -240,28 +243,31 @@ export default function SurveyForm() {
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-3xl">
+        
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             {[1, 2, 3].map(step => (
               <div key={step} className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${
                   currentStep >= step 
-                    ? 'bg-emerald-500 text-white' 
-                    : 'bg-gray-200 text-gray-500'
+                    ? 'bg-emerald-500 dark:bg-emerald-600 text-white' 
+                    : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400'
                 }`}>
                   {step}
                 </div>
                 {step < 3 && (
-                  <div className={`flex-1 h-2 mx-4 rounded-full ${
-                    currentStep > step ? 'bg-emerald-500' : 'bg-gray-200'
+                  <div className={`flex-1 h-2 mx-4 rounded-full transition-all ${
+                    currentStep > step 
+                      ? 'bg-emerald-500 dark:bg-emerald-600' 
+                      : 'bg-gray-200 dark:bg-slate-700'
                   }`} />
                 )}
               </div>
             ))}
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-slate-400">
               Langkah {currentStep} dari 3: {
                 currentStep === 1 ? 'Informasi Kontak' :
                 currentStep === 2 ? 'Penilaian Produk' :
@@ -272,15 +278,15 @@ export default function SurveyForm() {
         </div>
 
         {/* Form Container */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-white/80 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
           
           {/* Form Header */}
-          <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-8 text-center">
+          <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 px-8 py-8 text-center">
             <FaceSmileIcon className="h-12 w-12 text-white mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">
               Bagikan Pengalaman Anda
             </h2>
-            <p className="text-emerald-100">
+            <p className="text-emerald-100 dark:text-emerald-200">
               Bantu kami memberikan produk dan layanan yang lebih baik
             </p>
           </div>
@@ -290,10 +296,10 @@ export default function SurveyForm() {
             {/* Step 1: Contact Information */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Informasi Kontak</h3>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-6">Informasi Kontak</h3>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                     Nama Lengkap *
                   </label>
                   <input
@@ -302,13 +308,13 @@ export default function SurveyForm() {
                     value={formData.customer_name}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="Masukkan nama lengkap"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                     Email *
                   </label>
                   <input
@@ -317,13 +323,13 @@ export default function SurveyForm() {
                     value={formData.customer_email}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="email@example.com"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                     Nomor Telepon
                   </label>
                   <input
@@ -331,17 +337,22 @@ export default function SurveyForm() {
                     name="customer_phone"
                     value={formData.customer_phone}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="08xxxxxxxxxx"
                   />
                 </div>
 
                 {formData.verification_serial && (
-                  <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200">
-                    <h4 className="font-semibold text-emerald-800 mb-2">Produk yang Disurvey</h4>
-                    <p className="text-sm text-emerald-700">
-                      Serial: {formData.verification_serial}
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
+                    <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-2">Produk yang Disurvey</h4>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-200">
+                      Serial/Lot: {formData.verification_serial}
                     </p>
+                    {product && (
+                      <p className="text-sm text-emerald-700 dark:text-emerald-200 mt-1">
+                        Produk: {product}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -350,7 +361,7 @@ export default function SurveyForm() {
             {/* Step 2: Product Rating */}
             {currentStep === 2 && (
               <div className="space-y-8">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Penilaian Produk</h3>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-6">Penilaian Produk</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <RatingStars
@@ -378,16 +389,18 @@ export default function SurveyForm() {
                   />
                 </div>
 
-                <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
-                  <h4 className="font-semibold text-blue-800 mb-4">Apakah Anda akan merekomendasikan produk kami?</h4>
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800">
+                  <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-4">
+                    Apakah Anda akan merekomendasikan produk kami?
+                  </h4>
                   <div className="flex gap-4">
                     <button
                       type="button"
                       onClick={() => handleRecommendChange(true)}
                       className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
                         formData.would_recommend === true
-                          ? 'bg-emerald-500 text-white shadow-lg'
-                          : 'bg-white text-gray-700 hover:bg-emerald-50'
+                          ? 'bg-emerald-500 dark:bg-emerald-600 text-white shadow-lg'
+                          : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 border border-gray-200 dark:border-slate-600'
                       }`}
                     >
                       <HandThumbUpIcon className="h-5 w-5" />
@@ -398,8 +411,8 @@ export default function SurveyForm() {
                       onClick={() => handleRecommendChange(false)}
                       className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
                         formData.would_recommend === false
-                          ? 'bg-red-500 text-white shadow-lg'
-                          : 'bg-white text-gray-700 hover:bg-red-50'
+                          ? 'bg-red-500 dark:bg-red-600 text-white shadow-lg'
+                          : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/30 border border-gray-200 dark:border-slate-600'
                       }`}
                     >
                       Tidak
@@ -412,10 +425,10 @@ export default function SurveyForm() {
             {/* Step 3: Feedback */}
             {currentStep === 3 && (
               <div className="space-y-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Feedback & Saran</h3>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-6">Feedback & Saran</h3>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                     Komentar Anda
                   </label>
                   <textarea
@@ -423,13 +436,13 @@ export default function SurveyForm() {
                     value={formData.comments}
                     onChange={handleInputChange}
                     rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors resize-none"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors resize-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="Ceritakan pengalaman Anda menggunakan produk kami..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                     Saran Perbaikan
                   </label>
                   <textarea
@@ -437,14 +450,16 @@ export default function SurveyForm() {
                     value={formData.suggestions}
                     onChange={handleInputChange}
                     rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors resize-none"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors resize-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="Bagaimana kami bisa melakukan yang lebih baik?"
                   />
                 </div>
 
-                <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-2xl p-6 border border-emerald-200">
-                  <h4 className="font-semibold text-emerald-800 mb-2">Terima kasih atas waktu Anda!</h4>
-                  <p className="text-emerald-700 text-sm">
+                <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
+                  <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-2">
+                    Terima kasih atas waktu Anda!
+                  </h4>
+                  <p className="text-emerald-700 dark:text-emerald-200 text-sm">
                     Feedback Anda sangat berharga untuk membantu kami meningkatkan kualitas produk dan layanan.
                   </p>
                 </div>
@@ -452,7 +467,7 @@ export default function SurveyForm() {
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between items-center mt-12 pt-8 border-t border-gray-200">
+            <div className="flex justify-between items-center mt-12 pt-8 border-t border-gray-200 dark:border-slate-700">
               {currentStep > 1 ? (
                 <button
                   type="button"
@@ -460,7 +475,7 @@ export default function SurveyForm() {
                     e.preventDefault();
                     prevStep();
                   }}
-                  className="flex items-center gap-2 px-6 py-3 text-gray-600 font-semibold rounded-xl hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-2 px-6 py-3 text-gray-600 dark:text-slate-300 font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 >
                   <ArrowLeftIcon className="h-5 w-5" />
                   Sebelumnya
@@ -481,7 +496,7 @@ export default function SurveyForm() {
                     (currentStep === 1 && (!formData.customer_name || !formData.customer_email)) ||
                     (currentStep === 2 && formData.ratings.overall_satisfaction === 0)
                   }
-                  className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                  className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-emerald-500 dark:hover:from-emerald-500 dark:hover:to-emerald-600 focus:ring-4 focus:ring-emerald-500/20 dark:focus:ring-emerald-400/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
                 >
                   Selanjutnya
                   <ArrowLeftIcon className="h-5 w-5 rotate-180" />
@@ -490,7 +505,7 @@ export default function SurveyForm() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                  className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-emerald-500 dark:hover:from-emerald-500 dark:hover:to-emerald-600 focus:ring-4 focus:ring-emerald-500/20 dark:focus:ring-emerald-400/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
                 >
                   {isSubmitting ? (
                     <>
@@ -511,9 +526,9 @@ export default function SurveyForm() {
 
         {/* Help Text */}
         <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Mengalami kesulitan? Hubungi kami di{' '}
-            <a href={`mailto:${process.env.NEXT_PUBLIC_COMPANY_EMAIL}`} className="text-emerald-600 hover:underline">
+            <a href={`mailto:${process.env.NEXT_PUBLIC_COMPANY_EMAIL}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
               {process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'support@advantaindonesia.com'}
             </a>
           </p>
