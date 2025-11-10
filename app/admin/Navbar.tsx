@@ -1,4 +1,4 @@
-// app/admin/Navbar.tsx - With Complaint Team Management
+// app/admin/Navbar.tsx - With Dark Mode Support
 'use client';
 
 import { Fragment } from 'react';
@@ -49,7 +49,6 @@ interface NavItem {
 export default function Navbar({ user, onLogout }: { user: DisplayUser | null; onLogout: () => void }) {
   const pathname = usePathname();
 
-  // Check user permissions for complaint system
   const hasComplaintPermission = (permission: string) => {
     if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
       return true;
@@ -57,10 +56,8 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
     return user?.complaint_permissions?.[permission] === true;
   };
 
-  // Use custom hook for complaint notifications
   const { stats, markAllAsRead } = useComplaintNotifications(hasComplaintPermission('canViewComplaints'));
   
-  // Use unreadCount for notifications instead of pendingCount
   const totalNotifications = stats.unreadCount;
   const customerCareBadge = stats.unreadCount > 0 ? stats.unreadCount : undefined;
 
@@ -132,7 +129,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
   ];
   
   return (
-    <Disclosure as="nav" className="bg-white/95 backdrop-blur-2xl shadow-lg border-b border-gray-200/50 sticky top-0 z-50">
+    <Disclosure as="nav" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl shadow-lg border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-50">
       {({ open }) => (
         <>
           <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
@@ -147,19 +144,19 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                       src="/advanta-logo.png"
                       alt="Advanta Logo"
                     />
-                    <div className="absolute -top-1 -right-1 h-2 w-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <div className="absolute -top-1 -right-1 h-2 w-2 bg-emerald-500 dark:bg-emerald-400 rounded-full animate-pulse"></div>
                   </div>
                   <div className="hidden sm:block min-w-0">
                     <div className="flex items-center gap-1.5 lg:gap-2">
-                      <span className="text-sm lg:text-base font-bold bg-gradient-to-r from-gray-900 to-emerald-800 bg-clip-text text-transparent truncate">
+                      <span className="text-sm lg:text-base font-bold bg-gradient-to-r from-gray-900 to-emerald-800 dark:from-slate-100 dark:to-emerald-400 bg-clip-text text-transparent truncate">
                         Admin Console
                       </span>
-                      <div className="hidden md:flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 rounded-full text-xs font-bold text-emerald-800 flex-shrink-0">
+                      <div className="hidden md:flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300 flex-shrink-0">
                         <ShieldCheckIcon className="w-2.5 h-2.5" />
                         <span className="hidden lg:inline">SECURE</span>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 hidden lg:block truncate">Advanta Seeds</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 hidden lg:block truncate">Advanta Seeds</p>
                   </div>
                 </Link>
                 
@@ -172,29 +169,29 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                         href={item.href}
                         className={classNames(
                           pathname === item.href
-                            ? 'bg-emerald-50 text-emerald-700 shadow-sm'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                            ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                            : 'text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-100',
                           'relative inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold transition-all duration-200 rounded-lg group'
                         )}
                       >
                         {item.icon && <item.icon className="h-4 w-4 flex-shrink-0" />}
                         <span className="truncate">{item.name}</span>
                         {item.badge && item.badge > 0 && (
-                          <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-sm flex-shrink-0 animate-pulse">
+                          <span className="bg-gradient-to-r from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-sm flex-shrink-0 animate-pulse">
                             {item.badge}
                           </span>
                         )}
                         {pathname === item.href && (
-                          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-emerald-500 rounded-full"></div>
+                          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-emerald-500 dark:bg-emerald-400 rounded-full"></div>
                         )}
                       </Link>
                     ) : (
                       <Menu as="div" key={item.name} className="relative">
-                        <Menu.Button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 rounded-lg group">
+                        <Menu.Button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-100 transition-all duration-200 rounded-lg group">
                           {item.icon && <item.icon className="h-4 w-4 flex-shrink-0" />}
                           <span className="truncate">{item.name}</span>
                           {item.badge && item.badge > 0 && (
-                            <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-sm animate-pulse flex-shrink-0">
+                            <span className="bg-gradient-to-r from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-sm animate-pulse flex-shrink-0">
                               {item.badge}
                             </span>
                           )}
@@ -209,13 +206,13 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                           leaveFrom="transform opacity-100 scale-100"
                           leaveTo="transform opacity-0 scale-95"
                         >
-                          <Menu.Items className="absolute top-full left-0 mt-2 w-56 origin-top-left rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black/5 focus:outline-none border border-gray-200 z-50">
-                            <div className="px-3 py-2 border-b border-gray-100">
-                              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                          <Menu.Items className="absolute top-full left-0 mt-2 w-56 origin-top-left rounded-xl bg-white dark:bg-slate-800 py-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 focus:outline-none border border-gray-200 dark:border-slate-700 z-50">
+                            <div className="px-3 py-2 border-b border-gray-100 dark:border-slate-700">
+                              <p className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
                                 {item.icon && <item.icon className="h-3 w-3" />}
                                 <span className="truncate">{item.name}</span>
                                 {item.badge && item.badge > 0 && (
-                                  <span className="bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full font-bold ml-auto flex-shrink-0">
+                                  <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-300 text-xs px-1.5 py-0.5 rounded-full font-bold ml-auto flex-shrink-0">
                                     {item.badge} baru
                                   </span>
                                 )}
@@ -228,14 +225,14 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                                     <Link
                                       href={child.href || '#'}
                                       className={classNames(
-                                        active ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700',
-                                        'flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors duration-150 mx-1.5 rounded-lg'
+                                        active ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-slate-300',
+                                        'flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors duration-150 mx-1.5 rounded-lg'
                                       )}
                                     >
                                       {child.icon && <child.icon className="h-4 w-4 flex-shrink-0" />}
                                       <span className="truncate flex-1">{child.name}</span>
                                       {child.badge && child.badge > 0 && (
-                                        <span className="bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">
+                                        <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-300 text-xs px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">
                                           {child.badge}
                                         </span>
                                       )}
@@ -257,7 +254,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                 {/* Notification Bell */}
                 {hasComplaintPermission('canViewComplaints') && totalNotifications > 0 && (
                   <Menu as="div" className="relative">
-                    <Menu.Button className="relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors">
+                    <Menu.Button className="relative p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 transition-colors">
                       <BellIcon className="h-5 w-5" />
                       <span className="absolute top-0.5 right-0.5 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold animate-pulse">
                         {totalNotifications > 9 ? '9+' : totalNotifications}
@@ -273,11 +270,11 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                       leaveFrom="transform opacity-100 scale-100"
                       leaveTo="transform opacity-0 scale-95"
                     >
-                      <Menu.Items className="absolute right-0 mt-2 w-80 origin-top-right rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black/5 focus:outline-none border border-gray-200 z-50">
-                        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                      <Menu.Items className="absolute right-0 mt-2 w-80 origin-top-right rounded-xl bg-white dark:bg-slate-800 py-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 focus:outline-none border border-gray-200 dark:border-slate-700 z-50">
+                        <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
                           <div>
-                            <h3 className="text-sm font-bold text-gray-900">Notifikasi</h3>
-                            <p className="text-xs text-gray-500 mt-0.5">
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Notifikasi</h3>
+                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                               {totalNotifications} komplain belum dibaca
                             </p>
                           </div>
@@ -287,7 +284,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                                 e.preventDefault();
                                 markAllAsRead();
                               }}
-                              className="text-xs text-emerald-600 hover:text-emerald-500 font-semibold flex items-center gap-1"
+                              className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 font-semibold flex items-center gap-1"
                             >
                               <CheckIcon className="h-3 w-3" />
                               Tandai Semua
@@ -302,22 +299,22 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                                 <Link
                                   href="/admin/complaints?priority=critical"
                                   className={classNames(
-                                    active ? 'bg-red-50' : '',
-                                    'flex items-start gap-3 px-4 py-3 hover:bg-red-50 transition-colors'
+                                    active ? 'bg-red-50 dark:bg-red-900/20' : '',
+                                    'flex items-start gap-3 px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors'
                                   )}
                                 >
-                                  <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
-                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-600" />
+                                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg flex-shrink-0">
+                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-gray-900">
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                                       {stats.criticalCount} Komplain Kritis
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-0.5">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                                       Memerlukan tindakan segera
                                     </p>
                                   </div>
-                                  <span className="text-xs text-red-600 font-bold flex-shrink-0">
+                                  <span className="text-xs text-red-600 dark:text-red-400 font-bold flex-shrink-0">
                                     {stats.criticalCount}
                                   </span>
                                 </Link>
@@ -331,22 +328,22 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                                 <Link
                                   href="/admin/complaints?status=submitted"
                                   className={classNames(
-                                    active ? 'bg-yellow-50' : '',
-                                    'flex items-start gap-3 px-4 py-3 hover:bg-yellow-50 transition-colors'
+                                    active ? 'bg-yellow-50 dark:bg-yellow-900/20' : '',
+                                    'flex items-start gap-3 px-4 py-3 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors'
                                   )}
                                 >
-                                  <div className="p-2 bg-yellow-100 rounded-lg flex-shrink-0">
-                                    <ChatBubbleLeftRightIcon className="h-4 w-4 text-yellow-600" />
+                                  <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex-shrink-0">
+                                    <ChatBubbleLeftRightIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-gray-900">
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                                       {stats.pendingCount} Komplain Pending
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-0.5">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                                       Menunggu review
                                     </p>
                                   </div>
-                                  <span className="text-xs text-yellow-600 font-bold flex-shrink-0">
+                                  <span className="text-xs text-yellow-600 dark:text-yellow-400 font-bold flex-shrink-0">
                                     {stats.pendingCount}
                                   </span>
                                 </Link>
@@ -355,10 +352,10 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                           )}
                         </div>
                         
-                        <div className="border-t border-gray-100 px-4 py-2">
+                        <div className="border-t border-gray-100 dark:border-slate-700 px-4 py-2">
                           <Link
                             href="/admin/complaints"
-                            className="text-sm text-emerald-600 font-semibold hover:text-emerald-500 flex items-center justify-center gap-1"
+                            className="text-sm text-emerald-600 dark:text-emerald-400 font-semibold hover:text-emerald-500 dark:hover:text-emerald-300 flex items-center justify-center gap-1"
                           >
                             Lihat Semua Komplain
                           </Link>
@@ -371,17 +368,17 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                 {/* Profile Menu */}
                 <Menu as="div" className="relative flex-shrink-0">
                   <div>
-                    <Menu.Button className="flex items-center gap-1.5 sm:gap-2 rounded-lg bg-white border border-gray-200/50 px-2 sm:px-3 py-1.5 sm:py-2 text-sm hover:bg-gray-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 group max-w-[200px] sm:max-w-none">
-                      <div className="h-6 w-6 sm:h-7 sm:w-7 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg group-hover:shadow-emerald-500/25 transition-shadow flex-shrink-0">
+                    <Menu.Button className="flex items-center gap-1.5 sm:gap-2 rounded-lg bg-white dark:bg-slate-800 border border-gray-200/50 dark:border-slate-700/50 px-2 sm:px-3 py-1.5 sm:py-2 text-sm hover:bg-gray-50 dark:hover:bg-slate-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:ring-emerald-400/20 focus:border-emerald-500 dark:focus:border-emerald-400 transition-all duration-200 group max-w-[200px] sm:max-w-none">
+                      <div className="h-6 w-6 sm:h-7 sm:w-7 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg group-hover:shadow-emerald-500/25 dark:group-hover:shadow-emerald-400/25 transition-shadow flex-shrink-0">
                         {user?.name?.charAt(0) || 'A'}
                       </div>
                       <div className="text-left hidden sm:block min-w-0">
-                        <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{user?.name || 'Admin'}</p>
-                        <p className="text-xs text-gray-500 truncate">
+                        <p className="font-semibold text-gray-900 dark:text-slate-100 text-xs sm:text-sm truncate">{user?.name || 'Admin'}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                           {user?.roles?.[0] || 'Admin'}
                         </p>
                       </div>
-                      <ChevronDownIcon className="h-3 w-3 text-gray-400 group-hover:rotate-180 transition-transform duration-200 flex-shrink-0 hidden sm:block" />
+                      <ChevronDownIcon className="h-3 w-3 text-gray-400 dark:text-slate-500 group-hover:rotate-180 transition-transform duration-200 flex-shrink-0 hidden sm:block" />
                     </Menu.Button>
                   </div>
                   <Transition
@@ -393,15 +390,15 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                     leaveFrom="transform opacity-100 scale-100"
                     leaveTo="transform opacity-0 scale-95"
                   >
-                    <Menu.Items className="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black/5 focus:outline-none border border-gray-200">
-                      <div className="px-3 py-2 border-b border-gray-100">
+                    <Menu.Items className="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-xl bg-white dark:bg-slate-800 py-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 focus:outline-none border border-gray-200 dark:border-slate-700">
+                      <div className="px-3 py-2 border-b border-gray-100 dark:border-slate-700">
                         <div className="flex items-center gap-2">
-                          <div className="h-9 w-9 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                          <div className="h-9 w-9 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 rounded-lg flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
                             {user?.name?.charAt(0) || 'A'}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'Administrator'}</p>
-                            <p className="text-xs text-gray-500 truncate">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{user?.name || 'Administrator'}</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                               {user?.roles?.join(', ') || 'Superadmin'}
                             </p>
                           </div>
@@ -414,8 +411,8 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                             <Link
                               href="/admin/profile"
                               className={classNames(
-                                active ? 'bg-gray-50' : '',
-                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150'
+                                active ? 'bg-gray-50 dark:bg-slate-700' : '',
+                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors duration-150'
                               )}
                             >
                               <UserCircleIcon className="h-4 w-4 flex-shrink-0" />
@@ -429,8 +426,8 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                             <Link
                               href="/admin/settings"
                               className={classNames(
-                                active ? 'bg-gray-50' : '',
-                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150'
+                                active ? 'bg-gray-50 dark:bg-slate-700' : '',
+                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors duration-150'
                               )}
                             >
                               <CogIcon className="h-4 w-4 flex-shrink-0" />
@@ -444,8 +441,8 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                             <Link
                               href="/admin/help"
                               className={classNames(
-                                active ? 'bg-gray-50' : '',
-                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150'
+                                active ? 'bg-gray-50 dark:bg-slate-700' : '',
+                                'flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors duration-150'
                               )}
                             >
                               <QuestionMarkCircleIcon className="h-4 w-4 flex-shrink-0" />
@@ -455,14 +452,14 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                         </Menu.Item>
                       </div>
                       
-                      <div className="border-t border-gray-100 mt-1">
+                      <div className="border-t border-gray-100 dark:border-slate-700 mt-1">
                         <Menu.Item>
                           {({ active }) => (
                             <button
                               onClick={onLogout}
                               className={classNames(
-                                active ? 'bg-red-50 text-red-700' : 'text-gray-700',
-                                'w-full text-left flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 hover:text-red-700 transition-colors duration-150'
+                                active ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'text-gray-700 dark:text-slate-300',
+                                'w-full text-left flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-400 transition-colors duration-150'
                               )}
                             >
                               <PowerIcon className="h-4 w-4 flex-shrink-0" />
@@ -477,7 +474,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
 
                 {/* Mobile Menu Button */}
                 <div className="xl:hidden">
-                  <Disclosure.Button className="inline-flex items-center justify-center rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500/20 transition-all duration-200">
+                  <Disclosure.Button className="inline-flex items-center justify-center rounded-lg p-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500/20 dark:focus:ring-emerald-400/20 transition-all duration-200">
                     <span className="sr-only">Open main menu</span>
                     {open ? (
                       <XMarkIcon className="block h-5 w-5" aria-hidden="true" />
@@ -491,8 +488,8 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
           </div>
 
           {/* Mobile Menu Panel */}
-          <Disclosure.Panel className="xl:hidden border-t border-gray-200/50">
-            <div className="bg-white max-h-[calc(100vh-4rem)] overflow-y-auto">
+          <Disclosure.Panel className="xl:hidden border-t border-gray-200/50 dark:border-slate-700/50">
+            <div className="bg-white dark:bg-slate-900 max-h-[calc(100vh-4rem)] overflow-y-auto">
               <div className="px-3 py-3 space-y-1">
                 {navigation.map((item) => (
                   item.href ? (
@@ -502,8 +499,8 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                       href={item.href}
                       className={classNames(
                         pathname === item.href
-                          ? 'bg-emerald-50 text-emerald-700 shadow-sm'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                          ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                          : 'text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-100',
                         'flex items-center gap-2 py-2.5 px-3 text-sm font-medium rounded-lg transition-all duration-150'
                       )}
                     >
@@ -518,8 +515,8 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                   ) : (
                     <div key={item.name} className="py-2">
                       <div className="flex items-center gap-2 px-3 py-1.5 mb-1">
-                        {item.icon && <item.icon className="h-5 w-5 text-gray-500 flex-shrink-0" />}
-                        <p className="text-sm font-bold text-gray-900 uppercase tracking-wide flex-1">{item.name}</p>
+                        {item.icon && <item.icon className="h-5 w-5 text-gray-500 dark:text-slate-400 flex-shrink-0" />}
+                        <p className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wide flex-1">{item.name}</p>
                         {item.badge && item.badge > 0 && (
                           <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0 animate-pulse">
                             {item.badge}
@@ -532,12 +529,12 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                             key={child.name}
                             as={Link}
                             href={child.href || '#'}
-                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors duration-150"
+                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors duration-150"
                           >
                             {child.icon && <child.icon className="h-4 w-4 flex-shrink-0" />}
                             <span className="flex-1">{child.name}</span>
                             {child.badge && child.badge > 0 && (
-                              <span className="bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">
+                              <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-300 text-xs px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">
                                 {child.badge}
                               </span>
                             )}
