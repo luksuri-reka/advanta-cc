@@ -11,7 +11,8 @@ import {
   UserIcon,
   EnvelopeIcon,
   PhoneIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -19,13 +20,53 @@ interface ComplaintFormData {
   customer_name: string;
   customer_email: string;
   customer_phone: string;
+  customer_province: string;
+  customer_city: string;
+  customer_address: string;
   complaint_type: string;
-  priority: string;
   subject: string;
   description: string;
   related_product_serial?: string;
   related_product_name?: string;
 }
+
+// Data provinsi dan kabupaten/kota Indonesia
+const LOCATION_DATA: Record<string, string[]> = {
+  'Aceh': ['Banda Aceh', 'Langsa', 'Lhokseumawe', 'Sabang', 'Subulussalam', 'Aceh Barat', 'Aceh Barat Daya', 'Aceh Besar', 'Aceh Jaya', 'Aceh Selatan', 'Aceh Singkil', 'Aceh Tamiang', 'Aceh Tengah', 'Aceh Tenggara', 'Aceh Timur', 'Aceh Utara', 'Bener Meriah', 'Bireuen', 'Gayo Lues', 'Nagan Raya', 'Pidie', 'Pidie Jaya', 'Simeulue'],
+  'Sumatera Utara': ['Medan', 'Binjai', 'Padang Sidempuan', 'Pematang Siantar', 'Sibolga', 'Tanjung Balai', 'Tebing Tinggi', 'Asahan', 'Batubara', 'Dairi', 'Deli Serdang', 'Humbang Hasundutan', 'Karo', 'Labuhanbatu', 'Labuhanbatu Selatan', 'Labuhanbatu Utara', 'Langkat', 'Mandailing Natal', 'Nias', 'Nias Barat', 'Nias Selatan', 'Nias Utara', 'Padang Lawas', 'Padang Lawas Utara', 'Pakpak Bharat', 'Samosir', 'Serdang Bedagai', 'Simalungun', 'Tapanuli Selatan', 'Tapanuli Tengah', 'Tapanuli Utara', 'Toba Samosir'],
+  'Sumatera Barat': ['Padang', 'Bukittinggi', 'Padang Panjang', 'Pariaman', 'Payakumbuh', 'Sawahlunto', 'Solok', 'Agam', 'Dharmasraya', 'Kepulauan Mentawai', 'Lima Puluh Kota', 'Padang Pariaman', 'Pasaman', 'Pasaman Barat', 'Pesisir Selatan', 'Sijunjung', 'Solok', 'Solok Selatan', 'Tanah Datar'],
+  'Riau': ['Pekanbaru', 'Dumai', 'Bengkalis', 'Indragiri Hilir', 'Indragiri Hulu', 'Kampar', 'Kepulauan Meranti', 'Kuantan Singingi', 'Pelalawan', 'Rokan Hilir', 'Rokan Hulu', 'Siak'],
+  'Jambi': ['Jambi', 'Sungai Penuh', 'Batang Hari', 'Bungo', 'Kerinci', 'Merangin', 'Muaro Jambi', 'Sarolangun', 'Tanjung Jabung Barat', 'Tanjung Jabung Timur', 'Tebo'],
+  'Sumatera Selatan': ['Palembang', 'Lubuklinggau', 'Pagar Alam', 'Prabumulih', 'Banyuasin', 'Empat Lawang', 'Lahat', 'Muara Enim', 'Musi Banyuasin', 'Musi Rawas', 'Musi Rawas Utara', 'Ogan Ilir', 'Ogan Komering Ilir', 'Ogan Komering Ulu', 'Ogan Komering Ulu Selatan', 'Ogan Komering Ulu Timur', 'Penukal Abab Lematang Ilir'],
+  'Bengkulu': ['Bengkulu', 'Bengkulu Selatan', 'Bengkulu Tengah', 'Bengkulu Utara', 'Kaur', 'Kepahiang', 'Lebong', 'Mukomuko', 'Rejang Lebong', 'Seluma'],
+  'Lampung': ['Bandar Lampung', 'Metro', 'Lampung Barat', 'Lampung Selatan', 'Lampung Tengah', 'Lampung Timur', 'Lampung Utara', 'Mesuji', 'Pesawaran', 'Pesisir Barat', 'Pringsewu', 'Tanggamus', 'Tulang Bawang', 'Tulang Bawang Barat', 'Way Kanan'],
+  'Kepulauan Bangka Belitung': ['Pangkal Pinang', 'Bangka', 'Bangka Barat', 'Bangka Selatan', 'Bangka Tengah', 'Belitung', 'Belitung Timur'],
+  'Kepulauan Riau': ['Batam', 'Tanjung Pinang', 'Bintan', 'Karimun', 'Kepulauan Anambas', 'Lingga', 'Natuna'],
+  'DKI Jakarta': ['Jakarta Barat', 'Jakarta Pusat', 'Jakarta Selatan', 'Jakarta Timur', 'Jakarta Utara', 'Kepulauan Seribu'],
+  'Jawa Barat': ['Bandung', 'Bekasi', 'Bogor', 'Cimahi', 'Cirebon', 'Depok', 'Sukabumi', 'Tasikmalaya', 'Banjar', 'Bandung', 'Bandung Barat', 'Bekasi', 'Bogor', 'Ciamis', 'Cianjur', 'Cirebon', 'Garut', 'Indramayu', 'Karawang', 'Kuningan', 'Majalengka', 'Pangandaran', 'Purwakarta', 'Subang', 'Sukabumi', 'Sumedang', 'Tasikmalaya'],
+  'Jawa Tengah': ['Magelang', 'Pekalongan', 'Salatiga', 'Semarang', 'Surakarta', 'Tegal', 'Banjarnegara', 'Banyumas', 'Batang', 'Blora', 'Boyolali', 'Brebes', 'Cilacap', 'Demak', 'Grobogan', 'Jepara', 'Karanganyar', 'Kebumen', 'Kendal', 'Klaten', 'Kudus', 'Magelang', 'Pati', 'Pekalongan', 'Pemalang', 'Purbalingga', 'Purworejo', 'Rembang', 'Semarang', 'Sragen', 'Sukoharjo', 'Tegal', 'Temanggung', 'Wonogiri', 'Wonosobo'],
+  'DI Yogyakarta': ['Yogyakarta', 'Bantul', 'Gunung Kidul', 'Kulon Progo', 'Sleman'],
+  'Jawa Timur': ['Batu', 'Blitar', 'Kediri', 'Madiun', 'Malang', 'Mojokerto', 'Pasuruan', 'Probolinggo', 'Surabaya', 'Bangkalan', 'Banyuwangi', 'Blitar', 'Bojonegoro', 'Bondowoso', 'Gresik', 'Jember', 'Jombang', 'Kediri', 'Lamongan', 'Lumajang', 'Madiun', 'Magetan', 'Malang', 'Mojokerto', 'Nganjuk', 'Ngawi', 'Pacitan', 'Pamekasan', 'Pasuruan', 'Ponorogo', 'Probolinggo', 'Sampang', 'Sidoarjo', 'Situbondo', 'Sumenep', 'Trenggalek', 'Tuban', 'Tulungagung'],
+  'Banten': ['Cilegon', 'Serang', 'Tangerang', 'Tangerang Selatan', 'Lebak', 'Pandeglang', 'Serang', 'Tangerang'],
+  'Bali': ['Denpasar', 'Badung', 'Bangli', 'Buleleng', 'Gianyar', 'Jembrana', 'Karangasem', 'Klungkung', 'Tabanan'],
+  'Nusa Tenggara Barat': ['Bima', 'Mataram', 'Bima', 'Dompu', 'Lombok Barat', 'Lombok Tengah', 'Lombok Timur', 'Lombok Utara', 'Sumbawa', 'Sumbawa Barat'],
+  'Nusa Tenggara Timur': ['Kupang', 'Alor', 'Belu', 'Ende', 'Flores Timur', 'Kupang', 'Lembata', 'Malaka', 'Manggarai', 'Manggarai Barat', 'Manggarai Timur', 'Nagekeo', 'Ngada', 'Rote Ndao', 'Sabu Raijua', 'Sikka', 'Sumba Barat', 'Sumba Barat Daya', 'Sumba Tengah', 'Sumba Timur', 'Timor Tengah Selatan', 'Timor Tengah Utara'],
+  'Kalimantan Barat': ['Pontianak', 'Singkawang', 'Bengkayang', 'Kapuas Hulu', 'Kayong Utara', 'Ketapang', 'Kubu Raya', 'Landak', 'Melawi', 'Mempawah', 'Sambas', 'Sanggau', 'Sekadau', 'Sintang'],
+  'Kalimantan Tengah': ['Palangka Raya', 'Barito Selatan', 'Barito Timur', 'Barito Utara', 'Gunung Mas', 'Kapuas', 'Katingan', 'Kotawaringin Barat', 'Kotawaringin Timur', 'Lamandau', 'Murung Raya', 'Pulang Pisau', 'Seruyan', 'Sukamara'],
+  'Kalimantan Selatan': ['Banjarbaru', 'Banjarmasin', 'Balangan', 'Banjar', 'Barito Kuala', 'Hulu Sungai Selatan', 'Hulu Sungai Tengah', 'Hulu Sungai Utara', 'Kotabaru', 'Tabalong', 'Tanah Bumbu', 'Tanah Laut', 'Tapin'],
+  'Kalimantan Timur': ['Balikpapan', 'Bontang', 'Samarinda', 'Berau', 'Kutai Barat', 'Kutai Kartanegara', 'Kutai Timur', 'Mahakam Ulu', 'Paser', 'Penajam Paser Utara'],
+  'Kalimantan Utara': ['Tarakan', 'Bulungan', 'Malinau', 'Nunukan', 'Tana Tidung'],
+  'Sulawesi Utara': ['Bitung', 'Kotamobagu', 'Manado', 'Tomohon', 'Bolaang Mongondow', 'Bolaang Mongondow Selatan', 'Bolaang Mongondow Timur', 'Bolaang Mongondow Utara', 'Kepulauan Sangihe', 'Kepulauan Siau Tagulandang Biaro', 'Kepulauan Talaud', 'Minahasa', 'Minahasa Selatan', 'Minahasa Tenggara', 'Minahasa Utara'],
+  'Sulawesi Tengah': ['Palu', 'Banggai', 'Banggai Kepulauan', 'Banggai Laut', 'Buol', 'Donggala', 'Morowali', 'Morowali Utara', 'Parigi Moutong', 'Poso', 'Sigi', 'Tojo Una-Una', 'Toli-Toli'],
+  'Sulawesi Selatan': ['Makassar', 'Palopo', 'Parepare', 'Bantaeng', 'Barru', 'Bone', 'Bulukumba', 'Enrekang', 'Gowa', 'Jeneponto', 'Kepulauan Selayar', 'Luwu', 'Luwu Timur', 'Luwu Utara', 'Maros', 'Pangkajene dan Kepulauan', 'Pinrang', 'Sidenreng Rappang', 'Sinjai', 'Soppeng', 'Takalar', 'Tana Toraja', 'Toraja Utara', 'Wajo'],
+  'Sulawesi Tenggara': ['Bau-Bau', 'Kendari', 'Bombana', 'Buton', 'Buton Selatan', 'Buton Tengah', 'Buton Utara', 'Kolaka', 'Kolaka Timur', 'Kolaka Utara', 'Konawe', 'Konawe Kepulauan', 'Konawe Selatan', 'Konawe Utara', 'Muna', 'Muna Barat', 'Wakatobi'],
+  'Gorontalo': ['Gorontalo', 'Boalemo', 'Bone Bolango', 'Gorontalo', 'Gorontalo Utara', 'Pohuwato'],
+  'Sulawesi Barat': ['Majene', 'Mamasa', 'Mamuju', 'Mamuju Tengah', 'Mamuju Utara', 'Polewali Mandar'],
+  'Maluku': ['Ambon', 'Tual', 'Buru', 'Buru Selatan', 'Kepulauan Aru', 'Maluku Barat Daya', 'Maluku Tengah', 'Maluku Tenggara', 'Maluku Tenggara Barat', 'Seram Bagian Barat', 'Seram Bagian Timur'],
+  'Maluku Utara': ['Ternate', 'Tidore Kepulauan', 'Halmahera Barat', 'Halmahera Selatan', 'Halmahera Tengah', 'Halmahera Timur', 'Halmahera Utara', 'Kepulauan Sula', 'Pulau Morotai', 'Pulau Taliabu'],
+  'Papua Barat': ['Sorong', 'Fakfak', 'Kaimana', 'Manokwari', 'Manokwari Selatan', 'Maybrat', 'Pegunungan Arfak', 'Raja Ampat', 'Sorong', 'Sorong Selatan', 'Tambraw', 'Teluk Bintuni', 'Teluk Wondama'],
+  'Papua': ['Jayapura', 'Asmat', 'Biak Numfor', 'Boven Digoel', 'Deiyai', 'Dogiyai', 'Intan Jaya', 'Jayapura', 'Jayawijaya', 'Keerom', 'Kepulauan Yapen', 'Lanny Jaya', 'Mamberamo Raya', 'Mamberamo Tengah', 'Mappi', 'Merauke', 'Mimika', 'Nabire', 'Nduga', 'Paniai', 'Pegunungan Bintang', 'Puncak', 'Puncak Jaya', 'Sarmi', 'Supiori', 'Tolikara', 'Waropen', 'Yahukimo', 'Yalimo']
+};
 
 export default function ComplaintForm() {
   const searchParams = useSearchParams();
@@ -43,17 +84,30 @@ export default function ComplaintForm() {
     customer_name: '',
     customer_email: '',
     customer_phone: '',
+    customer_province: '',
+    customer_city: '',
+    customer_address: '',
     complaint_type: 'other',
-    priority: 'medium',
     subject: '',
     description: '',
     related_product_serial: serial || lot,
     related_product_name: product
   });
 
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (formData.customer_province) {
+      setAvailableCities(LOCATION_DATA[formData.customer_province] || []);
+      setFormData(prev => ({ ...prev, customer_city: '' }));
+    } else {
+      setAvailableCities([]);
+    }
+  }, [formData.customer_province]);
 
   const complaintTypes = [
     { value: 'product_defect', label: 'Cacat Produk' },
@@ -63,13 +117,6 @@ export default function ComplaintForm() {
     { value: 'delivery_issue', label: 'Masalah Pengiriman' },
     { value: 'customer_service', label: 'Layanan Pelanggan' },
     { value: 'other', label: 'Lainnya' }
-  ];
-
-  const priorityLevels = [
-    { value: 'low', label: 'Rendah', description: 'Tidak mendesak' },
-    { value: 'medium', label: 'Sedang', description: 'Perlu perhatian' },
-    { value: 'high', label: 'Tinggi', description: 'Segera ditangani' },
-    { value: 'critical', label: 'Kritis', description: 'Sangat mendesak' }
   ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -120,7 +167,6 @@ export default function ComplaintForm() {
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
             
-            {/* Success Header */}
             <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 px-8 py-12 text-center">
               <div className="relative inline-block mb-6">
                 <CheckCircleIcon className="h-20 w-20 text-white mx-auto" />
@@ -134,7 +180,6 @@ export default function ComplaintForm() {
               </p>
             </div>
 
-            {/* Success Content */}
             <div className="p-8">
               <div className="text-center mb-8">
                 <div className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200 dark:border-emerald-800 mb-6">
@@ -144,11 +189,10 @@ export default function ComplaintForm() {
                 
                 <p className="text-gray-600 dark:text-slate-300 mb-8 leading-relaxed">
                   Komplain Anda telah diterima dan akan ditindaklanjuti oleh tim kami dalam waktu maksimal 24 jam. 
-                  Anda akan mendapat email konfirmasi sebentar lagi. Cek folder spam Anda jika email belum diterima.
+                  Anda akan mendapat email konfirmasi sebentar lagi.
                 </p>
               </div>
 
-              {/* Action Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                 <Link
                   href={`/complaint/${complaintNumber}/status`}
@@ -167,7 +211,6 @@ export default function ComplaintForm() {
                 </Link>
               </div>
 
-              {/* Next Steps */}
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800">
                 <h3 className="font-bold text-blue-900 dark:text-blue-200 mb-4">Langkah Selanjutnya:</h3>
                 <ul className="space-y-2 text-blue-800 dark:text-blue-300 text-sm">
@@ -195,7 +238,6 @@ export default function ComplaintForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
       
-      {/* Header */}
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -219,10 +261,8 @@ export default function ComplaintForm() {
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         
-        {/* Form Container */}
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
           
-          {/* Form Header */}
           <div className="bg-gradient-to-r from-red-500 to-orange-500 dark:from-red-600 dark:to-orange-600 px-8 py-12 text-center">
             <div className="relative inline-block mb-6">
               <ExclamationTriangleIcon className="h-16 w-16 text-white mx-auto" />
@@ -235,7 +275,6 @@ export default function ComplaintForm() {
             </p>
           </div>
 
-          {/* Form Content */}
           <form onSubmit={handleSubmit} className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
@@ -281,7 +320,7 @@ export default function ComplaintForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Nomor Telepon
+                    Nomor Telepon *
                   </label>
                   <div className="relative">
                     <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
@@ -290,9 +329,78 @@ export default function ComplaintForm() {
                       name="customer_phone"
                       value={formData.customer_phone}
                       onChange={handleChange}
+                      required
                       className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                       placeholder="08xxxxxxxxxx"
                     />
+                  </div>
+                </div>
+
+                {/* Location Section */}
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-4">
+                    <MapPinIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    Lokasi
+                  </h4>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                        Provinsi *
+                      </label>
+                      <select
+                        name="customer_province"
+                        value={formData.customer_province}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors"
+                      >
+                        <option value="">Pilih Provinsi</option>
+                        {Object.keys(LOCATION_DATA).sort().map(province => (
+                          <option key={province} value={province}>
+                            {province}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                        Kabupaten/Kota *
+                      </label>
+                      <select
+                        name="customer_city"
+                        value={formData.customer_city}
+                        onChange={handleChange}
+                        required
+                        disabled={!formData.customer_province}
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">
+                          {formData.customer_province ? 'Pilih Kabupaten/Kota' : 'Pilih Provinsi terlebih dahulu'}
+                        </option>
+                        {availableCities.map(city => (
+                          <option key={city} value={city}>
+                            {city}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                        Alamat Lengkap *
+                      </label>
+                      <textarea
+                        name="customer_address"
+                        value={formData.customer_address}
+                        onChange={handleChange}
+                        required
+                        rows={3}
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors resize-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
+                        placeholder="Jalan, RT/RW, Kelurahan/Desa, Kecamatan"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -338,46 +446,6 @@ export default function ComplaintForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Tingkat Prioritas
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {priorityLevels.map(priority => (
-                      <label key={priority.value} className="relative">
-                        <input
-                          type="radio"
-                          name="priority"
-                          value={priority.value}
-                          checked={formData.priority === priority.value}
-                          onChange={handleChange}
-                          className="sr-only"
-                        />
-                        <div className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                          formData.priority === priority.value
-                            ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-900/30'
-                            : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 bg-white dark:bg-slate-900/50'
-                        }`}>
-                          <div className={`text-sm font-semibold ${
-                            formData.priority === priority.value
-                              ? 'text-emerald-800 dark:text-emerald-300'
-                              : 'text-gray-700 dark:text-slate-300'
-                          }`}>
-                            {priority.label}
-                          </div>
-                          <div className={`text-xs ${
-                            formData.priority === priority.value
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-gray-500 dark:text-slate-400'
-                          }`}>
-                            {priority.description}
-                          </div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                     Subjek Komplain *
                   </label>
                   <input
@@ -400,7 +468,7 @@ export default function ComplaintForm() {
                     value={formData.description}
                     onChange={handleChange}
                     required
-                    rows={6}
+                    rows={10}
                     className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors resize-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="Jelaskan masalah Anda secara detail. Sertakan informasi seperti kapan masalah terjadi, langkah-langkah yang sudah dilakukan, dan dampak yang dialami."
                   />

@@ -9,7 +9,15 @@ export async function POST(
   try {
     const { id } = await params;
     const supabase = await createClient();
+    
+    // --- PERBAIKAN 1: Baca payload yang benar dari frontend ---
     const body = await request.json();
+    const { 
+      message, 
+      admin_name, 
+      admin_id, 
+      is_customer_response 
+    } = body;
 
     // Get current user (for auth check)
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -17,22 +25,29 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Validate required fields
-    if (!body.message) {
+    // --- PERBAIKAN 2: Validasi payload baru ---
+    if (!message) {
       return NextResponse.json(
         { error: 'Message is required' }, 
         { status: 400 }
       );
     }
+    if (!admin_id) {
+      return NextResponse.json(
+        { error: 'admin_id is required' }, 
+        { status: 400 }
+      );
+    }
 
-    // Insert response
+    // --- PERBAIKAN 3: Insert data yang benar ke DB ---
     const { data, error } = await supabase
       .from('complaint_responses')
       .insert({
         complaint_id: parseInt(id),
-        message: body.message,
-        admin_name: body.admin_name || user.user_metadata?.name || 'Admin',
-        is_internal: body.is_internal || false
+        message: message,
+        admin_name: admin_name || user.user_metadata?.name || 'Admin', // Fallback
+        admin_id: admin_id, // Simpan ID admin
+        is_customer_response: is_customer_response || false // Gunakan field yang benar
       })
       .select()
       .single();
@@ -48,8 +63,21 @@ export async function POST(
       .update({ updated_at: new Date().toISOString() })
       .eq('id', id);
 
-    // Send email notification to customer if not internal message
-    if (!body.is_internal) {
+    // --- PERBAIKAN 4: Tambahkan log ke riwayat ---
+    await supabase
+      .from('complaint_history') // Asumsi nama tabel ini benar
+      .insert({
+        complaint_id: parseInt(id),
+        action: 'response_added',
+        new_value: `Response by ${admin_name}`,
+        created_by: admin_id, // Gunakan admin_id dari payload
+        notes: message.substring(0, 150) // Potong pesan untuk notes
+      });
+
+
+    // --- PERBAIKAN 5: Update logika email ---
+    // Kirim email jika ini adalah balasan DARI admin (BUKAN dari customer)
+    if (is_customer_response === false) {
       // Get complaint details for email
       const { data: complaint } = await supabase
         .from('complaints')
@@ -62,10 +90,11 @@ export async function POST(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            type: 'complaint_response',
+            type: 'complaint_response', // Tipe email ini sudah benar
             email: complaint.customer_email,
             complaint_number: complaint.complaint_number,
-            customer_name: complaint.customer_name
+            customer_name: complaint.customer_name,
+            response_message: message // Kirim pesan lengkap di email
           })
         }).catch(err => console.error('Email notification failed:', err));
       }

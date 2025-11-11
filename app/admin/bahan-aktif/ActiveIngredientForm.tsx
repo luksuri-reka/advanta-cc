@@ -43,57 +43,144 @@ export default function ActiveIngredientForm({ isOpen, onClose, activeIngredient
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.name) {
-      toast.error("Nama Bahan Aktif wajib diisi.");
-      return;
-    }
     setIsSubmitting(true);
     
-    const actionPromise = isEditMode && activeIngredientToEdit
-      ? updateActiveIngredient(activeIngredientToEdit.id, formData)
-      : createActiveIngredient(formData);
-
-    await toast.promise(actionPromise, {
-      loading: 'Menyimpan data...',
-      success: (result) => {
-        if (result.error) throw new Error(result.error.message);
+    try {
+      let result;
+      if (isEditMode && activeIngredientToEdit) {
+        result = await updateActiveIngredient(activeIngredientToEdit.id, formData);
+      } else {
+        result = await createActiveIngredient(formData);
+      }
+      
+      // --- PERBAIKAN ---
+      // Cek jika ada error, bukan jika success
+      if (result.error) {
+        toast.error(result.error.message || 'Gagal menyimpan data.');
+      } else {
+        toast.success(isEditMode ? 'Data berhasil diperbarui.' : 'Data berhasil ditambahkan.');
         onClose();
-        return `Data berhasil ${isEditMode ? 'diperbarui' : 'disimpan'}!`;
-      },
-      error: (err) => `Gagal menyimpan: ${err.message || 'Terjadi kesalahan'}`,
-    });
-    
-    setIsSubmitting(false);
+        // Refresh halaman untuk melihat perubahan
+        window.location.reload();
+      }
+      // --- AKHIR PERBAIKAN ---
+
+    } catch (error) {
+      toast.error('Terjadi kesalahan saat menyimpan data.');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
+    <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-              <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center">
-                  <span>{isEditMode ? 'Edit Bahan Aktif' : 'Tambah Bahan Aktif'}</span>
-                  <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button>
-                </Dialog.Title>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 transition-opacity" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 z-10 overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            >
+              <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
                 
-                <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-zinc-700">Nama Bahan Aktif *</label>
-                    <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors" placeholder="Contoh: Tiametoksam" />
+                <div className="absolute top-0 right-0 pt-4 pr-4 block">
+                  <button
+                    type="button"
+                    className="rounded-md bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    onClick={onClose}
+                  >
+                    <span className="sr-only">Close</span>
+                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                  </button>
+                </div>
+                
+                <form onSubmit={handleSubmit}>
+                  <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div className="sm:flex sm:items-start">
+                      <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900 sm:mx-0 sm:h-10 sm:w-10">
+                        <CheckCircleIcon className="h-6 w-6 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                      </div>
+                      <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 dark:text-white">
+                          {isEditMode ? 'Edit Bahan Aktif' : 'Tambah Bahan Aktif'}
+                        </Dialog.Title>
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Isi detail untuk bahan aktif.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-zinc-700">Deskripsi</label>
-                    <textarea name="description" id="description" value={formData.description} onChange={handleChange} rows={3} className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors" placeholder="Deskripsi singkat mengenai bahan aktif..."></textarea>
+
+                  <div className="px-6 py-4 space-y-4">
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                        Nama Bahan Aktif
+                      </label>
+                      <div className="mt-2">
+                        <input
+                          type="text"
+                          name="name"
+                          id="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 dark:focus:ring-emerald-500 sm:text-sm transition-colors"
+                          placeholder="cth: Abamektin"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                        Deskripsi
+                      </label>
+                      <textarea
+                        name="description"
+                        id="description"
+                        value={formData.description}
+                        onChange={handleChange}
+                        rows={3}
+                        className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 dark:focus:ring-emerald-500 sm:text-sm transition-colors"
+                        placeholder="Deskripsi singkat mengenai bahan aktif..."
+                      ></textarea>
+                    </div>
                   </div>
                   
-                  <div className="mt-8 pt-5 flex justify-end gap-x-4 border-t border-gray-200">
-                    <button type="button" onClick={onClose} className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Tutup</button>
-                    <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 transition-all active:scale-95 disabled:opacity-50">
+                  <div className="mt-8 px-6 py-4 flex justify-end gap-x-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="rounded-md bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-gray-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Tutup
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 transition-all active:scale-95 disabled:opacity-50"
+                    >
                       {isSubmitting ? 'Menyimpan...' : (
                         <>
                           <CheckCircleIcon className="h-5 w-5" />
@@ -108,6 +195,6 @@ export default function ActiveIngredientForm({ isOpen, onClose, activeIngredient
           </div>
         </div>
       </Dialog>
-    </Transition>
+    </Transition.Root>
   );
 }

@@ -17,7 +17,9 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { resolution_summary, customer_satisfaction_rating } = body;
+    
+    // --- PERBAIKAN: Membaca 'resolution' (pesan lengkap) ---
+    const { resolution, resolution_summary, customer_satisfaction_rating } = body;
 
     // Get complaint data
     const { data: complaint, error: complaintError } = await supabase
@@ -41,13 +43,14 @@ export async function POST(
 
     const resolvedAt = new Date().toISOString();
 
-    // Update complaint status
+    // --- PERBAIKAN: Menyimpan 'resolution' ke database ---
     const { error: updateError } = await supabase
       .from('complaints')
       .update({
         status: 'resolved',
         resolved_at: resolvedAt,
         resolved_by: user.id,
+        resolution: resolution, // <-- BIDANG INI DITAMBAHKAN
         resolution_summary: resolution_summary,
         customer_satisfaction_rating: customer_satisfaction_rating || null,
         updated_at: resolvedAt
@@ -108,7 +111,7 @@ export async function POST(
           email: complaint.customer_email,
           complaint_number: complaint.complaint_number,
           customer_name: complaint.customer_name,
-          resolution_summary: resolution_summary
+          resolution_summary: resolution_summary // Anda mungkin ingin mengirim 'resolution' di sini
         })
       }).catch(err => console.error('Email notification failed:', err));
     }

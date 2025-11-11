@@ -13,7 +13,11 @@ import {
   ChartBarIcon,
   ClockIcon,
   CheckCircleIcon,
-  StarIcon
+  StarIcon,
+  ExclamationTriangleIcon, // Ditambahkan untuk error
+  ArrowPathIcon, // Ditambahkan untuk loading
+  ShieldCheckIcon,
+  WrenchIcon
 } from '@heroicons/react/24/outline';
 
 interface DisplayUser {
@@ -49,10 +53,11 @@ export default function ComplaintUserDetailPage() {
   const params = useParams();
   const router = useRouter();
   const userId = params?.userId as string;
-  
+
   const [user, setUser] = useState<DisplayUser | null>(null);
   const [userDetail, setUserDetail] = useState<ComplaintUserDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -65,25 +70,33 @@ export default function ComplaintUserDetailPage() {
             complaint_permissions: profile.user_metadata?.complaint_permissions || {}
           });
         }
-        await loadUserDetail();
       } catch (err) {
         console.error('Failed to load profile:', err);
         router.push('/admin/login');
       }
     })();
-  }, [userId]);
+  }, []);
+
+  useEffect(() => {
+    if (user && userId) {
+      loadUserDetail();
+    }
+  }, [user, userId]);
 
   const loadUserDetail = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const response = await fetch(`/api/admin/complaint-users/${userId}`);
       const result = await response.json();
-      
-      if (response.ok && result.data) {
+      if (response.ok) {
         setUserDetail(result.data);
+      } else {
+        setError(result.message || 'Failed to load user details');
       }
     } catch (error) {
-      console.error('Error loading user detail:', error);
+      console.error('Error loading user details:', error);
+      setError('An error occurred while fetching data');
     } finally {
       setLoading(false);
     }
@@ -96,51 +109,54 @@ export default function ComplaintUserDetailPage() {
 
   const formatInterval = (interval: string | null) => {
     if (!interval) return '-';
+    // Contoh: "0 0 02:30:00" -> "2h 30m"
     const match = interval.match(/(\d+):(\d+):(\d+)/);
     if (match) {
       const hours = parseInt(match[1]);
       const minutes = parseInt(match[2]);
       return `${hours}h ${minutes}m`;
     }
-    return interval;
+    return interval; // Fallback
   };
 
-  const getPriorityColor = (priority: string) => {
-    const colors: Record<string, string> = {
-      low: 'bg-gray-100 text-gray-800',
-      medium: 'bg-blue-100 text-blue-800',
-      high: 'bg-orange-100 text-orange-800',
-      critical: 'bg-red-100 text-red-800'
-    };
-    return colors[priority] || 'bg-gray-100 text-gray-800';
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  if (loading) {
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'submitted':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'acknowledged':
+      case 'investigating':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'pending_response':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    }
+  };
+
+  if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading user details...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userDetail) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-        <Navbar user={user} onLogout={handleLogout} />
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <div className="text-center">
-            <p className="text-gray-600">User not found</p>
-          </div>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Navbar user={user} onLogout={handleLogout} />
       
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
@@ -148,221 +164,193 @@ export default function ComplaintUserDetailPage() {
         <div className="mb-8">
           <Link
             href="/admin/complaint-users"
-            className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 mb-4"
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 mb-4"
           >
             <ArrowLeftIcon className="h-4 w-4" />
-            Back to User List
+            Kembali ke Manajemen User
           </Link>
-          
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-                {userDetail.full_name.charAt(0)}
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {userDetail.full_name}
-                </h1>
-                <p className="text-gray-600">{userDetail.email}</p>
-                {userDetail.job_title && (
-                  <p className="text-sm text-gray-500">{userDetail.job_title}</p>
-                )}
-              </div>
-            </div>
 
-            <span className={`px-4 py-2 rounded-xl text-sm font-bold ${
-              userDetail.is_active 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-gray-100 text-gray-800'
-            }`}>
-              {userDetail.is_active ? 'Active' : 'Inactive'}
-            </span>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-yellow-100 rounded-xl">
-                <ClockIcon className="h-6 w-6 text-yellow-600" />
-              </div>
-            </div>
-            <p className="text-sm text-gray-500 font-medium">Current Workload</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">
-              {userDetail.current_assigned_count} / {userDetail.max_assigned_complaints}
-            </p>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
-              <div
-                className={`h-2 rounded-full ${
-                  userDetail.current_assigned_count >= userDetail.max_assigned_complaints
-                    ? 'bg-red-500'
-                    : 'bg-yellow-500'
-                }`}
-                style={{
-                  width: `${Math.min((userDetail.current_assigned_count / userDetail.max_assigned_complaints) * 100, 100)}%`
-                }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-100 rounded-xl">
-                <CheckCircleIcon className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-            <p className="text-sm text-gray-500 font-medium">Total Resolved</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">
-              {userDetail.total_resolved_complaints}
-            </p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-100 rounded-xl">
-                <ClockIcon className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-            <p className="text-sm text-gray-500 font-medium">Avg Resolution Time</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">
-              {formatInterval(userDetail.avg_resolution_time)}
-            </p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-purple-100 rounded-xl">
-                <StarIcon className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-            <p className="text-sm text-gray-500 font-medium">Customer Satisfaction</p>
-            <p className="text-2xl font-bold text-purple-600 mt-1">
-              {userDetail.customer_satisfaction_avg 
-                ? `${userDetail.customer_satisfaction_avg.toFixed(1)}/5` 
-                : 'N/A'}
-            </p>
-            {userDetail.customer_satisfaction_avg && (
-              <div className="flex mt-2">
-                {[1,2,3,4,5].map(star => (
-                  <span key={star} className={`text-lg ${
-                    star <= Math.round(userDetail.customer_satisfaction_avg!)
-                      ? 'text-yellow-400'
-                      : 'text-gray-300'
-                  }`}>
-                    ★
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Current Assignments */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <ChartBarIcon className="h-6 w-6 text-emerald-600" />
-            Current Assignments ({userDetail.actual_assigned_count})
-          </h2>
-
-          {userDetail.current_assignments && userDetail.current_assignments.length > 0 ? (
-            <div className="space-y-3">
-              {userDetail.current_assignments.map((complaint) => (
-                <Link
-                  key={complaint.id}
-                  href={`/admin/complaints/${complaint.id}`}
-                  className="block p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors border border-gray-200"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm font-bold text-gray-900">
-                          {complaint.complaint_number}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${getPriorityColor(complaint.priority)}`}>
-                          {complaint.priority.toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700">{complaint.subject}</p>
-                    </div>
-                    <span className="text-xs text-gray-500 ml-4">
-                      {complaint.status}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+          {loading ? (
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse w-3/4"></div>
+          ) : userDetail ? (
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
+              <UserCircleIcon className="h-8 w-8 text-emerald-600" />
+              {userDetail.full_name}
+            </h1>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>No active assignments</p>
-            </div>
+             <h1 className="text-3xl font-bold text-red-600 dark:text-red-400">User Not Found</h1>
           )}
         </div>
 
-        {/* User Info */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <UserCircleIcon className="h-6 w-6 text-blue-600" />
-              User Information
-            </h2>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-500">Department</p>
-                <p className="text-base text-gray-900 mt-1">{userDetail.department}</p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-semibold text-gray-500">Max Workload</p>
-                <p className="text-base text-gray-900 mt-1">
-                  {userDetail.max_assigned_complaints} complaints
-                </p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-semibold text-gray-500">Last Active</p>
-                <p className="text-base text-gray-900 mt-1">
-                  {userDetail.last_active_at 
-                    ? new Date(userDetail.last_active_at).toLocaleString('id-ID')
-                    : 'Never'}
-                </p>
-              </div>
-            </div>
+        {/* Content */}
+        {loading ? (
+          <div className="text-center py-20 text-gray-600 dark:text-gray-400">
+            <ArrowPathIcon className="h-8 w-8 animate-spin mx-auto mb-4" />
+            Memuat detail user...
           </div>
+        ) : error ? (
+           <div className="text-center py-20 text-red-600 dark:text-red-400">
+            <ExclamationTriangleIcon className="h-8 w-8 mx-auto mb-4" />
+            {error}
+          </div>
+        ) : !userDetail ? (
+           <div className="text-center py-20 text-red-600 dark:text-red-400">
+            <ExclamationTriangleIcon className="h-8 w-8 mx-auto mb-4" />
+            User tidak ditemukan.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column: Details & Assignments */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* User Details */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <UserCircleIcon className="h-6 w-6 text-emerald-600" />
+                    Detail User
+                  </h2>
+                </div>
+                
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</dt>
+                    <dd className="mt-1 text-sm text-gray-900 dark:text-white">{userDetail.email}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Jabatan</dt>
+                    <dd className="mt-1 text-sm text-gray-900 dark:text-white">{userDetail.job_title || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Departemen</dt>
+                    <dd className="mt-1 text-sm text-gray-900 dark:text-white">{userDetail.department || '-'}</dd>
+                  </div>
+                   <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
+                    <dd className="mt-1 text-sm">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        userDetail.is_active 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                      }`}>
+                        {userDetail.is_active ? 'Aktif' : 'Nonaktif'}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Beban Kerja Saat Ini</dt>
+                    <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                      {userDetail.actual_assigned_count} / {userDetail.max_assigned_complaints}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Terakhir Aktif</dt>
+                    <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                      {formatDate(userDetail.last_active_at)}
+                    </dd>
+                  </div>
+                </div>
+              </div>
 
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <ChartBarIcon className="h-6 w-6 text-purple-600" />
-              Performance Summary
-            </h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
-                <span className="text-sm font-semibold text-green-800">Resolved</span>
-                <span className="text-lg font-bold text-green-800">
-                  {userDetail.total_resolved_complaints}
-                </span>
+              {/* Current Assignments */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <WrenchIcon className="h-6 w-6 text-emerald-600" />
+                    Penugasan Saat Ini ({userDetail.actual_assigned_count})
+                  </h2>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">ID Keluhan</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Subjek</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Prioritas</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {userDetail.current_assignments.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="text-center py-10 px-6 text-gray-500 dark:text-gray-400">
+                            Tidak ada keluhan yang sedang ditangani.
+                          </td>
+                        </tr>
+                      ) : (
+                        userDetail.current_assignments.map(complaint => (
+                          <tr key={complaint.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <Link href={`/admin/complaints/${complaint.id}`} className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-200">
+                                {complaint.complaint_number}
+                              </Link>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                              {complaint.subject}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                               <span className={`font-semibold ${
+                                 complaint.priority === 'critical' ? 'text-red-600 dark:text-red-400' :
+                                 complaint.priority === 'high' ? 'text-orange-600 dark:text-orange-400' :
+                                 complaint.priority === 'medium' ? 'text-blue-600 dark:text-blue-400' :
+                                 'text-gray-600 dark:text-gray-400'
+                               }`}>
+                                {complaint.priority}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(complaint.status)}`}>
+                                {complaint.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
-                <span className="text-sm font-semibold text-blue-800">Avg Time</span>
-                <span className="text-lg font-bold text-blue-800">
-                  {formatInterval(userDetail.avg_resolution_time)}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl">
-                <span className="text-sm font-semibold text-purple-800">CSAT Score</span>
-                <span className="text-lg font-bold text-purple-800">
-                  {userDetail.customer_satisfaction_avg 
-                    ? `${userDetail.customer_satisfaction_avg.toFixed(1)}/5` 
-                    : 'N/A'}
-                </span>
+            </div>
+
+            {/* Right Column: Performance */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <ChartBarIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  Performance Summary
+                </h2>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/50 rounded-xl border border-green-200 dark:border-green-800">
+                    <span className="text-sm font-semibold text-green-800 dark:text-green-300">Resolved</span>
+                    <span className="text-lg font-bold text-green-800 dark:text-green-200">
+                      {userDetail.total_resolved_complaints}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/50 rounded-xl border border-blue-200 dark:border-blue-800">
+                    <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">Avg Time</span>
+                    <span className="text-lg font-bold text-blue-800 dark:text-blue-200">
+                      {formatInterval(userDetail.avg_resolution_time)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/50 rounded-xl border border-purple-200 dark:border-purple-800">
+                    <span className="text-sm font-semibold text-purple-800 dark:text-purple-300">CSAT Score</span>
+                    <span className="text-lg font-bold text-purple-800 dark:text-purple-200 flex items-center gap-1">
+                      <StarIcon className="h-5 w-5 text-yellow-500" />
+                      <span>
+                        {userDetail.customer_satisfaction_avg 
+                          ? `${userDetail.customer_satisfaction_avg.toFixed(1)}/5` 
+                          : 'N/A'}
+                      </span>
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

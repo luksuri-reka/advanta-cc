@@ -6,14 +6,12 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const priority = searchParams.get('priority');
     const complaint_number = searchParams.get('complaint_number');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const supabase = await createClient();
 
-    // Build query
     let query = supabase
       .from('complaints')
       .select(`
@@ -21,8 +19,9 @@ export async function GET(request: Request) {
         complaint_number,
         customer_name,
         customer_email,
+        customer_province,
+        customer_city,
         complaint_type,
-        priority,
         subject,
         status,
         created_at,
@@ -30,20 +29,14 @@ export async function GET(request: Request) {
       `, { count: 'exact' })
       .order('created_at', { ascending: false });
 
-    // Apply filters
     if (status) {
       query = query.eq('status', status);
-    }
-    
-    if (priority) {
-      query = query.eq('priority', priority);
     }
     
     if (complaint_number) {
       query = query.eq('complaint_number', complaint_number);
     }
 
-    // Apply pagination only if not searching by complaint_number
     if (!complaint_number) {
       query = query.range(offset, offset + limit - 1);
     }
@@ -84,6 +77,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!body.customer_province || !body.customer_city || !body.customer_address) {
+      return NextResponse.json(
+        { error: 'Provinsi, Kabupaten/Kota, dan Alamat wajib diisi' }, 
+        { status: 400 }
+      );
+    }
+
     // Generate complaint number
     const year = new Date().getFullYear();
     const { data: lastComplaint } = await supabase
@@ -109,8 +109,10 @@ export async function POST(request: Request) {
         customer_name: body.customer_name,
         customer_email: body.customer_email,
         customer_phone: body.customer_phone,
+        customer_province: body.customer_province,
+        customer_city: body.customer_city,
+        customer_address: body.customer_address,
         complaint_type: body.complaint_type || 'other',
-        priority: body.priority || 'medium',
         subject: body.subject,
         description: body.description,
         related_product_serial: body.related_product_serial,
@@ -125,14 +127,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Send email notification to customer (fire and forget)
+    // Send email notification
     if (data && body.customer_email) {
-      // Get base URL with proper validation
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'http://localhost:3000';
       const emailApiUrl = `${baseUrl}/api/notifications/email`;
-      
-      console.log('🔔 Sending email to:', body.customer_email);
-      console.log('📧 Email API URL:', emailApiUrl);
       
       fetch(emailApiUrl, {
         method: 'POST',
@@ -144,10 +142,7 @@ export async function POST(request: Request) {
           customer_name: body.customer_name
         })
       })
-      .then(res => {
-        console.log('✅ Email response status:', res.status);
-        return res.json();
-      })
+      .then(res => res.json())
       .then(data => console.log('✅ Email sent:', data))
       .catch(err => console.error('❌ Email failed:', err));
     }
