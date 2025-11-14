@@ -1,80 +1,174 @@
-// app/admin/roles/[id]/edit/page.tsx
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import Link from 'next/link';
-import RoleForm from '../../RoleForm';
+// app/admin/roles/RoleForm.tsx
+'use client';
 
-export default async function EditRolePage({ params }: { params: Promise<{ id: string }> }) {
-  // Await both cookies and params
-  const cookieStore = await cookies();
-  const resolvedParams = await params;
-  
-  // Now we can safely access the id
-  const roleId = parseInt(resolvedParams.id, 10);
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-  if (isNaN(roleId)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-center p-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800">ID Peran Tidak Valid</h2>
-          <Link href="/admin/roles">
-            <button className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-semibold hover:bg-emerald-500">
-              Kembali ke Daftar Peran
-            </button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+// Tambahkan initialData ke interface
+interface RoleFormProps {
+  initialData?: {
+    id?: number;
+    name: string;
+    guard_name: string;
+    permissions: string[];
+  };
+}
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
+export default function RoleForm({ initialData }: RoleFormProps) {
+  const router = useRouter();
+  const isEditMode = !!initialData?.id;
+
+  const [formData, setFormData] = useState({
+    name: initialData?.name || '',
+    guard_name: initialData?.guard_name || 'web',
+    permissions: initialData?.permissions || [],
+  });
+
+  const [availablePermissions, setAvailablePermissions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Load permissions dari API
+  useEffect(() => {
+    async function loadPermissions() {
+      try {
+        const res = await fetch('/api/permissions');
+        if (res.ok) {
+          const data = await res.json();
+          setAvailablePermissions(data);
+        }
+      } catch (err) {
+        console.error('Failed to load permissions:', err);
+      }
     }
-  );
+    loadPermissions();
+  }, []);
 
-  const { data: role, error: roleError } = await supabase
-    .from('roles')
-    .select('*')
-    .eq('id', roleId)
-    .single();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  const { data: permissions, error: permError } = await supabase
-    .from('role_has_permissions')
-    .select('permission_id')
-    .eq('role_id', roleId);
+    try {
+      const url = isEditMode 
+        ? `/api/roles/${initialData.id}` 
+        : '/api/roles';
+      
+      const method = isEditMode ? 'PUT' : 'POST';
 
-  console.log('Loaded permissions for role', roleId, ':', permissions);
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
 
-  if (roleError || permError || !role) {
-    console.error('Failed to fetch role data:', roleError || permError);
-    return (
-      <div className="min-h-screen flex items-center justify-center text-center p-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800">Peran Tidak Ditemukan</h2>
-          <p className="text-gray-500 mt-2">
-            Peran dengan ID {roleId} tidak dapat ditemukan atau terjadi kesalahan.
-          </p>
-          <Link href="/admin/roles">
-            <button className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-semibold hover:bg-emerald-500">
-              Kembali ke Daftar Peran
-            </button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Gagal menyimpan role');
+      }
 
-  const roleData = {
-    ...role,
-    permissions: permissions.map(p => String(p.permission_id)), // Ensure all IDs are strings
+      router.push('/admin/roles');
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return <RoleForm initialData={roleData} />;
+  const togglePermission = (permId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(permId)
+        ? prev.permissions.filter(id => id !== permId)
+        : [...prev.permissions, permId],
+    }));
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-6">
+            {isEditMode ? 'Edit Peran' : 'Tambah Peran Baru'}
+          </h1>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nama Peran
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                placeholder="Masukkan nama peran"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Guard Name
+              </label>
+              <input
+                type="text"
+                value={formData.guard_name}
+                onChange={(e) => setFormData({ ...formData, guard_name: e.target.value })}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                placeholder="web"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Permissions
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto border border-gray-200 rounded-md p-4">
+                {availablePermissions.map((perm) => (
+                  <label
+                    key={perm.id}
+                    className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.permissions.includes(String(perm.id))}
+                      onChange={() => togglePermission(String(perm.id))}
+                      className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                    />
+                    <span className="text-sm text-gray-700">{perm.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-md font-semibold hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+              >
+                {loading ? 'Menyimpan...' : isEditMode ? 'Update Peran' : 'Simpan Peran'}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 font-semibold hover:bg-gray-50 transition"
+              >
+                Batal
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
 }
