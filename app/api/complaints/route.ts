@@ -127,9 +127,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Send email notification
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'http://localhost:3000';
+
+    // Kirim notifikasi email (Kode yang sudah ada)
     if (data && body.customer_email) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'http://localhost:3000';
       const emailApiUrl = `${baseUrl}/api/notifications/email`;
       
       fetch(emailApiUrl, {
@@ -146,6 +147,28 @@ export async function POST(request: Request) {
       .then(data => console.log('✅ Email sent:', data))
       .catch(err => console.error('❌ Email failed:', err));
     }
+
+    // --- TAMBAHAN BARU: Kirim Notifikasi WhatsApp ---
+    // Pastikan kamu mengumpulkan `customer_phone` di form komplain
+    // dan menyimpannya di database (kamu sudah melakukan ini).
+    if (data && body.customer_phone) {
+      const whatsappApiUrl = `${baseUrl}/api/notifications/whatsapp`; // Panggil API route baru
+
+      fetch(whatsappApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'complaint_created',
+          phone: body.customer_phone, // Gunakan nomor HP dari form
+          complaint_number: complaintNumber,
+          customer_name: body.customer_name
+        })
+      })
+      .then(res => res.json())
+      .then(data => console.log('✅ WhatsApp sent:', data))
+      .catch(err => console.error('❌ WhatsApp failed:', err));
+    }
+    // --- AKHIR TAMBAHAN ---
 
     return NextResponse.json({
       data,

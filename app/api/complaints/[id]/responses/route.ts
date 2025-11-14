@@ -81,23 +81,42 @@ export async function POST(
       // Get complaint details for email
       const { data: complaint } = await supabase
         .from('complaints')
-        .select('customer_email, customer_name, complaint_number')
+        // TAMBAHKAN 'customer_phone' di sini
+        .select('customer_email, customer_name, complaint_number, customer_phone')
         .eq('id', id)
         .single();
 
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+      // Kirim Email (Kode yang sudah ada)
       if (complaint && complaint.customer_email) {
-        fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notifications/email`, {
+        fetch(`${baseUrl}/api/notifications/email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            type: 'complaint_response', // Tipe email ini sudah benar
+            type: 'complaint_response',
             email: complaint.customer_email,
             complaint_number: complaint.complaint_number,
             customer_name: complaint.customer_name,
-            response_message: message // Kirim pesan lengkap di email
+            response_message: message 
           })
         }).catch(err => console.error('Email notification failed:', err));
       }
+
+      // --- TAMBAHAN BARU: Kirim Notifikasi WhatsApp ---
+      if (complaint && complaint.customer_phone) {
+        fetch(`${baseUrl}/api/notifications/whatsapp`, { // Panggil API route baru
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'complaint_response',
+            phone: complaint.customer_phone, // Gunakan nomor HP dari data komplain
+            complaint_number: complaint.complaint_number,
+            customer_name: complaint.customer_name
+          })
+        }).catch(err => console.error('WhatsApp notification failed:', err));
+      }
+      // --- AKHIR TAMBAHAN ---
     }
 
     return NextResponse.json({
