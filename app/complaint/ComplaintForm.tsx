@@ -1,6 +1,8 @@
 // app/complaint/ComplaintForm.tsx
 'use client';
 
+// ++ TAMBAHKAN import createBrowserClient ++
+import { createBrowserClient } from '@supabase/ssr'; 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { 
@@ -32,6 +34,7 @@ interface ComplaintFormData {
 
 // Data provinsi dan kabupaten/kota Indonesia
 const LOCATION_DATA: Record<string, string[]> = {
+  // ... (Data lokasi tidak berubah, dibiarkan seperti aslinya)
   'Aceh': ['Banda Aceh', 'Langsa', 'Lhokseumawe', 'Sabang', 'Subulussalam', 'Aceh Barat', 'Aceh Barat Daya', 'Aceh Besar', 'Aceh Jaya', 'Aceh Selatan', 'Aceh Singkil', 'Aceh Tamiang', 'Aceh Tengah', 'Aceh Tenggara', 'Aceh Timur', 'Aceh Utara', 'Bener Meriah', 'Bireuen', 'Gayo Lues', 'Nagan Raya', 'Pidie', 'Pidie Jaya', 'Simeulue'],
   'Sumatera Utara': ['Medan', 'Binjai', 'Padang Sidempuan', 'Pematang Siantar', 'Sibolga', 'Tanjung Balai', 'Tebing Tinggi', 'Asahan', 'Batubara', 'Dairi', 'Deli Serdang', 'Humbang Hasundutan', 'Karo', 'Labuhanbatu', 'Labuhanbatu Selatan', 'Labuhanbatu Utara', 'Langkat', 'Mandailing Natal', 'Nias', 'Nias Barat', 'Nias Selatan', 'Nias Utara', 'Padang Lawas', 'Padang Lawas Utara', 'Pakpak Bharat', 'Samosir', 'Serdang Bedagai', 'Simalungun', 'Tapanuli Selatan', 'Tapanuli Tengah', 'Tapanuli Utara', 'Toba Samosir'],
   'Sumatera Barat': ['Padang', 'Bukittinggi', 'Padang Panjang', 'Pariaman', 'Payakumbuh', 'Sawahlunto', 'Solok', 'Agam', 'Dharmasraya', 'Kepulauan Mentawai', 'Lima Puluh Kota', 'Padang Pariaman', 'Pasaman', 'Pasaman Barat', 'Pesisir Selatan', 'Sijunjung', 'Solok', 'Solok Selatan', 'Tanah Datar'],
@@ -71,19 +74,34 @@ const LOCATION_DATA: Record<string, string[]> = {
 export default function ComplaintForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  
+  // ++ TAMBAHKAN: State untuk Supabase client ++
+  const [supabase] = useState(() =>
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  );
+
   const [mounted, setMounted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [complaintNumber, setComplaintNumber] = useState('');
   
+  // ++ UBAH: Baca semua parameter yang mungkin dari URL ++
+  const productId = searchParams?.get('product_id') || '';
   const serial = searchParams?.get('serial') || '';
   const lot = searchParams?.get('lot') || '';
-  const product = searchParams?.get('product') || '';
+  const productNameQuery = searchParams?.get('product') || ''; // dari verifikasi
+  const customerName = searchParams?.get('name') || '';
+  const customerEmail = searchParams?.get('email') || '';
+  const customerPhone = searchParams?.get('phone') || '';
   
+  // ++ UBAH: Inisialisasi state dengan data dari URL ++
   const [formData, setFormData] = useState<ComplaintFormData>({
-    customer_name: '',
-    customer_email: '',
-    customer_phone: '',
+    customer_name: customerName,
+    customer_email: customerEmail,
+    customer_phone: customerPhone,
     customer_province: '',
     customer_city: '',
     customer_address: '',
@@ -91,7 +109,7 @@ export default function ComplaintForm() {
     subject: '',
     description: '',
     related_product_serial: serial || lot,
-    related_product_name: product
+    related_product_name: productNameQuery // Akan di-override oleh fetch jika product_id ada
   });
 
   const [availableCities, setAvailableCities] = useState<string[]>([]);
@@ -99,6 +117,31 @@ export default function ComplaintForm() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ++ TAMBAHKAN: useEffect untuk mengambil nama produk jika ada product_id ++
+  useEffect(() => {
+    // Hanya jalankan jika komponen sudah mounted dan ada productId
+    if (mounted && productId) {
+      const fetchProductName = async () => {
+        const { data: productData, error } = await supabase
+          .from('products')
+          .select('name')
+          .eq('id', productId)
+          .single();
+
+        if (productData) {
+          setFormData(prev => ({
+            ...prev,
+            related_product_name: productData.name
+          }));
+        } else {
+          console.error('Error fetching product name:', error?.message);
+        }
+      };
+      fetchProductName();
+    }
+  }, [mounted, productId, supabase]);
+
 
   useEffect(() => {
     if (formData.customer_province) {
@@ -163,6 +206,7 @@ export default function ComplaintForm() {
 
   if (isSubmitted) {
     return (
+      // ... (Bagian 'isSubmitted' tidak berubah)
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
@@ -238,6 +282,7 @@ export default function ComplaintForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
       
+      {/* ... (Header tidak berubah) ... */}
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -259,10 +304,12 @@ export default function ComplaintForm() {
         </div>
       </div>
 
+
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
           
+          {/* ... (Header Formulir tidak berubah) ... */}
           <div className="bg-gradient-to-r from-red-500 to-orange-500 dark:from-red-600 dark:to-orange-600 px-8 py-12 text-center">
             <div className="relative inline-block mb-6">
               <ExclamationTriangleIcon className="h-16 w-16 text-white mx-auto" />
@@ -302,7 +349,7 @@ export default function ComplaintForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Email *
+                    Email <span className="text-slate-400">(Opsional)</span>
                   </label>
                   <div className="relative">
                     <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
@@ -311,7 +358,6 @@ export default function ComplaintForm() {
                       name="customer_email"
                       value={formData.customer_email}
                       onChange={handleChange}
-                      required
                       className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                       placeholder="email@example.com"
                     />
@@ -320,7 +366,7 @@ export default function ComplaintForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Nomor Telepon *
+                    Nomor WhatsApp *
                   </label>
                   <div className="relative">
                     <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
@@ -337,6 +383,7 @@ export default function ComplaintForm() {
                 </div>
 
                 {/* Location Section */}
+                {/* ... (Bagian Lokasi tidak berubah) ... */}
                 <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
                   <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-4">
                     <MapPinIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -404,21 +451,28 @@ export default function ComplaintForm() {
                   </div>
                 </div>
 
-                {/* Product Info */}
-                {formData.related_product_serial && (
+
+                {/* ++ UBAH: Blok Product Info ++ */}
+                {(formData.related_product_serial || formData.related_product_name) && (
                   <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
                     <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-3">Produk Terkait</h4>
                     <div className="space-y-2 text-sm text-emerald-700 dark:text-emerald-200">
-                      <p><strong>Serial/Lot:</strong> {formData.related_product_serial}</p>
+                      {/* Tampilkan serial/lot jika ada */}
+                      {formData.related_product_serial && (
+                        <p><strong>Serial/Lot:</strong> {formData.related_product_serial}</p>
+                      )}
+                      {/* Tampilkan nama produk jika ada */}
                       {formData.related_product_name && (
                         <p><strong>Produk:</strong> {formData.related_product_name}</p>
                       )}
                     </div>
                   </div>
                 )}
+                {/* ++ AKHIR PERUBAHAN ++ */}
               </div>
 
               {/* Right Column - Complaint Details */}
+              {/* ... (Bagian Detail Komplain tidak berubah) ... */}
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                   <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
@@ -477,6 +531,7 @@ export default function ComplaintForm() {
             </div>
 
             {/* Submit Section */}
+            {/* ... (Bagian Tombol Submit tidak berubah) ... */}
             <div className="mt-12 pt-8 border-t border-gray-200 dark:border-slate-700">
               <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                 <p className="text-sm text-gray-600 dark:text-slate-400">

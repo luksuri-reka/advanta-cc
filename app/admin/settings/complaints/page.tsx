@@ -1,4 +1,4 @@
-// app/admin/settings/complaints/page.tsx
+// app/admin/settings/complaints/page.tsx - With Dark Mode Support
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -24,8 +24,8 @@ interface DisplayUser {
 }
 
 interface ComplaintSettings {
-  sla_response_time: number; // hours
-  sla_resolution_time: number; // hours
+  sla_response_time: number;
+  sla_resolution_time: number;
   auto_assign_enabled: boolean;
   email_notifications_enabled: boolean;
   priority_auto_escalation: boolean;
@@ -48,7 +48,6 @@ export default function ComplaintSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // SLA Settings
   const [settings, setSettings] = useState<ComplaintSettings>({
     sla_response_time: 24,
     sla_resolution_time: 72,
@@ -58,7 +57,6 @@ export default function ComplaintSettingsPage() {
     escalation_threshold_hours: 48
   });
 
-  // Categories
   const [categories, setCategories] = useState<ComplaintCategory[]>([
     {
       id: '1',
@@ -126,7 +124,6 @@ export default function ComplaintSettingsPage() {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      // Load SLA settings from database
       const slaResponse = await fetch('/api/complaint-settings/sla');
       if (slaResponse.ok) {
         const slaData = await slaResponse.json();
@@ -135,7 +132,6 @@ export default function ComplaintSettingsPage() {
         }
       }
       
-      // Load categories from database
       const categoriesResponse = await fetch('/api/complaint-settings/categories');
       if (categoriesResponse.ok) {
         const categoriesData = await categoriesResponse.json();
@@ -254,10 +250,10 @@ export default function ComplaintSettingsPage() {
 
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Memuat pengaturan...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 dark:border-emerald-400 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Memuat pengaturan...</p>
         </div>
       </div>
     );
@@ -265,35 +261,35 @@ export default function ComplaintSettingsPage() {
 
   if (!user || !hasComplaintPermission('canConfigureComplaintSystem')) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <ExclamationTriangleIcon className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Akses Ditolak</h2>
-          <p className="text-gray-600 mb-4">Anda tidak memiliki izin untuk mengakses pengaturan ini.</p>
+          <ExclamationTriangleIcon className="h-16 w-16 text-red-500 dark:text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Akses Ditolak</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">Anda tidak memiliki izin untuk mengakses pengaturan ini.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Navbar user={user} onLogout={handleLogout} />
       
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <CogIcon className="h-8 w-8 text-emerald-600" />
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
+            <CogIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
             Pengaturan Sistem Komplain
           </h1>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
             Kelola konfigurasi SLA, kategori, dan notifikasi untuk sistem komplain
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden mb-8">
-          <div className="border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 overflow-hidden mb-8">
+          <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex">
               {tabs.map((tab) => (
                 <button
@@ -301,19 +297,19 @@ export default function ComplaintSettingsPage() {
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex-1 group relative px-6 py-4 text-sm font-semibold transition-all duration-300 ${
                     activeTab === tab.id
-                      ? 'text-emerald-600 bg-emerald-50'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   <div className="flex flex-col items-center gap-2">
                     <tab.icon className={`w-5 h-5 transition-all duration-200 ${
-                      activeTab === tab.id ? 'text-emerald-500 scale-110' : 'text-gray-400'
+                      activeTab === tab.id ? 'text-emerald-500 dark:text-emerald-400 scale-110' : 'text-gray-400 dark:text-gray-500'
                     }`} />
                     <span>{tab.label}</span>
                   </div>
                   
                   {activeTab === tab.id && (
-                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-emerald-500 rounded-full"></div>
+                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-emerald-500 dark:bg-emerald-400 rounded-full"></div>
                   )}
                 </button>
               ))}
@@ -324,49 +320,49 @@ export default function ComplaintSettingsPage() {
             {/* SLA Settings Tab */}
             {activeTab === 'sla' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Service Level Agreement (SLA)</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Service Level Agreement (SLA)</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                    <label className="block text-sm font-semibold text-blue-900 mb-3">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                    <label className="block text-sm font-semibold text-blue-900 dark:text-blue-300 mb-3">
                       Target Waktu Respon (jam)
                     </label>
                     <input
                       type="number"
                       value={settings.sla_response_time}
                       onChange={(e) => setSettings({ ...settings, sla_response_time: parseInt(e.target.value) })}
-                      className="w-full px-4 py-3 border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                       min="1"
                     />
-                    <p className="text-xs text-blue-700 mt-2">
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
                       Waktu maksimal untuk memberikan respon pertama
                     </p>
                   </div>
 
-                  <div className="bg-green-50 rounded-xl p-6 border border-green-200">
-                    <label className="block text-sm font-semibold text-green-900 mb-3">
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6 border border-green-200 dark:border-green-800">
+                    <label className="block text-sm font-semibold text-green-900 dark:text-green-300 mb-3">
                       Target Waktu Penyelesaian (jam)
                     </label>
                     <input
                       type="number"
                       value={settings.sla_resolution_time}
                       onChange={(e) => setSettings({ ...settings, sla_resolution_time: parseInt(e.target.value) })}
-                      className="w-full px-4 py-3 border border-green-300 rounded-xl focus:ring-2 focus:ring-green-500"
+                      className="w-full px-4 py-3 border border-green-300 dark:border-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400"
                       min="1"
                     />
-                    <p className="text-xs text-green-700 mt-2">
+                    <p className="text-xs text-green-700 dark:text-green-300 mt-2">
                       Waktu maksimal untuk menyelesaikan komplain
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-4 pt-6 border-t border-gray-200">
-                  <h3 className="text-lg font-bold text-gray-900">Fitur Otomatis</h3>
+                <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Fitur Otomatis</h3>
                   
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
                     <div>
-                      <p className="font-semibold text-gray-900">Auto-Assign Komplain</p>
-                      <p className="text-sm text-gray-600">Otomatis menugaskan komplain ke departemen</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">Auto-Assign Komplain</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Otomatis menugaskan komplain ke departemen</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -375,14 +371,14 @@ export default function ComplaintSettingsPage() {
                         onChange={(e) => setSettings({ ...settings, auto_assign_enabled: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-300 peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
                     </label>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
                     <div>
-                      <p className="font-semibold text-gray-900">Eskalasi Prioritas Otomatis</p>
-                      <p className="text-sm text-gray-600">Naikkan prioritas jika melebihi threshold</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">Eskalasi Prioritas Otomatis</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Naikkan prioritas jika melebihi threshold</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -391,31 +387,31 @@ export default function ComplaintSettingsPage() {
                         onChange={(e) => setSettings({ ...settings, priority_auto_escalation: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-300 peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
                     </label>
                   </div>
 
                   {settings.priority_auto_escalation && (
-                    <div className="ml-4 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
-                      <label className="block text-sm font-semibold text-yellow-900 mb-2">
+                    <div className="ml-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                      <label className="block text-sm font-semibold text-yellow-900 dark:text-yellow-300 mb-2">
                         Threshold Eskalasi (jam)
                       </label>
                       <input
                         type="number"
                         value={settings.escalation_threshold_hours}
                         onChange={(e) => setSettings({ ...settings, escalation_threshold_hours: parseInt(e.target.value) })}
-                        className="w-full px-4 py-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                        className="w-full px-4 py-2 border border-yellow-300 dark:border-yellow-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-yellow-500 dark:focus:ring-yellow-400"
                         min="1"
                       />
                     </div>
                   )}
                 </div>
 
-                <div className="flex justify-end pt-6 border-t border-gray-200">
+                <div className="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={handleSaveSettings}
                     disabled={saving}
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 dark:bg-emerald-700 text-white font-semibold rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-600 disabled:opacity-50 transition-colors"
                   >
                     {saving ? (
                       <>
@@ -437,33 +433,32 @@ export default function ComplaintSettingsPage() {
             {activeTab === 'categories' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Kategori Komplain</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Kategori Komplain</h2>
                   <button
                     onClick={handleAddCategory}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 dark:bg-emerald-700 text-white font-semibold rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-600 transition-colors"
                   >
                     <TagIcon className="h-5 w-5" />
                     Tambah Kategori
                   </button>
                 </div>
 
-                {/* Category List */}
                 <div className="space-y-4">
                   {categories.map((category) => (
-                    <div key={category.id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                    <div key={category.id} className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-6 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{category.name}</h3>
-                          <p className="text-sm text-gray-600 mb-4">{category.description}</p>
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">{category.name}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{category.description}</p>
                           
                           <div className="flex gap-4">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-gray-500">Prioritas Default:</span>
+                              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Prioritas Default:</span>
                               <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                category.default_priority === 'critical' ? 'bg-red-100 text-red-800' :
-                                category.default_priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                                category.default_priority === 'medium' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
+                                category.default_priority === 'critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
+                                category.default_priority === 'high' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
+                                category.default_priority === 'medium' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+                                'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                               }`}>
                                 {category.default_priority.toUpperCase()}
                               </span>
@@ -471,8 +466,8 @@ export default function ComplaintSettingsPage() {
                             
                             {category.auto_assign_department && (
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-gray-500">Departemen:</span>
-                                <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-bold">
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Departemen:</span>
+                                <span className="px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-full text-xs font-bold">
                                   {category.auto_assign_department.replace('_', ' ').toUpperCase()}
                                 </span>
                               </div>
@@ -483,13 +478,13 @@ export default function ComplaintSettingsPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleEditCategory(category)}
-                            className="px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="px-3 py-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleDeleteCategory(category.id)}
-                            className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                           >
                             Hapus
                           </button>
@@ -501,47 +496,47 @@ export default function ComplaintSettingsPage() {
 
                 {/* Category Form Modal */}
                 {showCategoryForm && editingCategory && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                  <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-8 border border-gray-200 dark:border-gray-700">
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                         {categories.find(c => c.id === editingCategory.id) ? 'Edit' : 'Tambah'} Kategori
                       </h3>
                       
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             Nama Kategori *
                           </label>
                           <input
                             type="text"
                             value={editingCategory.name}
                             onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400"
                             placeholder="Contoh: Cacat Produk"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             Deskripsi *
                           </label>
                           <textarea
                             value={editingCategory.description}
                             onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
                             rows={3}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400"
                             placeholder="Jelaskan kategori ini..."
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             Prioritas Default
                           </label>
                           <select
                             value={editingCategory.default_priority}
                             onChange={(e) => setEditingCategory({ ...editingCategory, default_priority: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400"
                           >
                             <option value="low">Rendah</option>
                             <option value="medium">Sedang</option>
@@ -551,13 +546,13 @@ export default function ComplaintSettingsPage() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             Auto-Assign ke Departemen
                           </label>
                           <select
                             value={editingCategory.auto_assign_department}
                             onChange={(e) => setEditingCategory({ ...editingCategory, auto_assign_department: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400"
                           >
                             <option value="customer_service">Customer Service</option>
                             <option value="quality_assurance">Quality Assurance</option>
@@ -573,14 +568,14 @@ export default function ComplaintSettingsPage() {
                             setShowCategoryForm(false);
                             setEditingCategory(null);
                           }}
-                          className="px-6 py-3 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 transition-colors"
+                          className="px-6 py-3 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         >
                           Batal
                         </button>
                         <button
                           onClick={handleSaveCategoryForm}
                           disabled={saving}
-                          className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+                          className="flex items-center gap-2 px-6 py-3 bg-emerald-600 dark:bg-emerald-700 text-white font-semibold rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-600 disabled:opacity-50 transition-colors"
                         >
                           {saving ? (
                             <>
@@ -604,13 +599,13 @@ export default function ComplaintSettingsPage() {
             {/* Notifications Tab */}
             {activeTab === 'notifications' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Pengaturan Notifikasi</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Pengaturan Notifikasi</h2>
                 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-6 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="flex items-center justify-between p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                     <div>
-                      <p className="font-bold text-blue-900 mb-1">Email Notifikasi ke Customer</p>
-                      <p className="text-sm text-blue-700">Kirim email otomatis saat komplain dibuat/diupdate</p>
+                      <p className="font-bold text-blue-900 dark:text-blue-300 mb-1">Email Notifikasi ke Customer</p>
+                      <p className="text-sm text-blue-700 dark:text-blue-400">Kirim email otomatis saat komplain dibuat/diupdate</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -619,42 +614,42 @@ export default function ComplaintSettingsPage() {
                         onChange={(e) => setSettings({ ...settings, email_notifications_enabled: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-300 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
                     </label>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 className="font-bold text-gray-900 mb-4">Notifikasi Internal</h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                  <div className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-6">
+                    <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">Notifikasi Internal</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                       Pengaturan notifikasi untuk admin dan tim customer care
                     </p>
                     
                     <div className="space-y-3">
                       <label className="flex items-center gap-3">
-                        <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-600" />
-                        <span className="text-sm text-gray-700">Komplain baru masuk</span>
+                        <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-600 dark:text-emerald-500 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 dark:focus:ring-emerald-400" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Komplain baru masuk</span>
                       </label>
                       <label className="flex items-center gap-3">
-                        <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-600" />
-                        <span className="text-sm text-gray-700">Komplain kritis atau urgent</span>
+                        <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-600 dark:text-emerald-500 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 dark:focus:ring-emerald-400" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Komplain kritis atau urgent</span>
                       </label>
                       <label className="flex items-center gap-3">
-                        <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-600" />
-                        <span className="text-sm text-gray-700">Mendekati batas waktu SLA</span>
+                        <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-emerald-600 dark:text-emerald-500 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 dark:focus:ring-emerald-400" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Mendekati batas waktu SLA</span>
                       </label>
                       <label className="flex items-center gap-3">
-                        <input type="checkbox" className="w-4 h-4 rounded text-emerald-600" />
-                        <span className="text-sm text-gray-700">Customer memberikan rating/feedback</span>
+                        <input type="checkbox" className="w-4 h-4 rounded text-emerald-600 dark:text-emerald-500 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 dark:focus:ring-emerald-400" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Customer memberikan rating/feedback</span>
                       </label>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-6 border-t border-gray-200">
+                <div className="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={handleSaveSettings}
                     disabled={saving}
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 dark:bg-emerald-700 text-white font-semibold rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-600 disabled:opacity-50 transition-colors"
                   >
                     {saving ? (
                       <>
@@ -675,18 +670,18 @@ export default function ComplaintSettingsPage() {
             {/* Templates Tab */}
             {activeTab === 'templates' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Template Email</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Template Email</h2>
                 
-                <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200 mb-6">
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800 mb-6">
                   <div className="flex items-start gap-3">
-                    <DocumentTextIcon className="h-6 w-6 text-blue-600 flex-shrink-0 mt-1" />
+                    <DocumentTextIcon className="h-6 w-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
                     <div>
-                      <h3 className="font-bold text-blue-900 mb-2">Template Email Otomatis</h3>
-                      <p className="text-sm text-blue-700">
+                      <h3 className="font-bold text-blue-900 dark:text-blue-300 mb-2">Template Email Otomatis</h3>
+                      <p className="text-sm text-blue-700 dark:text-blue-400">
                         Template email ini akan digunakan untuk mengirim notifikasi otomatis kepada pelanggan. 
-                        Anda dapat menggunakan variabel seperti <code className="bg-blue-200 px-1 rounded">{'{customer_name}'}</code>, 
-                        <code className="bg-blue-200 px-1 rounded mx-1">{'{complaint_number}'}</code>, dan 
-                        <code className="bg-blue-200 px-1 rounded">{'{status}'}</code>.
+                        Anda dapat menggunakan variabel seperti <code className="bg-blue-200 dark:bg-blue-800 px-1 rounded">{'{customer_name}'}</code>, 
+                        <code className="bg-blue-200 dark:bg-blue-800 px-1 rounded mx-1">{'{complaint_number}'}</code>, dan 
+                        <code className="bg-blue-200 dark:bg-blue-800 px-1 rounded">{'{status}'}</code>.
                       </p>
                     </div>
                   </div>
@@ -694,23 +689,23 @@ export default function ComplaintSettingsPage() {
 
                 <div className="space-y-6">
                   {/* Template 1: Komplain Created */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="w-8 h-8 bg-green-100 text-green-600 rounded-lg flex items-center justify-center text-sm font-bold">1</span>
+                  <div className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-6">
+                    <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                      <span className="w-8 h-8 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg flex items-center justify-center text-sm font-bold">1</span>
                       Email Konfirmasi Komplain Baru
                     </h3>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Subject</label>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Subject</label>
                         <input
                           type="text"
                           defaultValue="Komplain Anda Telah Diterima - {complaint_number}"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Preview</label>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Preview</label>
+                        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300">
                           <p className="font-semibold mb-2">Halo {'{customer_name}'},</p>
                           <p className="mb-2">Terima kasih telah menghubungi kami. Komplain Anda telah kami terima dengan nomor referensi: <strong>{'{complaint_number}'}</strong></p>
                           <p className="mb-2">Tim customer care kami akan menindaklanjuti dalam waktu maksimal 24 jam.</p>
@@ -721,23 +716,23 @@ export default function ComplaintSettingsPage() {
                   </div>
 
                   {/* Template 2: Status Update */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-sm font-bold">2</span>
+                  <div className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-6">
+                    <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                      <span className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center text-sm font-bold">2</span>
                       Email Update Status
                     </h3>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Subject</label>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Subject</label>
                         <input
                           type="text"
                           defaultValue="Update Komplain {complaint_number}"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Preview</label>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Preview</label>
+                        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300">
                           <p className="font-semibold mb-2">Halo {'{customer_name}'},</p>
                           <p className="mb-2">Ada update terbaru untuk komplain Anda: <strong>{'{complaint_number}'}</strong></p>
                           <p className="mb-2">Status saat ini: <strong>{'{status}'}</strong></p>
@@ -749,23 +744,23 @@ export default function ComplaintSettingsPage() {
                   </div>
 
                   {/* Template 3: Resolution */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="w-8 h-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center text-sm font-bold">3</span>
+                  <div className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-6">
+                    <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                      <span className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg flex items-center justify-center text-sm font-bold">3</span>
                       Email Komplain Selesai
                     </h3>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Subject</label>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Subject</label>
                         <input
                           type="text"
                           defaultValue="Komplain {complaint_number} Telah Diselesaikan"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Preview</label>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Preview</label>
+                        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300">
                           <p className="font-semibold mb-2">Halo {'{customer_name}'},</p>
                           <p className="mb-2">Komplain Anda dengan nomor <strong>{'{complaint_number}'}</strong> telah diselesaikan.</p>
                           <p className="mb-2">Kami berharap solusi yang diberikan dapat memuaskan Anda.</p>
@@ -777,10 +772,10 @@ export default function ComplaintSettingsPage() {
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-6 border-t border-gray-200">
+                <div className="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={() => alert('Template berhasil disimpan!')}
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 transition-colors"
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 dark:bg-emerald-700 text-white font-semibold rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-600 transition-colors"
                   >
                     <CheckCircleIcon className="h-5 w-5" />
                     Simpan Template

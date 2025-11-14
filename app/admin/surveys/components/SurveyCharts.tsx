@@ -87,23 +87,23 @@ export default function SurveyCharts({ surveys }: SurveyChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Rating Distribution Chart */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
         <div className="flex items-center gap-2 mb-6">
-          <ChartBarIcon className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg font-bold text-gray-900">Distribusi Rating</h3>
+          <ChartBarIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Distribusi Rating</h3>
         </div>
         
         <div className="space-y-4">
           {[5, 4, 3, 2, 1].map(rating => (
             <div key={rating} className="flex items-center gap-3">
               <div className="flex items-center gap-1 w-20">
-                <span className="text-sm font-semibold text-gray-700">{rating}</span>
-                <span className="text-yellow-400">★</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{rating}</span>
+                <span className="text-yellow-400 dark:text-yellow-500">★</span>
               </div>
               
-              <div className="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
+              <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-8 relative overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-full rounded-full transition-all duration-500 flex items-center justify-end px-3"
+                  className="bg-gradient-to-r from-yellow-400 to-yellow-500 dark:from-yellow-500 dark:to-yellow-600 h-full rounded-full transition-all duration-500 flex items-center justify-end px-3"
                   style={{ 
                     width: maxRatingCount > 0 
                       ? `${(ratingDistribution[rating as keyof typeof ratingDistribution] / maxRatingCount) * 100}%` 
@@ -119,7 +119,7 @@ export default function SurveyCharts({ surveys }: SurveyChartsProps) {
               </div>
               
               <div className="w-12 text-right">
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
                   {surveys.length > 0 
                     ? Math.round((ratingDistribution[rating as keyof typeof ratingDistribution] / surveys.length) * 100)
                     : 0}%
@@ -131,31 +131,31 @@ export default function SurveyCharts({ surveys }: SurveyChartsProps) {
       </div>
 
       {/* Monthly Trend Chart */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6">
         <div className="flex items-center gap-2 mb-6">
-          <ArrowTrendingUpIcon className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg font-bold text-gray-900">Tren Bulanan</h3>
+          <ArrowTrendingUpIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Tren Bulanan</h3>
         </div>
         
         <div className="space-y-4">
           {monthlyTrend.map((month, index) => (
             <div key={index} className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700">{month.month}</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{month.month}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">{month.count} survey</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{month.count} survey</span>
                   {month.avgRating > 0 && (
                     <div className="flex items-center gap-1">
-                      <span className="text-sm font-bold text-yellow-600">{month.avgRating.toFixed(1)}</span>
-                      <span className="text-yellow-400">★</span>
+                      <span className="text-sm font-bold text-yellow-600 dark:text-yellow-400">{month.avgRating.toFixed(1)}</span>
+                      <span className="text-yellow-400 dark:text-yellow-500">★</span>
                     </div>
                   )}
                 </div>
               </div>
               
-              <div className="bg-gray-100 rounded-full h-6 relative overflow-hidden">
+              <div className="bg-gray-100 dark:bg-gray-700 rounded-full h-6 relative overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full rounded-full transition-all duration-500"
+                  className="bg-gradient-to-r from-emerald-400 to-emerald-500 dark:from-emerald-500 dark:to-emerald-600 h-full rounded-full transition-all duration-500"
                   style={{ 
                     width: maxMonthlyCount > 0 
                       ? `${(month.count / maxMonthlyCount) * 100}%` 
@@ -169,39 +169,39 @@ export default function SurveyCharts({ surveys }: SurveyChartsProps) {
       </div>
 
       {/* Recommendation Stats */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6 lg:col-span-2">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 lg:col-span-2">
         <div className="flex items-center gap-2 mb-6">
-          <CalendarIcon className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg font-bold text-gray-900">Statistik Rekomendasi</h3>
+          <CalendarIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Statistik Rekomendasi</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-gray-700">Merekomendasikan</span>
-              <span className="text-2xl font-bold text-green-600">{recommendStats.yesPercent.toFixed(1)}%</span>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Merekomendasikan</span>
+              <span className="text-2xl font-bold text-green-600 dark:text-green-400">{recommendStats.yesPercent.toFixed(1)}%</span>
             </div>
-            <div className="bg-gray-100 rounded-full h-4 overflow-hidden">
+            <div className="bg-gray-100 dark:bg-gray-700 rounded-full h-4 overflow-hidden">
               <div 
-                className="bg-gradient-to-r from-green-400 to-green-500 h-full rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-green-400 to-green-500 dark:from-green-500 dark:to-green-600 h-full rounded-full transition-all duration-500"
                 style={{ width: `${recommendStats.yesPercent}%` }}
               />
             </div>
-            <p className="text-sm text-gray-600 mt-2">{recommendStats.yes} dari {recommendStats.yes + recommendStats.no} responden</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{recommendStats.yes} dari {recommendStats.yes + recommendStats.no} responden</p>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-gray-700">Tidak Merekomendasikan</span>
-              <span className="text-2xl font-bold text-red-600">{recommendStats.noPercent.toFixed(1)}%</span>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tidak Merekomendasikan</span>
+              <span className="text-2xl font-bold text-red-600 dark:text-red-400">{recommendStats.noPercent.toFixed(1)}%</span>
             </div>
-            <div className="bg-gray-100 rounded-full h-4 overflow-hidden">
+            <div className="bg-gray-100 dark:bg-gray-700 rounded-full h-4 overflow-hidden">
               <div 
-                className="bg-gradient-to-r from-red-400 to-red-500 h-full rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-red-400 to-red-500 dark:from-red-500 dark:to-red-600 h-full rounded-full transition-all duration-500"
                 style={{ width: `${recommendStats.noPercent}%` }}
               />
             </div>
-            <p className="text-sm text-gray-600 mt-2">{recommendStats.no} dari {recommendStats.yes + recommendStats.no} responden</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{recommendStats.no} dari {recommendStats.yes + recommendStats.no} responden</p>
           </div>
         </div>
       </div>

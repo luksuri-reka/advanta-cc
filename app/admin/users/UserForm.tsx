@@ -3,7 +3,8 @@
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+// ++ ICON DITAMBAHKAN ++
+import { XMarkIcon, EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { createUser, updateUser, UserFormData } from './actions';
 import { complaintPermissions, ComplaintPermissionKey, departments } from './permissions';
@@ -14,7 +15,7 @@ interface User {
   email: string;
   role: string;
   department?: string;
-  complaint_permissions?: Record<ComplaintPermissionKey, boolean>;
+  complaint_permissions?: Record<string | number | symbol, boolean>;
 }
 
 interface UserFormProps {
@@ -24,13 +25,20 @@ interface UserFormProps {
   userToEdit?: User | null;
 }
 
+function formatDepartmentLabel(key: string): string {
+  if (!key) return '';
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function UserForm({ isOpen, onClose, availableRoles, userToEdit }: UserFormProps) {
   const [formData, setFormData] = useState<UserFormData>({
     name: '',
     email: '',
     role: '',
     password: '',
-    department: 'customer_service', // Default departemen
+    department: 'customer_service',
     complaint_permissions: {},
   });
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,161 +50,284 @@ export default function UserForm({ isOpen, onClose, availableRoles, userToEdit }
 
   useEffect(() => {
     if (isOpen) {
-        if (isEditMode && userToEdit) {
-            setFormData({
-                name: userToEdit.name,
-                email: userToEdit.email,
-                role: userToEdit.role,
-                password: '',
-                department: userToEdit.department || 'customer_service',
-                complaint_permissions: userToEdit.complaint_permissions || {},
-            });
-        } else {
-            setFormData({
-              name: '',
-              email: '',
-              role: '',
-              password: '',
-              department: 'customer_service',
-              complaint_permissions: {},
-            });
-        }
+      if (isEditMode && userToEdit) {
+        setFormData({
+          name: userToEdit.name,
+          email: userToEdit.email,
+          role: userToEdit.role,
+          password: '',
+          department: userToEdit.department || 'customer_service',
+          complaint_permissions: (userToEdit.complaint_permissions as Record<ComplaintPermissionKey, boolean>) || {},
+        });
         setConfirmPassword('');
-        setShowPassword(false);
-        setShowConfirmPassword(false);
+      } else {
+        setFormData({
+          name: '',
+          email: '',
+          role: availableRoles.length > 0 ? availableRoles[0] : '',
+          password: '',
+          department: 'customer_service',
+          complaint_permissions: {},
+        });
+        setConfirmPassword('');
+      }
+      setShowPassword(false);
+      setShowConfirmPassword(false);
+      setIsSubmitting(false);
     }
-  }, [isOpen, userToEdit, isEditMode]);
+  }, [isOpen, userToEdit, isEditMode, availableRoles]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handlePermissionChange = (permission: ComplaintPermissionKey) => {
+  const handlePermissionChange = (key: ComplaintPermissionKey) => {
     setFormData(prev => ({
       ...prev,
       complaint_permissions: {
         ...prev.complaint_permissions,
-        [permission]: !prev.complaint_permissions?.[permission],
+        [key]: !prev.complaint_permissions[key],
       },
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (formData.password !== confirmPassword) {
-      toast.error('Password dan Ulangi Password harus sama.');
+    if (!isEditMode && formData.password !== confirmPassword) {
+      toast.error('Password dan konfirmasi password tidak cocok.');
       return;
     }
-    if (!isEditMode && !formData.password) {
-      toast.error('Password wajib diisi untuk pengguna baru.');
+    if (isEditMode && formData.password && formData.password !== confirmPassword) {
+      toast.error('Password dan konfirmasi password tidak cocok.');
       return;
     }
 
     setIsSubmitting(true);
+    const toastId = toast.loading(isEditMode ? 'Memperbarui user...' : 'Membuat user...');
 
-    const actionPromise = isEditMode && userToEdit
-        ? updateUser(userToEdit.id, formData)
-        : createUser(formData);
-
-    toast.promise(actionPromise, {
-        loading: 'Menyimpan data...',
-        success: (result) => {
-            if (result.error) throw new Error(result.error.message);
-            onClose();
-            return `Data pengguna berhasil ${isEditMode ? 'diperbarui' : 'dibuat'}!`;
-        },
-        error: (err) => `Gagal menyimpan: ${err.message}`,
-    });
-
-    actionPromise.finally(() => setIsSubmitting(false));
+    try {
+      if (isEditMode && userToEdit) {
+        await updateUser(userToEdit.id, formData);
+        toast.success('User berhasil diperbarui.', { id: toastId });
+      } else {
+        await createUser(formData);
+        toast.success('User berhasil dibuat.', { id: toastId });
+      }
+      onClose();
+      window.location.reload(); 
+    } catch (error: any) {
+      toast.error(`Gagal: ${error.message}`, { id: toastId });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+  
+  const inputClass = "mt-2 block w-full rounded-xl border-0 py-3 px-4 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 ring-1 ring-inset ring-zinc-300 dark:ring-slate-600 placeholder:text-zinc-400 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 dark:focus:ring-emerald-500 sm:text-sm transition-colors";
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
+    <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 overflow-y-auto">
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/70 transition-opacity" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center">
-                  <span>{isEditMode ? 'Edit Data Pengguna' : 'Tambah Pengguna Baru'}</span>
-                  <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button>
-                </Dialog.Title>
-                <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                     <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-zinc-700">Nama Pengguna *</label>
-                        <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors" />
-                    </div>
-                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-zinc-700">Email Perusahaan *</label>
-                        <input type="email" name="email" id="email" value={formData.email} onChange={handleChange} required disabled={isEditMode} className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors disabled:bg-gray-100" />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="role" className="block text-sm font-medium text-zinc-700">Peran *</label>
-                    <select id="role" name="role" value={formData.role} onChange={handleChange} required className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors">
-                        <option value="" disabled>Pilih Peran</option>
-                        {availableRoles.map(role => <option key={role} value={role}>{role}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                     <div>
-                        <label htmlFor="department" className="block text-sm font-medium text-zinc-700">Departemen *</label>
-                        <select id="department" name="department" value={formData.department} onChange={handleChange} required className="mt-2 block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors">
-                            {departments.map(dep => <option key={dep} value={dep}>{dep.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>)}
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                <div className="absolute top-0 right-0 pt-4 pr-4">
+                  <button
+                    type="button"
+                    className="rounded-md bg-white dark:bg-slate-800 text-gray-400 dark:text-slate-400 hover:text-gray-500 dark:hover:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                    onClick={onClose}
+                  >
+                    <span className="sr-only">Close</span>
+                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                  </button>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="divide-y divide-gray-200 dark:divide-slate-700">
+                  <div className="px-6 pt-6 pb-8">
+                    <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-gray-900 dark:text-slate-100 mb-6">
+                      {isEditMode ? 'Edit User' : 'Tambah User Baru'}
+                    </Dialog.Title>
+                    
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                          Nama Lengkap
+                        </label>
+                        <input 
+                          type="text" 
+                          name="name" 
+                          id="name" 
+                          value={formData.name} 
+                          onChange={handleChange} 
+                          required 
+                          className={inputClass}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                          Email
+                        </label>
+                        <input 
+                          type="email" 
+                          name="email" 
+                          id="email" 
+                          value={formData.email} 
+                          onChange={handleChange} 
+                          required 
+                          className={inputClass}
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                          Password
+                        </label>
+                        <input 
+                          type={showPassword ? 'text' : 'password'} 
+                          name="password" 
+                          id="password" 
+                          value={formData.password} 
+                          onChange={handleChange} 
+                          required={!isEditMode}
+                          placeholder={isEditMode ? '(Kosongkan jika tidak ganti)' : 'Minimal 8 karakter'}
+                          minLength={8}
+                          className={inputClass}
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-10 text-gray-400 dark:text-slate-400 hover:text-gray-500 dark:hover:text-slate-300">
+                          {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                          Konfirmasi Password
+                        </label>
+                        <input 
+                          type={showConfirmPassword ? 'text' : 'password'} 
+                          name="confirmPassword" 
+                          id="confirmPassword" 
+                          value={confirmPassword} 
+                          onChange={(e) => setConfirmPassword(e.target.value)} 
+                          required={!isEditMode || (isEditMode && !!formData.password)}
+                          placeholder="Ulangi password"
+                          minLength={8}
+                          className={inputClass}
+                        />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-10 text-gray-400 dark:text-slate-400 hover:text-gray-500 dark:hover:text-slate-300">
+                          {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                        </button>
+                      </div>
+
+                      <div>
+                        <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                          Role
+                        </label>
+                        <select 
+                          name="role" 
+                          id="role" 
+                          value={formData.role} 
+                          onChange={handleChange} 
+                          required 
+                          className={inputClass}
+                        >
+                          {availableRoles.map(role => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
                         </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                          Departemen
+                        </label>
+                        <select 
+                          name="department" 
+                          id="department" 
+                          value={formData.department} 
+                          onChange={handleChange} 
+                          required 
+                          className={inputClass}
+                        >
+                          {departments.map(dept => (
+                            <option key={dept} value={dept}>
+                              {formatDepartmentLabel(dept)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <legend className="text-sm font-semibold leading-6 text-gray-900 dark:text-slate-100">
+                        Hak Akses Keluhan
+                      </legend>
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {(Object.keys(complaintPermissions) as ComplaintPermissionKey[]).map((key) => (
+                          <div key={key} className="relative flex items-start">
+                            <div className="flex h-6 items-center">
+                              <input
+                                id={key}
+                                name={key}
+                                type="checkbox"
+                                checked={!!formData.complaint_permissions?.[key]}
+                                onChange={() => handlePermissionChange(key)}
+                                className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 dark:bg-slate-600 text-emerald-600 focus:ring-emerald-600 dark:focus:ring-emerald-500 dark:focus:ring-offset-slate-800"
+                              />
+                            </div>
+                            <div className="ml-3 text-sm leading-6">
+                              <label htmlFor={key} className="font-medium text-gray-900 dark:text-slate-100">
+                                {complaintPermissions[key]}
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-zinc-700">{isEditMode ? 'Password Baru (Opsional)' : 'Password *'}</label>
-                            <div className="relative mt-2">
-                                <input type={showPassword ? 'text' : 'password'} name="password" id="password" value={formData.password} onChange={handleChange} required={!isEditMode} className="block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors" />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
-                                    {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                                </button>
-                            </div>
-                        </div>
-                        <div>
-                             <label htmlFor="confirmPassword" className="block text-sm font-medium text-zinc-700">{isEditMode ? 'Ulangi Password Baru' : 'Ulangi Password *'}</label>
-                             <div className="relative mt-2">
-                                <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" id="confirmPassword" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required={!isEditMode || !!formData.password} className="block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm transition-colors" />
-                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
-                                    {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                                </button>
-                            </div>
-                        </div>
-                   </div>
-                   
-                  <div>
-                    <h4 className="text-md font-medium text-gray-800 border-t pt-4 mt-4">Izin Sistem Komplain</h4>
-                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {Object.entries(complaintPermissions).map(([key, label]) => (
-                        <div key={key} className="relative flex items-start">
-                          <div className="flex h-6 items-center">
-                            <input
-                              id={key}
-                              name={key}
-                              type="checkbox"
-                              checked={!!formData.complaint_permissions?.[key as ComplaintPermissionKey]}
-                              onChange={() => handlePermissionChange(key as ComplaintPermissionKey)}
-                              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-600"
-                            />
-                          </div>
-                          <div className="ml-3 text-sm leading-6">
-                            <label htmlFor={key} className="font-medium text-gray-900">{label}</label>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-8 flex justify-end gap-x-4">
-                    <button type="button" onClick={onClose} className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Tutup</button>
-                    <button type="submit" disabled={isSubmitting} className="rounded-md bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:opacity-50">
-                      {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+                  
+                  {/* ... Tombol Form ... */}
+                  {/* ++ STYLING TOMBOL DISESUAIKAN ++ */}
+                  <div className="mt-8 pt-5 flex justify-end gap-x-4 border-t border-gray-200 dark:border-slate-700 px-6 py-4 bg-gray-50 dark:bg-slate-800/50">
+                    <button 
+                      type="button" 
+                      onClick={onClose} 
+                      className="rounded-md bg-white dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-slate-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600"
+                    >
+                      Tutup
+                    </button>
+                    <button 
+                      type="submit" 
+                      disabled={isSubmitting} 
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {isSubmitting ? 'Menyimpan...' : (
+                        <>
+                          <CheckCircleIcon className="h-5 w-5" />
+                          <span>Simpan</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -205,6 +336,6 @@ export default function UserForm({ isOpen, onClose, availableRoles, userToEdit }
           </div>
         </div>
       </Dialog>
-    </Transition>
+    </Transition.Root>
   );
 }

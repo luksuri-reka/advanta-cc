@@ -3,7 +3,7 @@
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, CheckCircleIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { createCompany, updateCompany, CompanyFormData } from './actions';
 
@@ -12,14 +12,13 @@ interface Province {
   name: string;
 }
 
-// Interface yang diperbaiki untuk mencocokkan struktur dari CompanyClient
 interface Company {
   id: number;
   name: string;
   type: string;
   address: string;
   province_id: number;
-  provinces: { name: string }[]; // Sesuaikan dengan hasil join
+  provinces: { name: string }[];
 }
 
 interface CompanyFormProps {
@@ -40,12 +39,11 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
         if (isEditMode && companyToEdit) {
           setFormData({
             name: companyToEdit.name,
-            type: companyToEdit.type, // Tipe sudah dalam format yang benar (cth: 'Distributor')
+            type: companyToEdit.type,
             address: companyToEdit.address || '',
             province_id: companyToEdit.province_id,
           });
         } else {
-          // Reset form
           setFormData({ name: '', type: '', address: '', province_id: 0 });
         }
     }
@@ -71,6 +69,7 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
     }
     
     setIsSubmitting(true);
+    const toastId = toast.loading(isEditMode ? 'Memperbarui data...' : 'Menyimpan data...');
     
     try {
       let result;
@@ -80,23 +79,23 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
         result = await createCompany(formData);
       }
       
-      // Perbaikan: Cek 'result.error'
       if (result.error) {
-        toast.error(result.error.message || 'Gagal menyimpan data.');
+        toast.error(result.error.message || 'Gagal menyimpan data.', { id: toastId });
       } else {
-        toast.success(isEditMode ? 'Data berhasil diperbarui.' : 'Data berhasil ditambahkan.');
+        toast.success(isEditMode ? 'Data berhasil diperbarui.' : 'Data berhasil ditambahkan.', { id: toastId });
         onClose();
         window.location.reload();
       }
     } catch (error) {
-      toast.error('Terjadi kesalahan saat menyimpan data.');
+      toast.error('Terjadi kesalahan saat menyimpan data.', { id: toastId });
       console.error(error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const inputClass = "mt-2 block w-full rounded-xl border-0 py-3 px-4 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 dark:focus:ring-emerald-500 sm:text-sm transition-colors";
+  // Kelas CSS yang diselaraskan dengan SeedClassForm
+  const inputClass = "mt-2 block w-full rounded-xl border-0 py-3 px-4 dark:bg-slate-700 text-zinc-900 dark:text-slate-100 ring-1 ring-inset ring-zinc-300 dark:ring-slate-600 placeholder:text-zinc-400 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 dark:focus:ring-emerald-500 sm:text-sm transition-colors";
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -110,26 +109,29 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 transition-opacity" />
+          {/* Latar belakang overlay disesuaikan */}
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/70 transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
+          {/* Penempatan modal disesuaikan (selalu di tengah) */}
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
               leave="ease-in duration-200"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+              {/* Panel modal disesuaikan (warna, shadow, ukuran) */}
+              <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-xl">
                 
                 <div className="absolute top-0 right-0 pt-4 pr-4 block">
                   <button
                     type="button"
-                    className="rounded-md bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    className="rounded-md bg-white dark:bg-slate-800 text-gray-400 dark:text-slate-400 hover:text-gray-500 dark:hover:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                     onClick={onClose}
                   >
                     <span className="sr-only">Close</span>
@@ -138,27 +140,17 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
                 </div>
                 
                 <form onSubmit={handleSubmit}>
-                  <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <div className="sm:flex sm:items-start">
-                      <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900 sm:mx-0 sm:h-10 sm:w-10">
-                        <BuildingOfficeIcon className="h-6 w-6 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                      </div>
-                      <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                        <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 dark:text-white">
-                          {isEditMode ? 'Edit Perusahaan' : 'Tambah Perusahaan'}
-                        </Dialog.Title>
-                        <div className="mt-2">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Isi detail perusahaan.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                  {/* Header Form disederhanakan */}
+                  <div className="px-6 pt-6 pb-4">
+                    <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-gray-900 dark:text-slate-100">
+                      {isEditMode ? 'Edit Perusahaan' : 'Tambah Perusahaan Baru'}
+                    </Dialog.Title>
                   </div>
 
+                  {/* Konten Form */}
                   <div className="px-6 py-4 space-y-4">
                     <div>
-                      <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                         Nama Perusahaan
                       </label>
                       <input
@@ -174,7 +166,7 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
                     </div>
 
                     <div>
-                      <label htmlFor="type" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                      <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                         Tipe
                       </label>
                       <select
@@ -195,7 +187,7 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
                     </div>
 
                     <div>
-                      <label htmlFor="province_id" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                      <label htmlFor="province_id" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                         Provinsi
                       </label>
                       <select
@@ -216,7 +208,7 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
                     </div>
                     
                     <div>
-                      <label htmlFor="address" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                      <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                         Alamat
                       </label>
                       <textarea
@@ -231,11 +223,12 @@ export default function CompanyForm({ isOpen, onClose, availableProvinces, compa
                     </div>
                   </div>
                   
-                  <div className="mt-8 px-6 py-4 flex justify-end gap-x-4 border-t border-gray-200 dark:border-gray-700">
+                  {/* Footer Form (Tombol) disesuaikan */}
+                  <div className="mt-8 pt-5 flex justify-end gap-x-4 border-t border-gray-200 dark:border-slate-700 px-6 py-4 bg-gray-50 dark:bg-slate-800/50">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="rounded-md bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-gray-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="rounded-md bg-white dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-slate-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600"
                     >
                       Tutup
                     </button>

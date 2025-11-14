@@ -1,6 +1,8 @@
 // app/survey/SurveyForm.tsx
 'use client';
 
+// ++ TAMBAHKAN import createBrowserClient ++
+import { createBrowserClient } from '@supabase/ssr';
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -16,9 +18,10 @@ import Link from 'next/link';
 
 interface SurveyFormData {
   customer_name: string;
-  customer_email: string;
+  customer_email: string; // Email akan kita buat opsional
   customer_phone: string;
   verification_serial?: string;
+  related_product_name?: string; // ++ TAMBAHKAN field ini
   survey_type: string;
   ratings: {
     overall_satisfaction: number;
@@ -36,20 +39,36 @@ interface SurveyFormData {
 export default function SurveyForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // ++ TAMBAHKAN: State untuk Supabase client ++
+  const [supabase] = useState(() =>
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  );
+
   const [mounted, setMounted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   
+  // ++ UBAH: Baca semua parameter yang mungkin dari URL ++
+  const productId = searchParams?.get('product_id') || '';
   const serial = searchParams?.get('serial') || '';
   const lot = searchParams?.get('lot') || '';
-  const product = searchParams?.get('product') || '';
+  const productNameQuery = searchParams?.get('product') || ''; // dari verifikasi
+  const customerName = searchParams?.get('name') || '';
+  const customerEmail = searchParams?.get('email') || '';
+  const customerPhone = searchParams?.get('phone') || '';
   
+  // ++ UBAH: Inisialisasi state dengan data dari URL ++
   const [formData, setFormData] = useState<SurveyFormData>({
-    customer_name: '',
-    customer_email: '',
-    customer_phone: '',
+    customer_name: customerName,
+    customer_email: customerEmail,
+    customer_phone: customerPhone,
     verification_serial: serial || lot,
+    related_product_name: productNameQuery, // Simpan nama produk dari query
     survey_type: 'post_verification',
     ratings: {
       overall_satisfaction: 0,
@@ -67,6 +86,31 @@ export default function SurveyForm() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ++ TAMBAHKAN: useEffect untuk mengambil nama produk jika ada product_id ++
+  useEffect(() => {
+    // Hanya jalankan jika komponen sudah mounted dan ada productId
+    if (mounted && productId) {
+      const fetchProductName = async () => {
+        const { data: productData, error } = await supabase
+          .from('products')
+          .select('name')
+          .eq('id', productId)
+          .single();
+
+        if (productData) {
+          setFormData(prev => ({
+            ...prev,
+            related_product_name: productData.name
+          }));
+        } else {
+          console.error('Error fetching product name:', error?.message);
+        }
+      };
+      fetchProductName();
+    }
+  }, [mounted, productId, supabase]);
+  
 
   const handleRatingChange = (category: string, rating: number) => {
     if (category === 'product_performance_rating' || category === 'packaging_quality_rating') {
@@ -170,6 +214,7 @@ export default function SurveyForm() {
 
   if (isSubmitted) {
     return (
+      // ... (Bagian 'isSubmitted' tidak berubah)
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
@@ -221,6 +266,7 @@ export default function SurveyForm() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
       
       {/* Header */}
+      {/* ... (Header tidak berubah) ... */}
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -242,9 +288,11 @@ export default function SurveyForm() {
         </div>
       </div>
 
+
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         
         {/* Progress Bar */}
+        {/* ... (Progress Bar tidak berubah) ... */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             {[1, 2, 3].map(step => (
@@ -277,10 +325,12 @@ export default function SurveyForm() {
           </div>
         </div>
 
+
         {/* Form Container */}
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
           
           {/* Form Header */}
+          {/* ... (Header Formulir tidak berubah) ... */}
           <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 px-8 py-8 text-center">
             <FaceSmileIcon className="h-12 w-12 text-white mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">
@@ -290,6 +340,7 @@ export default function SurveyForm() {
               Bantu kami memberikan produk dan layanan yang lebih baik
             </p>
           </div>
+
 
           <form onSubmit={handleSubmit} className="p-8">
             
@@ -314,15 +365,16 @@ export default function SurveyForm() {
                 </div>
 
                 <div>
+                  {/* ++ UBAH: Buat email opsional ++ */}
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Email *
+                    Email <span className="text-sm font-normal text-gray-500 dark:text-slate-400">(Opsional)</span>
                   </label>
                   <input
                     type="email"
                     name="customer_email"
                     value={formData.customer_email}
                     onChange={handleInputChange}
-                    required
+                    // ++ HAPUS 'required' ++
                     className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="email@example.com"
                   />
@@ -330,27 +382,31 @@ export default function SurveyForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Nomor Telepon
+                    Nomor WhatsApp <span className="text-sm font-normal text-gray-500 dark:text-slate-400">*</span>
                   </label>
                   <input
                     type="tel"
                     name="customer_phone"
                     value={formData.customer_phone}
                     onChange={handleInputChange}
+                    required
                     className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="08xxxxxxxxxx"
                   />
                 </div>
 
-                {formData.verification_serial && (
+                {/* ++ UBAH: Logika tampilan produk ++ */}
+                {(formData.verification_serial || formData.related_product_name) && (
                   <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
                     <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-2">Produk yang Disurvey</h4>
-                    <p className="text-sm text-emerald-700 dark:text-emerald-200">
-                      Serial/Lot: {formData.verification_serial}
-                    </p>
-                    {product && (
+                    {formData.verification_serial && (
+                      <p className="text-sm text-emerald-700 dark:text-emerald-200">
+                        Serial/Lot: {formData.verification_serial}
+                      </p>
+                    )}
+                    {formData.related_product_name && (
                       <p className="text-sm text-emerald-700 dark:text-emerald-200 mt-1">
-                        Produk: {product}
+                        Produk: {formData.related_product_name}
                       </p>
                     )}
                   </div>
@@ -359,6 +415,7 @@ export default function SurveyForm() {
             )}
 
             {/* Step 2: Product Rating */}
+            {/* ... (Step 2 tidak berubah) ... */}
             {currentStep === 2 && (
               <div className="space-y-8">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-6">Penilaian Produk</h3>
@@ -423,13 +480,14 @@ export default function SurveyForm() {
             )}
 
             {/* Step 3: Feedback */}
+            {/* ... (Step 3 tidak berubah) ... */}
             {currentStep === 3 && (
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-6">Feedback & Saran</h3>
                 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Komentar Anda
+                    Komentar Anda <span className="text-sm font-normal text-gray-500 dark:text-slate-400">(Opsional)</span>
                   </label>
                   <textarea
                     name="comments"
@@ -443,7 +501,7 @@ export default function SurveyForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Saran Perbaikan
+                    Saran Perbaikan <span className="text-sm font-normal text-gray-500 dark:text-slate-400">(Opsional)</span>
                   </label>
                   <textarea
                     name="suggestions"
@@ -465,6 +523,7 @@ export default function SurveyForm() {
                 </div>
               </div>
             )}
+
 
             {/* Navigation Buttons */}
             <div className="flex justify-between items-center mt-12 pt-8 border-t border-gray-200 dark:border-slate-700">
@@ -493,7 +552,8 @@ export default function SurveyForm() {
                     nextStep();
                   }}
                   disabled={
-                    (currentStep === 1 && (!formData.customer_name || !formData.customer_email)) ||
+                    // ++ UBAH: Hapus validasi email dari sini ++
+                    (currentStep === 1 && (!formData.customer_name)) ||
                     (currentStep === 2 && formData.ratings.overall_satisfaction === 0)
                   }
                   className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-emerald-500 dark:hover:from-emerald-500 dark:hover:to-emerald-600 focus:ring-4 focus:ring-emerald-500/20 dark:focus:ring-emerald-400/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
@@ -525,6 +585,7 @@ export default function SurveyForm() {
         </div>
 
         {/* Help Text */}
+        {/* ... (Footer tidak berubah) ... */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500 dark:text-slate-400">
             Mengalami kesulitan? Hubungi kami di{' '}

@@ -2,6 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+// ++ HAPUS IMPORT YANG SALAH (referensi Twilio) ++
+// import { sendSurveyWhatsAppNotification } from '@/app/utils/emailService';
+
 // Buat Supabase client dengan service role untuk bypass RLS
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,18 +19,14 @@ const supabaseAdmin = createClient(
 
 // Helper function untuk validasi rating
 const validateRating = (rating: any, fieldName: string): number | null => {
-  // Jika rating tidak ada, null, undefined, atau 0, return null
+  // ... (Fungsi ini tidak berubah)
   if (rating === null || rating === undefined || rating === 0 || rating === '') {
     return null;
   }
-  
   const num = Number(rating);
-  
-  // Jika bukan number atau di luar range 1-5
   if (isNaN(num) || num < 1 || num > 5) {
     throw new Error(`${fieldName} harus antara 1-5 atau kosong`);
   }
-  
   return num;
 };
 
@@ -35,7 +34,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Validate required fields
+    // Validasi Nama (wajib)
     if (!body.customer_name || body.customer_name.trim() === '') {
       return NextResponse.json(
         { error: 'Nama pelanggan wajib diisi' }, 
@@ -43,62 +42,49 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!body.customer_email || body.customer_email.trim() === '') {
-      return NextResponse.json(
-        { error: 'Email pelanggan wajib diisi' }, 
-        { status: 400 }
-      );
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(body.customer_email)) {
-      return NextResponse.json(
-        { error: 'Format email tidak valid' }, 
-        { status: 400 }
-      );
+    // Validasi Email (Opsional, tapi jika ada, harus valid)
+    if (body.customer_email && body.customer_email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(body.customer_email)) {
+        return NextResponse.json(
+          { error: 'Format email tidak valid' }, 
+          { status: 400 }
+        );
+      }
     }
 
     try {
-      // Prepare ratings data dengan validasi
+      // ... (Bagian validasi rating tetap sama) ...
       const ratingsData = body.ratings || {};
       const preparedRatings: any = {};
-
-      // Validasi setiap rating field
       if (ratingsData.overall_satisfaction !== undefined) {
         preparedRatings.overall_satisfaction = validateRating(
           ratingsData.overall_satisfaction, 
           'Kepuasan keseluruhan'
         );
       }
-      
       if (ratingsData.product_quality !== undefined) {
         preparedRatings.product_quality = validateRating(
           ratingsData.product_quality, 
           'Kualitas produk'
         );
       }
-      
       if (ratingsData.packaging !== undefined) {
         preparedRatings.packaging = validateRating(
           ratingsData.packaging, 
           'Kemasan'
         );
       }
-      
       if (ratingsData.delivery !== undefined) {
         preparedRatings.delivery = validateRating(
           ratingsData.delivery, 
           'Pengiriman'
         );
       }
-
-      // Validasi individual rating fields
       const productPerformanceRating = validateRating(
         body.product_performance_rating, 
         'Performa produk'
       );
-      
       const packagingQualityRating = validateRating(
         body.packaging_quality_rating, 
         'Kualitas kemasan'
@@ -107,8 +93,9 @@ export async function POST(request: Request) {
       // Prepare insert data
       const insertData: any = {
         verification_serial: body.verification_serial || null,
+        related_product_name: body.related_product_name || null,
         customer_name: body.customer_name.trim(),
-        customer_email: body.customer_email.trim().toLowerCase(),
+        customer_email: body.customer_email ? body.customer_email.trim().toLowerCase() : null,
         customer_phone: body.customer_phone?.trim() || null,
         survey_type: body.survey_type || 'post_verification',
         ratings: Object.keys(preparedRatings).length > 0 ? preparedRatings : null,
@@ -119,16 +106,7 @@ export async function POST(request: Request) {
         packaging_quality_rating: packagingQualityRating
       };
 
-      // Log data yang akan diinsert (untuk debugging)
-      console.log('Inserting survey data:', {
-        customer_name: insertData.customer_name,
-        customer_email: insertData.customer_email,
-        product_performance_rating: insertData.product_performance_rating,
-        packaging_quality_rating: insertData.packaging_quality_rating,
-        ratings: insertData.ratings
-      });
-
-      // Insert survey data menggunakan service role (bypass RLS)
+      // Insert survey data
       const { data, error } = await supabaseAdmin
         .from('surveys')
         .insert(insertData)
@@ -137,27 +115,63 @@ export async function POST(request: Request) {
 
       if (error) {
         console.error('Supabase insert error:', error);
-        
-        // Handle specific constraint errors
-        if (error.message.includes('check constraint')) {
-          return NextResponse.json(
-            { error: 'Nilai rating harus antara 1-5 atau kosong' }, 
-            { status: 400 }
-          );
-        }
-        
         return NextResponse.json(
-          { error: 'Gagal menyimpan survey: ' + error.message }, 
+          { error: 'Gagal menyimpan survey: ' + error.message },
           { status: 500 }
         );
       }
 
-      // Log success
-      console.log('Survey submitted successfully:', {
-        id: data.id,
-        customer_name: data.customer_name,
-        created_at: data.created_at
-      });
+      console.log('Survey submitted successfully:', data.id);
+
+      // ++ UBAH: Blok Notifikasi (Gunakan Fonnte untuk Keduanya) ++
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+      // 1. Kirim notifikasi WhatsApp (ke Admin via Fonnte)
+      const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER;
+      if (adminWhatsAppNumber) {
+        try {
+          // Tidak perlu await, biarkan berjalan di background
+          fetch(`${baseUrl}/api/notifications/whatsapp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'survey_admin_notification', // Tipe baru
+              phone: adminWhatsAppNumber, // Nomor Admin
+              customer_name: data.customer_name,
+              survey_id: data.id,
+              product_name: data.related_product_name,
+              serial: data.verification_serial,
+              rating: data.ratings?.overall_satisfaction
+            }),
+          });
+          console.log(`Notifikasi WhatsApp admin terpicu.`);
+        } catch (adminNotificationError: any) {
+          console.error('Gagal memicu notifikasi WhatsApp admin:', adminNotificationError.message);
+        }
+      } else {
+        console.warn('ADMIN_WHATSAPP_NUMBER tidak diset. Melewatkan notifikasi admin.');
+      }
+
+      // 2. Kirim notifikasi WhatsApp (ke Pelanggan via Fonnte)
+      if (body.customer_phone) {
+        try {
+          // Tidak perlu await, biarkan berjalan di background
+          fetch(`${baseUrl}/api/notifications/whatsapp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'survey_submitted', // Tipe untuk pelanggan
+              phone: body.customer_phone,
+              customer_name: body.customer_name,
+              survey_id: data.id 
+            }),
+          });
+          console.log(`Notifikasi WhatsApp ke pelanggan ${body.customer_name} terpicu.`);
+        } catch (customerNotificationError: any) {
+          console.error('Gagal memicu notifikasi WhatsApp pelanggan:', customerNotificationError.message);
+        }
+      }
+      // ++ AKHIR BLOK NOTIFIKASI ++
 
       return NextResponse.json({
         success: true,
@@ -168,7 +182,7 @@ export async function POST(request: Request) {
     } catch (validationError: any) {
       console.error('Validation error:', validationError);
       return NextResponse.json(
-        { error: validationError.message || 'Validasi data gagal' }, 
+        { error: validationError.message || 'Validasi data gagal' },
         { status: 400 }
       );
     }
@@ -176,13 +190,14 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Server error:', error);
     return NextResponse.json(
-      { error: 'Terjadi kesalahan server. Silakan coba lagi.' }, 
+      { error: 'Terjadi kesalahan server. Silakan coba lagi.' },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: Request) {
+  // ... (Fungsi GET tidak berubah) ...
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -194,7 +209,6 @@ export async function GET(request: Request) {
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
-    // Filter by serial if provided
     if (serial) {
       query = query.eq('verification_serial', serial);
     }
@@ -205,7 +219,7 @@ export async function GET(request: Request) {
     if (error) {
       console.error('Supabase query error:', error);
       return NextResponse.json(
-        { error: 'Gagal mengambil data survey' }, 
+        { error: 'Gagal mengambil data survey' },
         { status: 500 }
       );
     }
@@ -224,7 +238,7 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error('Server error:', error);
     return NextResponse.json(
-      { error: 'Terjadi kesalahan server' }, 
+      { error: 'Terjadi kesalahan server' },
       { status: 500 }
     );
   }

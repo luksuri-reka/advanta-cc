@@ -258,31 +258,31 @@ export default function SurveysPage() {
   };
 
   const RatingStars = ({ rating }: { rating: number | null | undefined }) => {
-    if (!rating) return <span className="text-gray-400 text-sm">-</span>;
+    if (!rating) return <span className="text-gray-400 dark:text-slate-500 text-sm">-</span>;
     
     return (
       <div className="flex items-center gap-0.5">
         {[1, 2, 3, 4, 5].map(star => (
           <StarSolid
             key={star}
-            className={`h-4 w-4 ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+            className={`h-4 w-4 ${star <= rating ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600'}`}
           />
         ))}
-        <span className="ml-1 text-sm font-semibold text-gray-700">{rating.toFixed(1)}</span>
+        <span className="ml-1 text-sm font-semibold text-gray-700 dark:text-slate-200">{rating.toFixed(1)}</span>
       </div>
     );
   };
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 dark:border-emerald-400"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <Navbar user={user} onLogout={handleLogout} />
       
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
@@ -290,11 +290,11 @@ export default function SurveysPage() {
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-3">
                 <DocumentTextIcon className="h-8 w-8 text-emerald-600" />
                 Survey Analytics
               </h1>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2 text-gray-600 dark:text-slate-300">
                 Analisis feedback dan kepuasan pelanggan dari survey
               </p>
             </div>
@@ -302,7 +302,7 @@ export default function SurveysPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCharts(!showCharts)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors font-semibold shadow-sm"
               >
                 <ChartPieIcon className="h-5 w-5" />
                 {showCharts ? 'Sembunyikan' : 'Tampilkan'} Grafik
@@ -321,51 +321,51 @@ export default function SurveysPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-blue-100">
-                <DocumentTextIcon className="h-6 w-6 text-blue-600" />
+              <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/50">
+                <DocumentTextIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-                <p className="text-sm text-gray-500">Total Survey</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{stats.total}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Total Survey</p>
               </div>
             </div>
-            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-              <span className="text-sm text-gray-600">Bulan ini</span>
-              <span className="text-sm font-bold text-blue-600">{stats.thisMonth}</span>
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-slate-700">
+              <span className="text-sm text-gray-600 dark:text-slate-300">Bulan ini</span>
+              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{stats.thisMonth}</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-yellow-100">
-                <StarIcon className="h-6 w-6 text-yellow-600" />
+              <div className="p-3 rounded-xl bg-yellow-100 dark:bg-yellow-900/50">
+                <StarIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-gray-900">{stats.avgOverallSatisfaction.toFixed(1)}</p>
-                <p className="text-sm text-gray-500">Rata-rata Rating</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{stats.avgOverallSatisfaction.toFixed(1)}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Rata-rata Rating</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
               {[1,2,3,4,5].map(star => (
-                <StarSolid key={star} className={`h-4 w-4 ${star <= Math.round(stats.avgOverallSatisfaction) ? 'text-yellow-400' : 'text-gray-300'}`} />
+                <StarSolid key={star} className={`h-4 w-4 ${star <= Math.round(stats.avgOverallSatisfaction) ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600'}`} />
               ))}
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-green-100">
-                <HandThumbUpIcon className="h-6 w-6 text-green-600" />
+              <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/50">
+                <HandThumbUpIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-gray-900">{stats.recommendationRate.toFixed(0)}%</p>
-                <p className="text-sm text-gray-500">Rekomendasi</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{stats.recommendationRate.toFixed(0)}%</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Rekomendasi</p>
               </div>
             </div>
-            <div className="pt-3 border-t border-gray-100">
-              <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="pt-3 border-t border-gray-100 dark:border-slate-700">
+              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
                 <div 
                   className="bg-green-500 h-2 rounded-full transition-all duration-500"
                   style={{ width: `${stats.recommendationRate}%` }}
@@ -374,24 +374,24 @@ export default function SurveysPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-purple-100">
-                <ChartBarIcon className="h-6 w-6 text-purple-600" />
+              <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/50">
+                <ChartBarIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-gray-900">{stats.avgProductPerformance.toFixed(1)}</p>
-                <p className="text-sm text-gray-500">Performa Produk</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{stats.avgProductPerformance.toFixed(1)}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Performa Produk</p>
               </div>
             </div>
             <div className="flex gap-2 text-xs">
               <div className="flex-1">
-                <p className="text-gray-500">Kualitas</p>
-                <p className="font-bold text-gray-900">{stats.avgProductQuality.toFixed(1)}</p>
+                <p className="text-gray-500 dark:text-slate-400">Kualitas</p>
+                <p className="font-bold text-gray-900 dark:text-slate-100">{stats.avgProductQuality.toFixed(1)}</p>
               </div>
               <div className="flex-1">
-                <p className="text-gray-500">Kemasan</p>
-                <p className="font-bold text-gray-900">{stats.avgPackagingQuality.toFixed(1)}</p>
+                <p className="text-gray-500 dark:text-slate-400">Kemasan</p>
+                <p className="font-bold text-gray-900 dark:text-slate-100">{stats.avgPackagingQuality.toFixed(1)}</p>
               </div>
             </div>
           </div>
@@ -405,28 +405,28 @@ export default function SurveysPage() {
         )}
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6 mb-8">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 p-6 mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <FunnelIcon className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-bold text-gray-900">Filter & Pencarian</h2>
+            <FunnelIcon className="h-5 w-5 text-gray-600 dark:text-slate-300" />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Filter & Pencarian</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-400" />
               <input
                 type="text"
                 placeholder="Cari nama, email, atau serial..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400"
               />
             </div>
 
             <select
               value={filterRecommend}
               onChange={(e) => setFilterRecommend(e.target.value as any)}
-              className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="px-4 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400"
             >
               <option value="all">Semua Rekomendasi</option>
               <option value="yes">Merekomendasikan</option>
@@ -436,7 +436,7 @@ export default function SurveysPage() {
             <select
               value={filterRating}
               onChange={(e) => setFilterRating(e.target.value as any)}
-              className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="px-4 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400"
             >
               <option value="all">Semua Rating</option>
               <option value="5">⭐⭐⭐⭐⭐ (5 bintang)</option>
@@ -449,50 +449,50 @@ export default function SurveysPage() {
         </div>
 
         {/* Survey List */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
               Data Survey ({filteredSurveys.length})
             </h2>
           </div>
 
           {isLoading ? (
             <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Memuat data survey...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 dark:border-emerald-400 mx-auto"></div>
+              <p className="mt-4 text-gray-600 dark:text-slate-300">Memuat data survey...</p>
             </div>
           ) : filteredSurveys.length === 0 ? (
             <div className="p-12 text-center">
-              <DocumentTextIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600 font-semibold">Tidak ada survey ditemukan</p>
-              <p className="text-sm text-gray-500 mt-1">Coba ubah filter pencarian Anda</p>
+              <DocumentTextIcon className="h-16 w-16 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-slate-300 font-semibold">Tidak ada survey ditemukan</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Coba ubah filter pencarian Anda</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-200 dark:divide-slate-700">
               {filteredSurveys.map((survey) => (
                 <div
                   key={survey.id}
-                  className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
                   onClick={() => setSelectedSurvey(survey)}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-gray-900">{survey.customer_name}</h3>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">{survey.customer_name}</h3>
                         {survey.would_recommend === true ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full flex items-center gap-1">
+                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-bold rounded-full flex items-center gap-1">
                             <HandThumbUpIcon className="h-3 w-3" />
                             Merekomendasikan
                           </span>
                         ) : survey.would_recommend === false ? (
-                          <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full flex items-center gap-1">
+                          <span className="px-2 py-1 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 text-xs font-bold rounded-full flex items-center gap-1">
                             <HandThumbDownIcon className="h-3 w-3" />
                             Tidak
                           </span>
                         ) : null}
                       </div>
                       
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-slate-300">
                         <div className="flex items-center gap-1">
                           <EnvelopeIcon className="h-4 w-4" />
                           {survey.customer_email}
@@ -523,40 +523,40 @@ export default function SurveysPage() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Kualitas Produk</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Kualitas Produk</p>
                       <RatingStars rating={survey.ratings?.product_quality} />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Performa Produk</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Performa Produk</p>
                       <RatingStars rating={survey.product_performance_rating} />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Kualitas Kemasan</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Kualitas Kemasan</p>
                       <RatingStars rating={survey.packaging_quality_rating} />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Pengiriman</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Pengiriman</p>
                       <RatingStars rating={survey.ratings?.delivery} />
                     </div>
                   </div>
 
                   {(survey.comments || survey.suggestions) && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 space-y-2">
                       {survey.comments && (
                         <div className="flex gap-2">
-                          <ChatBubbleLeftIcon className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                          <ChatBubbleLeftIcon className="h-5 w-5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
                           <div>
-                            <p className="text-xs font-semibold text-gray-700 mb-1">Komentar:</p>
-                            <p className="text-sm text-gray-600 line-clamp-2">{survey.comments}</p>
+                            <p className="text-xs font-semibold text-gray-700 dark:text-slate-200 mb-1">Komentar:</p>
+                            <p className="text-sm text-gray-600 dark:text-slate-300 line-clamp-2">{survey.comments}</p>
                           </div>
                         </div>
                       )}
                       {survey.suggestions && (
                         <div className="flex gap-2">
-                          <LightBulbIcon className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                          <LightBulbIcon className="h-5 w-5 text-yellow-500 dark:text-yellow-400 flex-shrink-0" />
                           <div>
-                            <p className="text-xs font-semibold text-gray-700 mb-1">Saran:</p>
-                            <p className="text-sm text-gray-600 line-clamp-2">{survey.suggestions}</p>
+                            <p className="text-xs font-semibold text-gray-700 dark:text-slate-200 mb-1">Saran:</p>
+                            <p className="text-sm text-gray-600 dark:text-slate-300 line-clamp-2">{survey.suggestions}</p>
                           </div>
                         </div>
                       )}
@@ -571,18 +571,18 @@ export default function SurveysPage() {
         {/* Detail Modal */}
         {selectedSurvey && (
           <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
             onClick={() => setSelectedSurvey(null)}
           >
             <div 
-              className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-                <h2 className="text-xl font-bold text-gray-900">Detail Survey</h2>
+              <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between z-10">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Detail Survey</h2>
                 <button
                   onClick={() => setSelectedSurvey(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 text-gray-500 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                 >
                   ✕
                 </button>
@@ -591,25 +591,25 @@ export default function SurveysPage() {
               <div className="p-6 space-y-6">
                 {/* Customer Info */}
                 <div>
-                  <h3 className="text-sm font-bold text-gray-700 mb-3">Informasi Customer</h3>
-                  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-slate-200 mb-3">Informasi Customer</h3>
+                  <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-2">
                     <div className="flex items-center gap-2">
-                      <UserIcon className="h-5 w-5 text-gray-400" />
-                      <span className="font-semibold">{selectedSurvey.customer_name}</span>
+                      <UserIcon className="h-5 w-5 text-gray-400 dark:text-slate-400" />
+                      <span className="font-semibold dark:text-slate-100">{selectedSurvey.customer_name}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm">{selectedSurvey.customer_email}</span>
+                      <EnvelopeIcon className="h-5 w-5 text-gray-400 dark:text-slate-400" />
+                      <span className="text-sm dark:text-slate-300">{selectedSurvey.customer_email}</span>
                     </div>
                     {selectedSurvey.customer_phone && (
                       <div className="flex items-center gap-2">
-                        <PhoneIcon className="h-5 w-5 text-gray-400" />
-                        <span className="text-sm">{selectedSurvey.customer_phone}</span>
+                        <PhoneIcon className="h-5 w-5 text-gray-400 dark:text-slate-400" />
+                        <span className="text-sm dark:text-slate-300">{selectedSurvey.customer_phone}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <CalendarIcon className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm">
+                      <CalendarIcon className="h-5 w-5 text-gray-400 dark:text-slate-400" />
+                      <span className="text-sm dark:text-slate-300">
                         {new Date(selectedSurvey.created_at).toLocaleDateString('id-ID', {
                           weekday: 'long',
                           day: '2-digit',
@@ -625,22 +625,22 @@ export default function SurveysPage() {
 
                 {/* Ratings */}
                 <div>
-                  <h3 className="text-sm font-bold text-gray-700 mb-3">Penilaian</h3>
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-slate-200 mb-3">Penilaian</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-blue-50 rounded-xl p-4">
-                      <p className="text-sm text-blue-700 mb-2">Kepuasan Keseluruhan</p>
+                    <div className="bg-blue-50 dark:bg-blue-900/50 rounded-xl p-4">
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">Kepuasan Keseluruhan</p>
                       <RatingStars rating={selectedSurvey.ratings?.overall_satisfaction} />
                     </div>
-                    <div className="bg-emerald-50 rounded-xl p-4">
-                      <p className="text-sm text-emerald-700 mb-2">Kualitas Produk</p>
+                    <div className="bg-emerald-50 dark:bg-emerald-900/50 rounded-xl p-4">
+                      <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-2">Kualitas Produk</p>
                       <RatingStars rating={selectedSurvey.ratings?.product_quality} />
                     </div>
-                    <div className="bg-purple-50 rounded-xl p-4">
-                      <p className="text-sm text-purple-700 mb-2">Performa Produk</p>
+                    <div className="bg-purple-50 dark:bg-purple-900/50 rounded-xl p-4">
+                      <p className="text-sm text-purple-700 dark:text-purple-300 mb-2">Performa Produk</p>
                       <RatingStars rating={selectedSurvey.product_performance_rating} />
                     </div>
-                    <div className="bg-orange-50 rounded-xl p-4">
-                      <p className="text-sm text-orange-700 mb-2">Kualitas Kemasan</p>
+                    <div className="bg-orange-50 dark:bg-orange-900/50 rounded-xl p-4">
+                      <p className="text-sm text-orange-700 dark:text-orange-300 mb-2">Kualitas Kemasan</p>
                       <RatingStars rating={selectedSurvey.packaging_quality_rating} />
                     </div>
                   </div>
@@ -649,18 +649,18 @@ export default function SurveysPage() {
                 {/* Recommendation */}
                 {selectedSurvey.would_recommend !== null && (
                   <div>
-                    <h3 className="text-sm font-bold text-gray-700 mb-3">Rekomendasi</h3>
-                    <div className={`rounded-xl p-4 ${selectedSurvey.would_recommend ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-slate-200 mb-3">Rekomendasi</h3>
+                    <div className={`rounded-xl p-4 ${selectedSurvey.would_recommend ? 'bg-green-50 dark:bg-green-900/50' : 'bg-red-50 dark:bg-red-900/50'}`}>
                       <div className="flex items-center gap-2">
                         {selectedSurvey.would_recommend ? (
                           <>
-                            <HandThumbUpIcon className="h-6 w-6 text-green-600" />
-                            <span className="font-semibold text-green-700">Ya, merekomendasikan produk ini</span>
+                            <HandThumbUpIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+                            <span className="font-semibold text-green-700 dark:text-green-300">Ya, merekomendasikan produk ini</span>
                           </>
                         ) : (
                           <>
-                            <HandThumbDownIcon className="h-6 w-6 text-red-600" />
-                            <span className="font-semibold text-red-700">Tidak merekomendasikan produk ini</span>
+                            <HandThumbDownIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
+                            <span className="font-semibold text-red-700 dark:text-red-300">Tidak merekomendasikan produk ini</span>
                           </>
                         )}
                       </div>
@@ -671,10 +671,10 @@ export default function SurveysPage() {
                 {/* Comments */}
                 {selectedSurvey.comments && (
                   <div>
-                    <h3 className="text-sm font-bold text-gray-700 mb-3">Komentar</h3>
-                    <div className="bg-blue-50 rounded-xl p-4">
-                      <ChatBubbleLeftIcon className="h-5 w-5 text-blue-600 mb-2" />
-                      <p className="text-gray-700 whitespace-pre-wrap">{selectedSurvey.comments}</p>
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-slate-200 mb-3">Komentar</h3>
+                    <div className="bg-blue-50 dark:bg-blue-900/50 rounded-xl p-4">
+                      <ChatBubbleLeftIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mb-2" />
+                      <p className="text-gray-700 dark:text-slate-200 whitespace-pre-wrap">{selectedSurvey.comments}</p>
                     </div>
                   </div>
                 )}
@@ -682,10 +682,10 @@ export default function SurveysPage() {
                 {/* Suggestions */}
                 {selectedSurvey.suggestions && (
                   <div>
-                    <h3 className="text-sm font-bold text-gray-700 mb-3">Saran Perbaikan</h3>
-                    <div className="bg-yellow-50 rounded-xl p-4">
-                      <LightBulbIcon className="h-5 w-5 text-yellow-600 mb-2" />
-                      <p className="text-gray-700 whitespace-pre-wrap">{selectedSurvey.suggestions}</p>
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-slate-200 mb-3">Saran Perbaikan</h3>
+                    <div className="bg-yellow-50 dark:bg-yellow-900/50 rounded-xl p-4">
+                      <LightBulbIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mb-2" />
+                      <p className="text-gray-700 dark:text-slate-200 whitespace-pre-wrap">{selectedSurvey.suggestions}</p>
                     </div>
                   </div>
                 )}
@@ -693,10 +693,10 @@ export default function SurveysPage() {
                 {/* Verification Serial */}
                 {selectedSurvey.verification_serial && (
                   <div>
-                    <h3 className="text-sm font-bold text-gray-700 mb-3">Produk</h3>
-                    <div className="bg-emerald-50 rounded-xl p-4">
-                      <p className="text-sm text-emerald-700 mb-1">Serial Verifikasi</p>
-                      <p className="font-mono font-semibold text-gray-900">{selectedSurvey.verification_serial}</p>
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-slate-200 mb-3">Produk</h3>
+                    <div className="bg-emerald-50 dark:bg-emerald-900/50 rounded-xl p-4">
+                      <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-1">Serial Verifikasi</p>
+                      <p className="font-mono font-semibold text-gray-900 dark:text-slate-100">{selectedSurvey.verification_serial}</p>
                     </div>
                   </div>
                 )}

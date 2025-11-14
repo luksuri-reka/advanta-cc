@@ -1,6 +1,8 @@
-// app/page.tsx - Fully Responsive Version
+// app/page.tsx - Versi Modifikasi dengan Dropdown Produk
 'use client';
 
+// ++ TAMBAHKAN import ini ++
+import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -19,18 +21,28 @@ import {
   GlobeAltIcon,
   XMarkIcon,
   ShieldExclamationIcon,
+  FaceSmileIcon,
+  ExclamationTriangleIcon,
+  ChatBubbleLeftRightIcon,
+  StarIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CubeIcon, // ++ TAMBAHKAN
+  ChevronDownIcon, // ++ TAMBAHKAN
 } from '@heroicons/react/24/outline';
 import { searchProduct, verifyProduct } from './utils/api';
 
 type ProductType = 'hybrid' | 'sweetcorn';
+type ActionType = 'verify' | 'survey' | 'complaint' | null;
 
 export default function HomePage() {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<ActionType>(null);
 
-  // Form Verification States
+  // Form States
   const [serialNumber, setSerialNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; isReportable: boolean } | null>(null);
@@ -39,6 +51,24 @@ export default function HomePage() {
   const [inputFocused, setInputFocused] = useState(false);
   const [productType, setProductType] = useState<ProductType>('hybrid');
 
+  // Quick Form States
+  const [quickName, setQuickName] = useState('');
+  const [quickEmail, setQuickEmail] = useState('');
+  const [quickPhone, setQuickPhone] = useState('');
+
+  // ++ TAMBAHKAN State untuk Daftar Produk ++
+  const [allProducts, setAllProducts] = useState<{ id: number; name: string }[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState(''); // Untuk dropdown
+
+  // ++ TAMBAHKAN Instance Supabase Client (memoized) ++
+  const [supabase] = useState(() =>
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  );
+
   useEffect(() => {
     setIsVisible(true);
     
@@ -46,10 +76,58 @@ export default function HomePage() {
       setActiveFeature((prev) => (prev + 1) % 3);
     }, 3000);
     
+    // ++ TAMBAHKAN: Fetch data produk saat komponen dimuat ++
+    const fetchProducts = async () => {
+      setProductsLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name')
+        .order('name', { ascending: true });
+        
+      if (data) {
+        setAllProducts(data);
+      }
+      if (error) {
+        console.error("Gagal memuat produk:", error.message);
+      }
+      setProductsLoading(false);
+    };
+    
+    fetchProducts();
+    // ++ AKHIR TAMBAHAN ++
+    
     return () => clearInterval(interval);
-  }, []);
+  }, [supabase]); // ++ UBAH: Tambahkan dependency
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const openActionModal = (action: ActionType) => {
+    setSelectedAction(action);
+    setShowActionModal(true);
+    // Reset state lama
+    setSerialNumber('');
+    setError(null);
+    setQuickName('');
+    setQuickEmail('');
+    setQuickPhone('');
+    setSelectedProductId(''); // ++ TAMBAHKAN: Reset product ID
+  };
+
+  const closeModal = () => {
+    setShowActionModal(false);
+    setSelectedAction(null);
+    setSerialNumber('');
+    setError(null);
+    setLoading(false);
+    setReportSuccess(false);
+    setIsReporting(false);
+    setProductType('hybrid');
+    setQuickName('');
+    setQuickEmail('');
+    setQuickPhone('');
+    setSelectedProductId(''); // ++ TAMBAHKAN: Reset product ID
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    // ... (Fungsi ini tidak berubah)
     e.preventDefault();
     if (!serialNumber.trim()) {
       setError({ 
@@ -62,7 +140,6 @@ export default function HomePage() {
     }
     setLoading(true);
     setError(null);
-    setReportSuccess(false);
     
     try {
       const verificationType = productType === 'hybrid' ? 'serial' : 'lot';
@@ -86,46 +163,30 @@ export default function HomePage() {
     }
   };
 
-  const handleReport = async () => {
-    if (!error || !serialNumber) return;
-    
-    setIsReporting(true);
-    try {
-        const response = await fetch('/api/report-failure', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                serialNumber: serialNumber,
-                errorMessage: error.message,
-                productType: productType,
-                verificationType: productType === 'hybrid' ? 'serial' : 'lot'
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error('Gagal mengirim laporan.');
-        }
-
-        setReportSuccess(true);
-    } catch (reportError: any) {
-        alert('Gagal mengirim laporan. Silakan coba lagi nanti.');
-        console.error('Report Error:', reportError);
-    } finally {
-        setIsReporting(false);
-    }
+  // ++ UBAH: Gunakan selectedProductId, bukan serialNumber ++
+  const handleQuickSurvey = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (selectedProductId) params.append('product_id', selectedProductId); // ++ UBAH
+    if (quickName) params.append('name', quickName);
+    if (quickEmail) params.append('email', quickEmail);
+    if (quickPhone) params.append('phone', quickPhone);
+    router.push(`/survey?${params.toString()}`);
   };
 
-  const closeModal = () => {
-    setShowVerifyModal(false);
-    setSerialNumber('');
-    setError(null);
-    setLoading(false);
-    setReportSuccess(false);
-    setIsReporting(false);
-    setProductType('hybrid');
+  // ++ UBAH: Gunakan selectedProductId, bukan serialNumber ++
+  const handleQuickComplaint = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (selectedProductId) params.append('product_id', selectedProductId); // ++ UBAH
+    if (quickName) params.append('name', quickName);
+    if (quickEmail) params.append('email', quickEmail);
+    if (quickPhone) params.append('phone', quickPhone);
+    router.push(`/complaint?${params.toString()}`);
   };
 
   const features = [
+    // ... (Tidak berubah)
     {
       icon: QrCodeIcon,
       title: 'Scan & Verifikasi',
@@ -144,6 +205,7 @@ export default function HomePage() {
   ];
 
   const stats = [
+    // ... (Tidak berubah)
     { label: 'Produk Terverifikasi', value: '50K+', icon: CheckBadgeIcon },
     { label: 'Pengguna Aktif', value: '10K+', icon: UsersIcon },
     { label: 'Batch Produksi', value: '1K+', icon: BeakerIcon },
@@ -153,21 +215,19 @@ export default function HomePage() {
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
       
-      {/* Dynamic Background with Theme Support */}
+      {/* ... (Background, Header, Hero, Stats Section tidak berubah) ... */}
+      
       <div className="fixed inset-0 -z-10 bg-gradient-to-br from-emerald-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-blue-950"></div>
       
-      {/* Animated Background - Optimized for all devices & themes */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-10 sm:top-20 left-5 sm:left-10 w-48 sm:w-72 h-48 sm:h-72 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-10 sm:bottom-20 right-5 sm:right-10 w-64 sm:w-96 h-64 sm:h-96 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
         <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-emerald-200/10 to-blue-200/10 dark:from-emerald-800/5 dark:to-blue-800/5 rounded-full blur-3xl"></div>
       </div>
 
-      {/* Header/Navbar - Fully Responsive */}
       <nav className={`relative z-20 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between gap-3">
-            {/* Logo - Clean & Simple */}
             <div className="flex items-center gap-3 md:gap-4">
               <img 
                 src="/advanta-logo.png" 
@@ -184,7 +244,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Login Button - Responsive */}
             <Link href="/admin/login">
               <button className="hidden sm:flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white text-sm md:text-base font-bold rounded-lg md:rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-105 transition-all duration-300 group">
                 <LockClosedIcon className="h-4 md:h-5 w-4 md:w-5 group-hover:rotate-12 transition-transform" />
@@ -194,7 +253,6 @@ export default function HomePage() {
               </button>
             </Link>
 
-            {/* Mobile Login Button */}
             <Link href="/admin/login">
               <button className="sm:hidden flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-lg hover:bg-emerald-700 transition-all">
                 <LockClosedIcon className="h-4 w-4" />
@@ -205,21 +263,17 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* Hero Section - Fully Responsive */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-20 lg:py-32">
         <div className="grid lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 items-center">
           
-          {/* Left Content - Responsive text sizes */}
           <div className={`transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
             
-            {/* Badge */}
             <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-emerald-100 dark:border-emerald-900 mb-4 sm:mb-6">
               <SparklesIcon className="h-3 sm:h-4 w-3 sm:w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Teknologi Verifikasi Terdepan</span>
               <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-emerald-500 dark:bg-emerald-400 rounded-full animate-pulse"></div>
             </div>
 
-            {/* Main Heading */}
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-4 sm:mb-6 leading-tight">
               <span className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-blue-600 dark:from-emerald-400 dark:via-emerald-300 dark:to-blue-400 bg-clip-text text-transparent">
                 Verifikasi Benih
@@ -234,48 +288,72 @@ export default function HomePage() {
               Pastikan keaslian benih bersertifikat Advanta Seeds Indonesia dengan sistem verifikasi QR Code yang aman, cepat, dan terpercaya.
             </p>
 
-            {/* CTA Buttons - Responsive stack */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8 sm:mb-12">
               
-              {/* Primary CTA */}
               <button 
-                onClick={() => setShowVerifyModal(true)}
-                className="group w-full sm:w-auto flex items-center justify-center gap-2 sm:gap-3 px-6 sm:px-8 py-4 sm:py-5 bg-white text-emerald-700 text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl shadow-xl border-2 border-emerald-200 hover:border-emerald-300 hover:shadow-2xl hover:scale-105 transition-all duration-300"
+                onClick={() => openActionModal('verify')}
+                className="group flex flex-col items-center gap-3 p-5 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-xl hover:scale-105 transition-all duration-300"
               >
-                <QrCodeIcon className="h-5 sm:h-6 w-5 sm:w-6 group-hover:scale-110 transition-transform" />
-                <span>Verifikasi QR Code</span>
+                <div className="p-3 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl">
+                  <QrCodeIcon className="h-8 w-8 text-white" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Verifikasi</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Cek keaslian produk</p>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => openActionModal('survey')}
+                className="group flex flex-col items-center gap-3 p-5 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-xl hover:scale-105 transition-all duration-300"
+              >
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                  <FaceSmileIcon className="h-8 w-8 text-white" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Survey</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Beri rating produk</p>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => openActionModal('complaint')}
+                className="group flex flex-col items-center gap-3 p-5 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 hover:shadow-xl hover:scale-105 transition-all duration-300"
+              >
+                <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl">
+                  <ExclamationTriangleIcon className="h-8 w-8 text-white" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Komplain</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Laporkan masalah</p>
+                </div>
               </button>
             </div>
 
-            {/* Trust Indicators - Responsive grid */}
-            <div className="flex flex-wrap items-center gap-3 sm:gap-6 pt-4 sm:pt-6 border-t border-slate-200">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6 pt-4 sm:pt-6 border-t border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <CheckBadgeIcon className="h-4 sm:h-6 w-4 sm:w-6 text-emerald-600" />
-                <span className="text-xs sm:text-sm font-semibold text-slate-700">Bersertifikat Resmi</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">Bersertifikat Resmi</span>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <LockClosedIcon className="h-4 sm:h-6 w-4 sm:w-6 text-blue-600" />
-                <span className="text-xs sm:text-sm font-semibold text-slate-700">Aman & Terpercaya</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">Aman & Terpercaya</span>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <ClockIcon className="h-4 sm:h-6 w-4 sm:w-6 text-purple-600" />
-                <span className="text-xs sm:text-sm font-semibold text-slate-700">Verifikasi Instant</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">Verifikasi Instant</span>
               </div>
             </div>
           </div>
 
-          {/* Right Content - Feature Cards - Responsive */}
           <div className={`transition-all duration-1000 delay-400 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
             <div className="relative">
               
-              {/* Main Card - Responsive padding */}
-              <div className="bg-white dark:bg-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 p-6 sm:p-8 backdrop-blur-xl">
+              <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 p-6 sm:p-8">
                 
-                {/* Decorative Elements */}
                 <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-br from-emerald-400/20 to-blue-400/20 dark:from-emerald-500/10 dark:to-blue-500/10 rounded-full blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 w-16 sm:w-24 h-16 sm:h-24 bg-gradient-to-tr from-purple-400/20 to-emerald-400/20 dark:from-purple-500/10 dark:to-emerald-500/10 rounded-full blur-2xl"></div>
 
-                {/* Feature Display - Responsive height */}
                 <div className="relative z-10 min-h-[280px] sm:min-h-[320px] flex flex-col justify-between">
                   {features.map((feature, index) => (
                     <div
@@ -300,7 +378,6 @@ export default function HomePage() {
                         {feature.description}
                       </p>
                       
-                      {/* Feature Indicators */}
                       <div className="flex gap-2">
                         {features.map((_, idx) => (
                           <button
@@ -319,7 +396,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Floating Elements - Responsive sizing */}
               <div className="absolute -top-4 sm:-top-6 -right-4 sm:-right-6 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-2xl animate-bounce-slow">
                 <DevicePhoneMobileIcon className="h-6 sm:h-8 w-6 sm:w-8 text-white" />
               </div>
@@ -332,7 +408,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats Section - Responsive grid */}
       <section className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 transition-all duration-1000 delay-600 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {stats.map((stat, index) => (
@@ -353,144 +428,270 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* MODAL VERIFIKASI - Fully Responsive */}
-      {showVerifyModal && (
+      {/* ACTION MODAL */}
+      {showActionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-xl bg-white dark:bg-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 md:p-8 lg:p-12 animate-scale-in max-h-[95vh] overflow-y-auto border border-slate-200 dark:border-slate-700">
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 md:p-8 animate-scale-in max-h-[95vh] overflow-y-auto border border-slate-200 dark:border-slate-700">
             
-            {/* Close Button */}
             <button
               onClick={closeModal}
-              className="absolute top-3 sm:top-4 right-3 sm:right-4 p-2 rounded-full hover:bg-gray-100 transition-colors z-20"
+              className="absolute top-3 sm:top-4 right-3 sm:right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors z-20"
             >
-              <XMarkIcon className="h-5 sm:h-6 w-5 sm:w-6 text-gray-500" />
+              <XMarkIcon className="h-5 sm:h-6 w-5 sm:w-6 text-gray-500 dark:text-slate-400" />
             </button>
 
-            {/* Form Header */}
-            <div className="text-center mb-6 sm:mb-8 relative z-10">
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2 sm:mb-3 tracking-tight">
-                Verifikasi Produk Anda
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="inline-flex p-4 rounded-2xl mb-4" style={{
+                background: selectedAction === 'verify' ? 'linear-gradient(135deg, #10b981, #059669)' :
+                           selectedAction === 'survey' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' :
+                           'linear-gradient(135deg, #f97316, #ea580c)'
+              }}>
+                {selectedAction === 'verify' && <QrCodeIcon className="h-10 w-10 text-white" />}
+                {selectedAction === 'survey' && <FaceSmileIcon className="h-10 w-10 text-white" />}
+                {selectedAction === 'complaint' && <ExclamationTriangleIcon className="h-10 w-10 text-white" />}
+              </div>
+              
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                {selectedAction === 'verify' && 'Verifikasi Produk'}
+                {selectedAction === 'survey' && 'Berikan Rating Anda'}
+                {selectedAction === 'complaint' && 'Laporkan Masalah'}
               </h2>
-              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                Pilih kategori produk dan masukkan nomor seri untuk verifikasi
+              
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+                {selectedAction === 'verify' && 'Masukkan nomor seri/lot untuk verifikasi'}
+                {selectedAction === 'survey' && 'Bantu kami tingkatkan kualitas produk'}
+                {selectedAction === 'complaint' && 'Sampaikan keluhan Anda kepada kami'}
               </p>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6 relative z-10">
+            {/* Form Content */}
+            <form onSubmit={
+              selectedAction === 'verify' ? handleVerify :
+              selectedAction === 'survey' ? handleQuickSurvey :
+              handleQuickComplaint
+            } className="space-y-5 sm:space-y-6">
               
-              {/* Product Type Toggle - Responsive */}
-              <div className="space-y-2 sm:space-y-3">
-                <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-                  Kategori Produk
-                </label>
-                <div className="relative bg-slate-100 dark:bg-slate-700/50 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setProductType('hybrid')}
-                    className={`flex-1 px-2 sm:px-4 py-3 sm:py-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 relative overflow-hidden ${
-                      productType === 'hybrid'
-                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-[1.02]'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                    }`}
-                  >
-                    {productType === 'hybrid' && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
-                    )}
-                    <div className="relative flex flex-col items-center gap-1 sm:gap-2">
-                      <span className="text-xl sm:text-2xl">🌽</span>
-                      <div className="text-center">
-                        <div className="font-bold text-[11px] sm:text-sm">Jagung Hibrida</div>
-                        <div className={`text-[9px] sm:text-xs mt-0.5 ${productType === 'hybrid' ? 'text-white/90' : 'text-slate-500'}`}>
-                          Nomor Seri
-                        </div>
+              {/* ++ UBAH: Product Type Toggle - HANYA TAMPIL di 'verify' ++ */}
+              {selectedAction === 'verify' && (
+                <div className="space-y-2 sm:space-y-3">
+                  <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                    Kategori Produk
+                  </label>
+                  <div className="relative bg-slate-100 dark:bg-slate-700/50 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setProductType('hybrid')}
+                      className={`flex-1 px-2 sm:px-4 py-3 sm:py-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${
+                        productType === 'hybrid'
+                          ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-xl">🌽</span>
+                        <span className="text-[11px] sm:text-sm">Jagung Hibrida</span>
+                        <span className="text-[9px] sm:text-xs opacity-75">Nomor Seri</span>
                       </div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setProductType('sweetcorn')}
-                    className={`flex-1 px-2 sm:px-4 py-3 sm:py-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 relative overflow-hidden ${
-                      productType === 'sweetcorn'
-                        ? 'bg-gradient-to-r from-amber-600 to-orange-500 text-white shadow-lg shadow-orange-500/30 scale-[1.02]'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                    }`}
-                  >
-                    {productType === 'sweetcorn' && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
-                    )}
-                    <div className="relative flex flex-col items-center gap-1 sm:gap-2">
-                      <span className="text-xl sm:text-2xl">🍅</span>
-                      <div className="text-center">
-                        <div className="font-bold text-[11px] sm:text-sm">Sweetcorn & Sayuran</div>
-                        <div className={`text-[9px] sm:text-xs mt-0.5 ${productType === 'sweetcorn' ? 'text-white/90' : 'text-slate-500'}`}>
-                          Nomor Lot
-                        </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProductType('sweetcorn')}
+                      className={`flex-1 px-2 sm:px-4 py-3 sm:py-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${
+                        productType === 'sweetcorn'
+                          ? 'bg-gradient-to-r from-amber-600 to-orange-500 text-white shadow-lg'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-xl">🍅</span>
+                        <span className="text-[11px] sm:text-sm">Sweetcorn & Sayuran</span>
+                        <span className="text-[9px] sm:text-xs opacity-75">Nomor Lot</span>
                       </div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Input Field - Responsive */}
-              <div className="relative group">
-                <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 mb-2 sm:mb-3">
-                  {productType === 'hybrid' ? 'Nomor Seri Label' : 'Nomor Lot Produksi'}
-                </label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4">
-                    <QrCodeIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${
-                      inputFocused 
-                        ? (productType === 'hybrid' ? 'text-emerald-500' : 'text-amber-500') + ' scale-110' 
-                        : 'text-slate-400'
-                    }`} />
+                    </button>
                   </div>
-                  <input
-                    type="text"
-                    name="serial_number"
-                    value={serialNumber}
-                    onChange={(e) => setSerialNumber(e.target.value)}
-                    onFocus={() => setInputFocused(true)}
-                    onBlur={() => setInputFocused(false)}
-                    className={`block w-full rounded-xl sm:rounded-2xl border-slate-200 py-3 sm:py-4 pl-10 sm:pl-12 pr-3 sm:pr-4 text-sm sm:text-base text-slate-900 ring-1 ring-inset transition-all duration-300 placeholder:text-slate-400 bg-white shadow-lg hover:shadow-xl focus:shadow-xl focus:scale-[1.02] ${
-                      inputFocused 
-                        ? productType === 'hybrid'
-                          ? 'ring-2 ring-emerald-500 border-emerald-500 shadow-emerald-500/20'
-                          : 'ring-2 ring-amber-500 border-amber-500 shadow-amber-500/20'
-                        : 'ring-slate-200 hover:ring-slate-300 hover:border-slate-300'
-                    }`}
-                    placeholder={productType === 'hybrid' ? "Contoh: HDBa900001" : "Contoh: LOT123456"}
-                    disabled={loading}
-                    autoFocus
-                  />
                 </div>
-                <p className="mt-2 text-[10px] sm:text-xs font-medium flex items-center gap-1" style={{
-                  color: productType === 'hybrid' ? 'rgb(5 150 105)' : 'rgb(217 119 6)'
-                }}>
-                  <SparklesIcon className="w-3 h-3" />
-                  <span className="leading-tight">
+              )}
+
+              {/* ++ UBAH: Serial/Lot Input - HANYA TAMPIL di 'verify' ++ */}
+              {selectedAction === 'verify' && (
+                <div className="relative group">
+                  <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 mb-2 sm:mb-3">
+                    {productType === 'hybrid' ? 'Nomor Seri Label' : 'Nomor Lot Produksi'}
+                    {selectedAction === 'verify' && <span className="text-red-500 ml-1">*</span>}
+                    {selectedAction !== 'verify' && <span className="text-slate-400 text-xs ml-1">(Opsional)</span>}
+                  </label>
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4">
+                      <QrCodeIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${ // ...
+                        inputFocused 
+                          ? (productType === 'hybrid' ? 'text-emerald-500' : 'text-amber-500') + ' scale-110' 
+                          : 'text-slate-400'
+                      }`} />
+                    </div>
+                    <input
+                      type="text"
+                      value={serialNumber}
+                      onChange={(e) => setSerialNumber(e.target.value)}
+                      onFocus={() => setInputFocused(true)}
+                      onBlur={() => setInputFocused(false)}
+                      className={`block w-full rounded-xl sm:rounded-2xl border-slate-200 dark:border-slate-600 py-3 sm:py-4 pl-10 sm:pl-12 pr-3 sm:pr-4 text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 ring-1 ring-inset transition-all duration-300 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-lg hover:shadow-xl focus:shadow-xl focus:scale-[1.02] ${
+                        inputFocused 
+                          ? productType === 'hybrid'
+                            ? 'ring-2 ring-emerald-500 border-emerald-500'
+                            : 'ring-2 ring-amber-500 border-amber-500'
+                          : 'ring-slate-200 dark:ring-slate-700 hover:ring-slate-300 dark:hover:ring-slate-600'
+                      }`}
+                      placeholder={productType === 'hybrid' ? "Contoh: HDBa900001" : "Contoh: LOT123456"}
+                      disabled={loading}
+                      required={selectedAction === 'verify'}
+                    />
+                  </div>
+                  <p className="mt-2 text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <SparklesIcon className="w-3 h-3" />
                     {productType === 'hybrid' 
                       ? 'Nomor seri tertera pada label benih jagung hibrida'
                       : 'Nomor lot tertera pada kemasan sweetcorn dan sayuran'
                     }
-                  </span>
-                </p>
-              </div>
+                  </p>
+                </div>
+              )}
 
-              {/* Error Display - Responsive */}
-              {error && (
-                <div className="p-3 sm:p-4 bg-gradient-to-r from-red-50 to-rose-50/80 border border-red-200/80 rounded-xl sm:rounded-2xl shadow-sm animate-slide-in-bottom">
+              {/* ++ TAMBAHKAN: Product Dropdown - HANYA TAMPIL di 'survey' & 'complaint' ++ */}
+              {(selectedAction === 'survey' || selectedAction === 'complaint') && (
+                <div className="relative group">
+                  <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 mb-2 sm:mb-3">
+                    Pilih Produk
+                  </label>
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4">
+                      <CubeIcon className="h-4 sm:h-5 w-4 sm:w-5 text-slate-400" />
+                    </div>
+                    <select
+                      name="product_id"
+                      value={selectedProductId}
+                      onChange={(e) => setSelectedProductId(e.target.value)}
+                      required
+                      disabled={productsLoading}
+                      className={`block w-full rounded-xl sm:rounded-2xl border-slate-200 dark:border-slate-600 py-3 sm:py-4 pl-10 sm:pl-12 pr-10 text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 ring-1 ring-inset transition-all duration-300 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-lg hover:shadow-xl focus:shadow-xl focus:scale-[1.02] ${
+                         'ring-slate-200 dark:ring-slate-700 hover:ring-slate-300 dark:hover:ring-slate-600'
+                      } appearance-none`}
+                    >
+                      <option value="">
+                        {productsLoading ? 'Memuat produk...' : 'Pilih produk'}
+                      </option>
+                      {allProducts.map((product) => (
+                        <option key={product.id} value={product.id.toString()}>
+                          {product.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4">
+                      <ChevronDownIcon className="h-4 sm:h-5 w-4 sm:w-5 text-slate-400" />
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <SparklesIcon className="w-3 h-3" />
+                    Pilih produk yang ingin Anda beri survey atau komplain.
+                  </p>
+                </div>
+              )}
+              {/* ++ AKHIR TAMBAHAN ++ */}
+
+
+              {/* Quick Form untuk Survey & Complaint */}
+              {(selectedAction === 'survey' || selectedAction === 'complaint') && (
+                <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Informasi Kontak {selectedAction === 'survey' ? '' : '(Untuk follow-up)'}
+                  </p>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
+                      Nama Lengkap
+                    </label>
+                    <input
+                      type="text"
+                      value={quickName}
+                      onChange={(e) => setQuickName(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      placeholder="Nama Anda"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
+                      Email
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <EnvelopeIcon className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <input
+                        type="email"
+                        value={quickEmail}
+                        onChange={(e) => setQuickEmail(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
+                      Nomor WhatsApp <span className="text-slate-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <PhoneIcon className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <input
+                        type="tel"
+                        value={quickPhone}
+                        onChange={(e) => setQuickPhone(e.target.value)}
+                        required
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                        placeholder="08xxxxxxxxxx"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Display -- Hanya tampil di 'verify' */}
+              {error && selectedAction === 'verify' && (
+                <div className="p-3 sm:p-4 bg-gradient-to-r from-red-50 to-rose-50/80 dark:from-red-900/20 dark:to-rose-900/10 border border-red-200 dark:border-red-800 rounded-xl sm:rounded-2xl shadow-sm animate-slide-in-bottom">
                   <div className="flex items-start gap-2 sm:gap-3">
                     <ShieldExclamationIcon className="w-4 sm:w-5 h-4 sm:h-5 text-red-500 mt-0.5 flex-shrink-0" />
                     <div className="flex-grow">
-                      <p className="text-xs sm:text-sm text-red-700 font-semibold">{error.message}</p>
+                      <p className="text-xs sm:text-sm text-red-700 dark:text-red-400 font-semibold">{error.message}</p>
                       
                       {error.isReportable && !reportSuccess && (
                         <button
                           type="button"
-                          onClick={handleReport}
+                          onClick={async () => {
+                            setIsReporting(true);
+                            try {
+                              const response = await fetch('/api/report-failure', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  serialNumber,
+                                  errorMessage: error.message,
+                                  productType,
+                                  verificationType: productType === 'hybrid' ? 'serial' : 'lot'
+                                }),
+                              });
+                              if (response.ok) {
+                                setReportSuccess(true);
+                              }
+                            } catch (err) {
+                              console.error('Report Error:', err);
+                            } finally {
+                              setIsReporting(false);
+                            }
+                          }}
                           disabled={isReporting}
-                          className="mt-2 sm:mt-3 inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-red-800 bg-red-100 hover:bg-red-200 rounded-lg sm:rounded-xl transition-all duration-200 disabled:opacity-50 hover:scale-105 active:scale-95"
+                          className="mt-2 sm:mt-3 inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-red-800 dark:text-red-300 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 rounded-lg sm:rounded-xl transition-all duration-200 disabled:opacity-50 hover:scale-105 active:scale-95"
                         >
                           <ShieldExclamationIcon className="h-3 sm:h-4 w-3 sm:w-4" />
                           {isReporting ? 'Mengirim...' : 'Laporkan Masalah Ini'}
@@ -498,7 +699,7 @@ export default function HomePage() {
                       )}
 
                       {reportSuccess && (
-                        <div className="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2 text-emerald-700">
+                        <div className="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2 text-emerald-700 dark:text-emerald-400">
                           <CheckBadgeIcon className="w-3 sm:w-4 h-3 sm:h-4" />
                           <span className="text-[10px] sm:text-sm font-bold">Terima kasih! Laporan Anda telah kami terima.</span>
                         </div>
@@ -508,19 +709,20 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Submit Button - Responsive */}
+              {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                // ++ UBAH: Sesuaikan logic disabled ++
+                disabled={loading || (selectedAction === 'verify' && !serialNumber.trim())}
                 className={`group relative flex w-full items-center justify-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl px-5 sm:px-6 py-4 sm:py-5 text-sm sm:text-base font-bold text-white shadow-2xl transition-all duration-300 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed hover:scale-105 overflow-hidden transform ${
-                  productType === 'hybrid'
-                    ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 shadow-emerald-500/25 hover:shadow-emerald-500/35 hover:from-emerald-500 hover:via-emerald-400 hover:to-teal-400'
-                    : 'bg-gradient-to-r from-amber-600 via-orange-500 to-orange-600 shadow-orange-500/25 hover:shadow-orange-500/35 hover:from-amber-500 hover:via-orange-400 hover:to-orange-500'
+                  selectedAction === 'verify'
+                    ? productType === 'hybrid'
+                      ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 shadow-emerald-500/25 hover:shadow-emerald-500/35'
+                      : 'bg-gradient-to-r from-amber-600 via-orange-500 to-orange-600 shadow-orange-500/25 hover:shadow-orange-500/35'
+                    : selectedAction === 'survey'
+                      ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 shadow-blue-500/25 hover:shadow-blue-500/35'
+                      : 'bg-gradient-to-r from-orange-600 via-red-500 to-red-600 shadow-red-500/25 hover:shadow-red-500/35'
                 }`}
-                style={{ 
-                  backgroundSize: loading ? '200% 200%' : '100% 100%',
-                  animation: loading ? 'gradientShift 2s ease infinite' : 'none'
-                }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
                 
@@ -528,24 +730,34 @@ export default function HomePage() {
                   {loading ? (
                     <>
                       <div className="w-5 sm:w-6 h-5 sm:h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Memverifikasi...</span>
+                      <span>Memproses...</span>
                     </>
                   ) : (
                     <>
-                      <SparklesIcon className="h-4 sm:h-5 w-4 sm:w-5 group-hover:rotate-12 group-hover:scale-110 transition-transform duration-300" />
-                      <span>Verifikasi Sekarang</span>
-                      <ArrowRightIcon className="h-4 sm:h-5 w-4 sm:w-5 group-hover:translate-x-1 group-hover:scale-110 transition-transform duration-300" />
+                      {selectedAction === 'verify' && <QrCodeIcon className="h-4 sm:h-5 w-4 sm:w-5" />}
+                      {selectedAction === 'survey' && <StarIcon className="h-4 sm:h-5 w-4 sm:w-5" />}
+                      {selectedAction === 'complaint' && <ChatBubbleLeftRightIcon className="h-4 sm:h-5 w-4 sm:w-5" />}
+                      <span>
+                        {selectedAction === 'verify' && 'Verifikasi Sekarang'}
+                        {selectedAction === 'survey' && 'Lanjut ke Survey'}
+                        {selectedAction === 'complaint' && 'Lanjut ke Form Komplain'}
+                      </span>
+                      <ArrowRightIcon className="h-4 sm:h-5 w-4 sm:w-5 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </div>
               </button>
 
-              {/* Trust Badge - Responsive */}
-              <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-slate-500 pt-3 sm:pt-4">
-                <div className="p-1 bg-emerald-100 rounded-full">
-                  <ShieldCheckIcon className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-emerald-600" />
-                </div>
-                <span className="font-medium text-center leading-tight">Verifikasi aman dan terpercaya oleh PT Advanta Seeds Indonesia</span>
+              {/* Info Text */}
+              <div className="text-center pt-2">
+                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+                  <ShieldCheckIcon className="w-3 h-3" />
+                  <span>
+                    {selectedAction === 'verify' && 'Data Anda aman dan terenkripsi'}
+                    {selectedAction === 'survey' && 'Feedback Anda membantu kami lebih baik'}
+                    {selectedAction === 'complaint' && 'Tim kami akan merespon dalam 24 jam'}
+                  </span>
+                </p>
               </div>
             </form>
 
@@ -553,7 +765,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Footer - Responsive */}
+      {/* Footer */}
       <footer className="relative z-10 border-t border-slate-200 dark:border-slate-700 mt-12 sm:mt-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6">
@@ -578,7 +790,7 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {/* Custom CSS for animations */}
+      {/* Custom Animations */}
       <style jsx>{`
         @keyframes bounce-slow {
           0%, 100% {
@@ -593,102 +805,47 @@ export default function HomePage() {
           animation: bounce-slow 3s ease-in-out infinite;
         }
 
-        @keyframes bounce-in {
-          0% {
-            transform: scale(0.8);
+        @keyframes fade-in {
+          from {
             opacity: 0;
           }
-          50% {
-            transform: scale(1.05);
-          }
-          100% {
-            transform: scale(1);
+          to {
             opacity: 1;
           }
         }
 
-        .animate-bounce-in {
-          animation: bounce-in 0.6s ease-out;
-        }
-        
-        @keyframes gradientShift {
-          0% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-          100% {
-            background-position: 0% 50%;
-          }
-        }
-        
-        @keyframes shimmer {
-          0% { 
-            transform: translateX(-100%); 
-          }
-          100% { 
-            transform: translateX(100%); 
-          }
-        }
-        .animate-shimmer {
-          animation: shimmer 2s ease-in-out infinite;
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
         }
 
-        /* Landscape Mode Optimizations for Mobile */
-        @media (max-height: 500px) and (orientation: landscape) {
-          .py-12, .py-16, .py-20 {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
+        @keyframes scale-in {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
           }
-          
-          .mb-12, .mb-16 {
-            margin-bottom: 2rem;
-          }
-
-          .min-h-[280px] {
-            min-height: 200px;
-          }
-
-          /* Compact modal in landscape */
-          .max-h-\[95vh\] {
-            max-height: 90vh;
+          to {
+            opacity: 1;
+            transform: scale(1);
           }
         }
 
-        /* Tablet Landscape Optimizations */
-        @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
-          .lg\:grid-cols-2 {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+        .animate-scale-in {
+          animation: scale-in 0.3s ease-out;
+        }
+
+        @keyframes slide-in-bottom {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
           }
-          
-          .lg\:py-32 {
-            padding-top: 5rem;
-            padding-bottom: 5rem;
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
 
-        /* Extra small devices */
-        @media (max-width: 360px) {
-          .text-3xl {
-            font-size: 1.75rem;
-          }
-          
-          .px-4 {
-            padding-left: 0.75rem;
-            padding-right: 0.75rem;
-          }
-        }
-
-        /* Prevent horizontal scroll on very small devices */
-        @media (max-width: 320px) {
-          body {
-            overflow-x: hidden;
-          }
-          
-          .max-w-7xl {
-            max-width: 100%;
-          }
+        .animate-slide-in-bottom {
+          animation: slide-in-bottom 0.3s ease-out;
         }
       `}</style>
     </main>

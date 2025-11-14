@@ -18,7 +18,6 @@ import { toast } from 'react-hot-toast';
 import { createProduct, updateProduct } from './actions';
 import { normalizeImageUrl } from '../../utils/imageUtils';
 
-// Definisikan tipe data untuk relasi
 interface RelationalData {
   id: number;
   name: string;
@@ -48,7 +47,6 @@ interface ProductFormProps {
   isOpen: boolean;
   onClose: () => void;
   productToEdit?: Product | null;
-  // Data untuk dropdowns
   allJenisTanaman: RelationalData[];
   allKelasBenih: RelationalData[];
   allVarietas: RelationalData[];
@@ -59,7 +57,6 @@ function classNames(...classes: (string | boolean)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-// Initial form data
 const initialFormData = {
   name: '',
   sku: '',
@@ -78,7 +75,6 @@ const initialFormData = {
   qr_color_picker: '#FFFFFF'
 };
 
-// Components outside main function
 const FormInput = ({ 
   label, 
   name, 
@@ -90,9 +86,9 @@ const FormInput = ({
   ...props 
 }: any) => (
   <div className="space-y-3">
-    <label className="block text-sm font-semibold text-gray-800 tracking-wide">
+    <label className="block text-sm font-semibold text-gray-800 dark:text-slate-200 tracking-wide">
       <div className="flex items-center gap-2">
-        {Icon && <Icon className="h-4 w-4 text-emerald-600" />}
+        {Icon && <Icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
         {label} 
         {required && <span className="text-red-500 ml-1">*</span>}
       </div>
@@ -103,10 +99,10 @@ const FormInput = ({
       onChange={onChange}
       required={required}
       {...props}
-      className="w-full px-4 py-3.5 rounded-xl border border-gray-200 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-gray-800 placeholder-gray-400 bg-white hover:border-gray-300 hover:shadow-md"
+      className="w-full px-4 py-3.5 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-gray-800 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 bg-white dark:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-500 hover:shadow-md"
     />
     {description && (
-      <p className="text-xs text-gray-500 flex items-center gap-1.5">
+      <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
         <InformationCircleIcon className="h-3 w-3" />
         {description}
       </p>
@@ -126,9 +122,9 @@ const FormSelect = ({
   ...props 
 }: any) => (
   <div className="space-y-3">
-    <label className="block text-sm font-semibold text-gray-800 tracking-wide">
+    <label className="block text-sm font-semibold text-gray-800 dark:text-slate-200 tracking-wide">
       <div className="flex items-center gap-2">
-        {Icon && <Icon className="h-4 w-4 text-emerald-600" />}
+        {Icon && <Icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
         {label} 
         {required && <span className="text-red-500 ml-1">*</span>}
       </div>
@@ -139,12 +135,12 @@ const FormSelect = ({
       onChange={onChange}
       required={required}
       {...props}
-      className="w-full px-4 py-3.5 rounded-xl border border-gray-200 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-gray-800 bg-white hover:border-gray-300 hover:shadow-md appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'m6 8 4 4 4-4\'/%3e%3c/svg%3e')] pr-12"
+      className="w-full px-4 py-3.5 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-gray-800 dark:text-slate-100 bg-white dark:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-500 hover:shadow-md appearance-none bg-no-repeat bg-right bg-[length:16px] pr-12"
     >
       {children}
     </select>
     {description && (
-      <p className="text-xs text-gray-500 flex items-center gap-1.5">
+      <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
         <InformationCircleIcon className="h-3 w-3" />
         {description}
       </p>
@@ -166,14 +162,14 @@ const TabSection = ({
   children: React.ReactNode;
 }) => (
   <div className="space-y-6">
-    <div className={`${gradient} rounded-2xl p-6 border border-white/20 shadow-sm`}>
+    <div className={`${gradient} rounded-2xl p-6 border border-white/20 dark:border-slate-700/50 shadow-sm`}>
       <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 bg-white/80 rounded-xl shadow-sm">
-          <Icon className="h-6 w-6 text-gray-700" />
+        <div className="p-2 bg-white/80 dark:bg-slate-700/80 rounded-xl shadow-sm">
+          <Icon className="h-6 w-6 text-gray-700 dark:text-slate-300" />
         </div>
         <div>
-          <h4 className="text-lg font-bold text-gray-800">{title}</h4>
-          <p className="text-gray-600 text-sm">{subtitle}</p>
+          <h4 className="text-lg font-bold text-gray-800 dark:text-slate-100">{title}</h4>
+          <p className="text-gray-600 dark:text-slate-400 text-sm">{subtitle}</p>
         </div>
       </div>
     </div>
@@ -194,7 +190,6 @@ export default function ProductForm({
 
   const isEditMode = !!productToEdit;
 
-  // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
@@ -203,7 +198,6 @@ export default function ProductForm({
       [name]: value
     }));
 
-    // Special handling for color picker
     if (name === 'qr_color_picker') {
       setFormData(prev => ({
         ...prev,
@@ -254,19 +248,16 @@ export default function ProductForm({
     
     const submitFormData = new FormData();
     
-    // Add all form data
     Object.entries(formData).forEach(([key, value]) => {
       if (key !== 'qr_color_picker' && value !== '') {
         submitFormData.append(key, value);
       }
     });
     
-    // Add photo file if exists
     if (photoFile) {
       submitFormData.append('photo', photoFile);
     }
     
-    // Add selected bahan aktif
     selectedBahanAktif.forEach(id => {
       submitFormData.append('bahan_aktif_ids', id.toString());
     });
@@ -290,7 +281,6 @@ export default function ProductForm({
     }
   };
 
-  // Reset/populate form when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
       setPhotoPreview(null);
@@ -298,7 +288,6 @@ export default function ProductForm({
       setFormData(initialFormData);
       setPhotoFile(null);
     } else if (isEditMode && productToEdit) {
-      // Populate form with existing data
       setFormData({
         name: productToEdit.name || '',
         sku: productToEdit.sku || '',
@@ -317,16 +306,13 @@ export default function ProductForm({
         qr_color_picker: '#' + (productToEdit.qr_color || 'FFFFFF')
       });
       
-      // Set photo preview
       const normalizedPhotoUrl = normalizeImageUrl(productToEdit.photo);
       setPhotoPreview(normalizedPhotoUrl);
       
-      // Set bahan aktif
       if (productToEdit.bahan_aktif_ids) {
         setSelectedBahanAktif(productToEdit.bahan_aktif_ids);
       }
     } else {
-      // Reset to initial data for new product
       setFormData(initialFormData);
     }
   }, [isOpen, isEditMode, productToEdit]);
@@ -343,7 +329,7 @@ export default function ProductForm({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -357,18 +343,18 @@ export default function ProductForm({
               leaveFrom="opacity-100 scale-100" 
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-3xl bg-white shadow-2xl transition-all border border-gray-100">
+              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-3xl bg-white dark:bg-slate-800 shadow-2xl transition-all border border-gray-100 dark:border-slate-700">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-emerald-600 via-emerald-600 to-teal-600 px-8 py-6">
+                <div className="bg-gradient-to-r from-emerald-600 via-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700 px-8 py-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <Dialog.Title className="text-2xl font-bold text-white flex items-center gap-3">
-                        <div className="p-2 bg-white/20 rounded-xl">
+                        <div className="p-2 bg-white/20 dark:bg-white/10 rounded-xl">
                           <CubeIcon className="h-6 w-6" />
                         </div>
                         {isEditMode ? 'Edit Data Produk' : 'Tambah Produk Baru'}
                       </Dialog.Title>
-                      <p className="text-emerald-100 mt-1 ml-11">
+                      <p className="text-emerald-100 dark:text-emerald-200 mt-1 ml-11">
                         {isEditMode ? 'Perbarui informasi produk yang sudah ada' : 'Lengkapi formulir untuk menambah produk baru'}
                       </p>
                     </div>
@@ -384,7 +370,7 @@ export default function ProductForm({
                 
                 <form onSubmit={handleSubmit} className="p-8">
                   <Tab.Group>
-                    <Tab.List className="flex space-x-1 rounded-2xl bg-gray-100 p-1 shadow-inner">
+                    <Tab.List className="flex space-x-1 rounded-2xl bg-gray-100 dark:bg-slate-700 p-1 shadow-inner">
                       {[
                         { name: 'Info Dasar', icon: CubeIcon },
                         { name: 'Parameter Uji', icon: BeakerIcon },
@@ -397,8 +383,8 @@ export default function ProductForm({
                               'flex-1 rounded-xl py-3 px-4 text-sm font-semibold leading-5 transition-all duration-200 flex items-center justify-center gap-2',
                               'focus:outline-none focus:ring-2 focus:ring-emerald-400/50',
                               selected 
-                                ? 'bg-white text-emerald-700 shadow-md border border-emerald-100' 
-                                : 'text-gray-600 hover:bg-white/60 hover:text-gray-800 hover:shadow-sm'
+                                ? 'bg-white dark:bg-slate-600 text-emerald-700 dark:text-emerald-400 shadow-md border border-emerald-100 dark:border-slate-500' 
+                                : 'text-gray-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-600/50 hover:text-gray-800 dark:hover:text-slate-200 hover:shadow-sm'
                             )
                           }
                         >
@@ -415,22 +401,22 @@ export default function ProductForm({
                           icon={CubeIcon}
                           title="Informasi Dasar Produk"
                           subtitle="Masukkan data utama produk dan upload foto"
-                          gradient="bg-gradient-to-br from-emerald-50 to-teal-50"
+                          gradient="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20"
                         >
                           <div className="max-h-[450px] overflow-y-auto pr-2 space-y-6">
                             {/* Foto Produk */}
                             <div>
-                              <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">
+                              <label className="block text-sm font-semibold text-gray-800 dark:text-slate-200 tracking-wide mb-3">
                                 <div className="flex items-center gap-2">
-                                  <PhotoIcon className="h-4 w-4 text-emerald-600" />
+                                  <PhotoIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                                   Foto Produk <span className="text-red-500 ml-1">*</span>
                                 </div>
                               </label>
                               <div 
                                 className={`relative flex items-center gap-6 p-6 rounded-2xl border-2 border-dashed transition-all duration-200 ${
                                   isDragOver 
-                                    ? 'border-emerald-400 bg-emerald-50' 
-                                    : 'border-gray-300 bg-gradient-to-br from-gray-50 to-white hover:border-emerald-400'
+                                    ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' 
+                                    : 'border-gray-300 dark:border-slate-600 bg-gradient-to-br from-gray-50 to-white dark:from-slate-700 dark:to-slate-800 hover:border-emerald-400'
                                 }`}
                                 onDrop={handleDrop}
                                 onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
@@ -441,7 +427,7 @@ export default function ProductForm({
                                     <img 
                                       src={photoPreview} 
                                       alt="Preview" 
-                                      className="h-32 w-32 object-cover rounded-2xl border-2 border-emerald-200 shadow-lg"
+                                      className="h-32 w-32 object-cover rounded-2xl border-2 border-emerald-200 dark:border-emerald-700 shadow-lg"
                                       onError={(e) => {
                                         console.error('Failed to load preview image:', photoPreview);
                                         e.currentTarget.style.display = 'none';
@@ -456,7 +442,7 @@ export default function ProductForm({
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="h-32 w-32 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
+                                  <div className="h-32 w-32 rounded-2xl border-2 border-dashed border-gray-300 dark:border-slate-600 flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 bg-gray-50/50 dark:bg-slate-700/50">
                                     <CloudArrowUpIcon className="h-8 w-8 mb-2" />
                                     <span className="text-xs">Upload Foto</span>
                                   </div>
@@ -468,9 +454,9 @@ export default function ProductForm({
                                     accept="image/*"
                                     onChange={handleFileInput}
                                     required={!isEditMode}
-                                    className="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 file:shadow-sm file:transition-all file:duration-200 hover:file:scale-105"
+                                    className="block w-full text-sm text-gray-600 dark:text-slate-300 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 dark:file:bg-emerald-900/30 file:text-emerald-700 dark:file:text-emerald-400 hover:file:bg-emerald-100 dark:hover:file:bg-emerald-900/50 file:shadow-sm file:transition-all file:duration-200 hover:file:scale-105"
                                   />
-                                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 flex items-center gap-1.5">
                                     <InformationCircleIcon className="h-3 w-3" />
                                     PNG, JPG, JPEG hingga 5MB. Atau drag & drop file ke area ini
                                   </p>
@@ -543,26 +529,26 @@ export default function ProductForm({
                                 ))}
                               </FormSelect>
 
-                              {/* Bahan Aktif (Multi-select) */}
+                              {/* Bahan Aktif */}
                               <div className="space-y-3">
-                                <label className="block text-sm font-semibold text-gray-800 tracking-wide">
+                                <label className="block text-sm font-semibold text-gray-800 dark:text-slate-200 tracking-wide">
                                   <div className="flex items-center gap-2">
-                                    <BeakerIcon className="h-4 w-4 text-emerald-600" />
+                                    <BeakerIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                                     Bahan Aktif
                                   </div>
                                 </label>
-                                <div className="border border-gray-200 rounded-xl p-4 max-h-48 overflow-y-auto bg-white shadow-sm">
+                                <div className="border border-gray-200 dark:border-slate-600 rounded-xl p-4 max-h-48 overflow-y-auto bg-white dark:bg-slate-700 shadow-sm">
                                   {selectedBahanAktif.length > 0 && (
                                     <div className="mb-3 flex flex-wrap gap-2">
                                       {selectedBahanAktif.map(id => {
                                         const item = allBahanAktif.find(b => b.id === id);
                                         return item ? (
-                                          <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full">
+                                          <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium rounded-full">
                                             {item.name}
                                             <button
                                               type="button"
                                               onClick={() => handleBahanAktifToggle(id)}
-                                              className="hover:bg-emerald-200 rounded-full p-0.5"
+                                              className="hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5"
                                             >
                                               <XMarkIcon className="h-3 w-3" />
                                             </button>
@@ -573,19 +559,19 @@ export default function ProductForm({
                                   )}
                                   <div className="space-y-2">
                                     {allBahanAktif.map(item => (
-                                      <label key={item.id} className="flex items-center space-x-3 p-2 hover:bg-emerald-50 rounded-lg transition-colors duration-150 cursor-pointer group">
+                                      <label key={item.id} className="flex items-center space-x-3 p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors duration-150 cursor-pointer group">
                                         <input
                                           type="checkbox"
                                           checked={selectedBahanAktif.includes(item.id)}
                                           onChange={() => handleBahanAktifToggle(item.id)}
-                                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 focus:ring-2 focus:ring-offset-0 transition-colors"
+                                          className="h-4 w-4 rounded border-gray-300 dark:border-slate-500 text-emerald-600 focus:ring-emerald-500 focus:ring-2 focus:ring-offset-0 transition-colors"
                                         />
-                                        <span className="text-sm text-gray-700 group-hover:text-emerald-700 font-medium">{item.name}</span>
+                                        <span className="text-sm text-gray-700 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 font-medium">{item.name}</span>
                                       </label>
                                     ))}
                                   </div>
                                 </div>
-                                <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                                <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
                                   <InformationCircleIcon className="h-3 w-3" />
                                   Pilih satu atau lebih bahan aktif yang terkandung
                                 </p>
@@ -601,7 +587,7 @@ export default function ProductForm({
                           icon={BeakerIcon}
                           title="Parameter Pengujian Mutu Benih"
                           subtitle="Masukkan nilai parameter sesuai dengan hasil pengujian laboratorium"
-                          gradient="bg-gradient-to-br from-blue-50 to-indigo-50"
+                          gradient="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20"
                         >
                           <div className="max-h-[450px] overflow-y-auto pr-2">
                             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -699,7 +685,7 @@ export default function ProductForm({
                           icon={CogIcon}
                           title="Kapasitas & Konfigurasi"
                           subtitle="Tentukan kapasitas kemasan dan pengaturan visual"
-                          gradient="bg-gradient-to-br from-purple-50 to-pink-50"
+                          gradient="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20"
                         >
                           <div className="max-h-[450px] overflow-y-auto pr-2">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -733,14 +719,14 @@ export default function ProductForm({
                               {/* QR Color Configuration */}
                               <div className="space-y-4">
                                 <div className="space-y-3">
-                                  <label className="block text-sm font-semibold text-gray-800 tracking-wide">
+                                  <label className="block text-sm font-semibold text-gray-800 dark:text-slate-200 tracking-wide">
                                     <div className="flex items-center gap-2">
-                                      <SparklesIcon className="h-4 w-4 text-emerald-600" />
+                                      <SparklesIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                                       Warna QR Code <span className="text-red-500 ml-1">*</span>
                                     </div>
                                   </label>
                                   
-                                  <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-6 shadow-sm">
+                                  <div className="bg-gradient-to-br from-white to-gray-50 dark:from-slate-700 dark:to-slate-800 rounded-2xl border border-gray-200 dark:border-slate-600 p-6 shadow-sm">
                                     <div className="flex items-center gap-6">
                                       {/* Color Picker */}
                                       <div className="flex flex-col items-center gap-3">
@@ -749,14 +735,14 @@ export default function ProductForm({
                                           name="qr_color_picker"
                                           value={formData.qr_color_picker}
                                           onChange={handleChange}
-                                          className="h-16 w-16 rounded-2xl border-2 border-gray-300 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                                          className="h-16 w-16 rounded-2xl border-2 border-gray-300 dark:border-slate-500 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                                         />
-                                        <span className="text-xs text-gray-500 font-medium">Preview</span>
+                                        <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Preview</span>
                                       </div>
                                       
                                       {/* Hex Input */}
                                       <div className="flex-1">
-                                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                                        <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-2">
                                           Kode Hex (tanpa #)
                                         </label>
                                         <input
@@ -767,7 +753,7 @@ export default function ProductForm({
                                           required
                                           pattern="[A-Fa-f0-9]{6}"
                                           maxLength={6}
-                                          className="w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-gray-800 placeholder-gray-400 bg-white hover:border-gray-300 uppercase font-mono text-center text-lg tracking-wider"
+                                          className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-gray-800 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 bg-white dark:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-500 uppercase font-mono text-center text-lg tracking-wider"
                                           placeholder="FFFFFF"
                                         />
                                       </div>
@@ -775,19 +761,19 @@ export default function ProductForm({
                                       {/* QR Preview */}
                                       <div className="flex flex-col items-center gap-3">
                                         <div 
-                                          className="h-16 w-16 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-xs font-bold shadow-sm"
+                                          className="h-16 w-16 rounded-2xl border-2 border-gray-200 dark:border-slate-600 flex items-center justify-center text-xs font-bold shadow-sm"
                                           style={{ backgroundColor: formData.qr_color_picker }}
                                         >
                                           <span style={{ color: formData.qr_color_picker === '#FFFFFF' || formData.qr_color_picker === '#ffffff' ? '#000' : '#FFF' }}>
                                             QR
                                           </span>
                                         </div>
-                                        <span className="text-xs text-gray-500 font-medium">Hasil</span>
+                                        <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Hasil</span>
                                       </div>
                                     </div>
                                   </div>
                                   
-                                  <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
                                     <InformationCircleIcon className="h-3 w-3" />
                                     Warna latar belakang untuk QR code yang akan digenerate
                                   </p>
@@ -801,18 +787,18 @@ export default function ProductForm({
                   </Tab.Group>
                   
                   {/* Action Buttons */}
-                  <div className="mt-8 pt-6 flex justify-end gap-4 border-t border-gray-200">
+                  <div className="mt-8 pt-6 flex justify-end gap-4 border-t border-gray-200 dark:border-slate-700">
                     <button 
                       type="button" 
                       onClick={onClose} 
-                      className="px-6 py-3 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 hover:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                      className="px-6 py-3 rounded-xl text-sm font-semibold text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 shadow-sm hover:bg-gray-50 dark:hover:bg-slate-600 hover:border-gray-400 dark:hover:border-slate-500 transition-all duration-200 hover:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                     >
                       Batal
                     </button>
                     <button 
                       type="submit" 
                       disabled={isSubmitting} 
-                      className="inline-flex items-center justify-center gap-3 px-8 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                      className="inline-flex items-center justify-center gap-3 px-8 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 shadow-lg hover:from-emerald-600 hover:to-teal-700 dark:hover:from-emerald-700 dark:hover:to-teal-800 transition-all duration-200 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                     >
                       {isSubmitting ? (
                         <>
