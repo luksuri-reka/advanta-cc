@@ -1,7 +1,6 @@
 // app/complaint/ComplaintForm.tsx
 'use client';
 
-// ++ TAMBAHKAN import createBrowserClient ++
 import { createBrowserClient } from '@supabase/ssr'; 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -14,7 +13,8 @@ import {
   EnvelopeIcon,
   PhoneIcon,
   ChatBubbleLeftRightIcon,
-  MapPinIcon
+  MapPinIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -34,7 +34,6 @@ interface ComplaintFormData {
 
 // Data provinsi dan kabupaten/kota Indonesia
 const LOCATION_DATA: Record<string, string[]> = {
-  // ... (Data lokasi tidak berubah, dibiarkan seperti aslinya)
   'Aceh': ['Banda Aceh', 'Langsa', 'Lhokseumawe', 'Sabang', 'Subulussalam', 'Aceh Barat', 'Aceh Barat Daya', 'Aceh Besar', 'Aceh Jaya', 'Aceh Selatan', 'Aceh Singkil', 'Aceh Tamiang', 'Aceh Tengah', 'Aceh Tenggara', 'Aceh Timur', 'Aceh Utara', 'Bener Meriah', 'Bireuen', 'Gayo Lues', 'Nagan Raya', 'Pidie', 'Pidie Jaya', 'Simeulue'],
   'Sumatera Utara': ['Medan', 'Binjai', 'Padang Sidempuan', 'Pematang Siantar', 'Sibolga', 'Tanjung Balai', 'Tebing Tinggi', 'Asahan', 'Batubara', 'Dairi', 'Deli Serdang', 'Humbang Hasundutan', 'Karo', 'Labuhanbatu', 'Labuhanbatu Selatan', 'Labuhanbatu Utara', 'Langkat', 'Mandailing Natal', 'Nias', 'Nias Barat', 'Nias Selatan', 'Nias Utara', 'Padang Lawas', 'Padang Lawas Utara', 'Pakpak Bharat', 'Samosir', 'Serdang Bedagai', 'Simalungun', 'Tapanuli Selatan', 'Tapanuli Tengah', 'Tapanuli Utara', 'Toba Samosir'],
   'Sumatera Barat': ['Padang', 'Bukittinggi', 'Padang Panjang', 'Pariaman', 'Payakumbuh', 'Sawahlunto', 'Solok', 'Agam', 'Dharmasraya', 'Kepulauan Mentawai', 'Lima Puluh Kota', 'Padang Pariaman', 'Pasaman', 'Pasaman Barat', 'Pesisir Selatan', 'Sijunjung', 'Solok', 'Solok Selatan', 'Tanah Datar'],
@@ -75,7 +74,6 @@ export default function ComplaintForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  // ++ TAMBAHKAN: State untuk Supabase client ++
   const [supabase] = useState(() =>
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -88,16 +86,18 @@ export default function ComplaintForm() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [complaintNumber, setComplaintNumber] = useState('');
   
-  // ++ UBAH: Baca semua parameter yang mungkin dari URL ++
   const productId = searchParams?.get('product_id') || '';
   const serial = searchParams?.get('serial') || '';
   const lot = searchParams?.get('lot') || '';
-  const productNameQuery = searchParams?.get('product') || ''; // dari verifikasi
+  const productNameQuery = searchParams?.get('product') || '';
   const customerName = searchParams?.get('name') || '';
   const customerEmail = searchParams?.get('email') || '';
   const customerPhone = searchParams?.get('phone') || '';
   
-  // ++ UBAH: Inisialisasi state dengan data dari URL ++
+  // ++ TAMBAHKAN: State untuk foto produk ++
+  const [productPhoto, setProductPhoto] = useState<string>('');
+  const [photoLoading, setPhotoLoading] = useState(false);
+  
   const [formData, setFormData] = useState<ComplaintFormData>({
     customer_name: customerName,
     customer_email: customerEmail,
@@ -109,7 +109,7 @@ export default function ComplaintForm() {
     subject: '',
     description: '',
     related_product_serial: serial || lot,
-    related_product_name: productNameQuery // Akan di-override oleh fetch jika product_id ada
+    related_product_name: productNameQuery
   });
 
   const [availableCities, setAvailableCities] = useState<string[]>([]);
@@ -118,14 +118,14 @@ export default function ComplaintForm() {
     setMounted(true);
   }, []);
 
-  // ++ TAMBAHKAN: useEffect untuk mengambil nama produk jika ada product_id ++
+  // ++ UBAH: useEffect untuk fetch nama produk DAN foto ++
   useEffect(() => {
-    // Hanya jalankan jika komponen sudah mounted dan ada productId
     if (mounted && productId) {
-      const fetchProductName = async () => {
+      const fetchProductData = async () => {
+        setPhotoLoading(true);
         const { data: productData, error } = await supabase
           .from('products')
-          .select('name')
+          .select('name, photo')
           .eq('id', productId)
           .single();
 
@@ -134,14 +134,15 @@ export default function ComplaintForm() {
             ...prev,
             related_product_name: productData.name
           }));
+          setProductPhoto(productData.photo || '');
         } else {
-          console.error('Error fetching product name:', error?.message);
+          console.error('Error fetching product data:', error?.message);
         }
+        setPhotoLoading(false);
       };
-      fetchProductName();
+      fetchProductData();
     }
   }, [mounted, productId, supabase]);
-
 
   useEffect(() => {
     if (formData.customer_province) {
@@ -206,7 +207,6 @@ export default function ComplaintForm() {
 
   if (isSubmitted) {
     return (
-      // ... (Bagian 'isSubmitted' tidak berubah)
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
@@ -282,7 +282,6 @@ export default function ComplaintForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
       
-      {/* ... (Header tidak berubah) ... */}
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -304,12 +303,10 @@ export default function ComplaintForm() {
         </div>
       </div>
 
-
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
           
-          {/* ... (Header Formulir tidak berubah) ... */}
           <div className="bg-gradient-to-r from-red-500 to-orange-500 dark:from-red-600 dark:to-orange-600 px-8 py-12 text-center">
             <div className="relative inline-block mb-6">
               <ExclamationTriangleIcon className="h-16 w-16 text-white mx-auto" />
@@ -383,7 +380,6 @@ export default function ComplaintForm() {
                 </div>
 
                 {/* Location Section */}
-                {/* ... (Bagian Lokasi tidak berubah) ... */}
                 <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
                   <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-4">
                     <MapPinIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -451,28 +447,80 @@ export default function ComplaintForm() {
                   </div>
                 </div>
 
-
-                {/* ++ UBAH: Blok Product Info ++ */}
+                {/* ++ TAMBAHKAN: Product Info Card dengan Foto - ENHANCED SIZE ++ */}
                 {(formData.related_product_serial || formData.related_product_name) && (
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
-                    <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-3">Produk Terkait</h4>
-                    <div className="space-y-2 text-sm text-emerald-700 dark:text-emerald-200">
-                      {/* Tampilkan serial/lot jika ada */}
-                      {formData.related_product_serial && (
-                        <p><strong>Serial/Lot:</strong> {formData.related_product_serial}</p>
+                  <div className="relative bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-900/20 dark:via-slate-800 dark:to-emerald-900/10 rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 dark:border-emerald-800 shadow-lg hover:shadow-xl transition-all duration-300">
+                    {/* Decorative Corner Elements */}
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/10 to-transparent rounded-bl-full"></div>
+                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-emerald-400/10 to-transparent rounded-tr-full"></div>
+                    
+                    <div className="relative z-10">
+                      <h4 className="text-lg sm:text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        Produk Terkait
+                      </h4>
+                      
+                      {/* Product Photo Display - LARGER & MORE PROMINENT */}
+                      {photoLoading ? (
+                        <div className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse rounded-2xl mb-4 shadow-inner"></div>
+                      ) : productPhoto ? (
+                        <div className="group relative w-full mb-4 rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-xl hover:shadow-2xl transition-all duration-300 border-2 border-emerald-300 dark:border-emerald-700 hover:border-emerald-400 dark:hover:border-emerald-600">
+                          {/* Aspect Ratio Container for better responsiveness */}
+                          <div className="relative aspect-[4/3] sm:aspect-video w-full">
+                            <img 
+                              src={productPhoto} 
+                              alt={formData.related_product_name || 'Produk'}
+                              className="absolute inset-0 w-full h-full object-contain p-4 sm:p-6 transition-transform duration-300 group-hover:scale-105"
+                            />
+                            {/* Subtle gradient overlay on hover */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-48 sm:h-56 md:h-64 mb-4 rounded-2xl bg-gradient-to-br from-emerald-100 via-emerald-50 to-emerald-100/50 dark:from-emerald-900/30 dark:via-emerald-800/20 dark:to-emerald-900/10 border-2 border-dashed border-emerald-300 dark:border-emerald-700 flex items-center justify-center shadow-inner">
+                          <div className="text-center">
+                            <div className="relative inline-block mb-3">
+                              <PhotoIcon className="h-16 w-16 sm:h-20 sm:w-20 text-emerald-400 dark:text-emerald-500 opacity-40" />
+                              <div className="absolute inset-0 bg-emerald-400/20 blur-xl rounded-full"></div>
+                            </div>
+                            <p className="text-sm sm:text-base font-semibold text-emerald-600 dark:text-emerald-400">Foto Tidak Tersedia</p>
+                            <p className="text-xs text-emerald-500 dark:text-emerald-500 mt-1">Produk belum memiliki foto</p>
+                          </div>
+                        </div>
                       )}
-                      {/* Tampilkan nama produk jika ada */}
-                      {formData.related_product_name && (
-                        <p><strong>Produk:</strong> {formData.related_product_name}</p>
-                      )}
+                      
+                      {/* Product Info with Enhanced Styling */}
+                      <div className="space-y-3 bg-white/50 dark:bg-slate-900/30 rounded-xl p-4 backdrop-blur-sm border border-emerald-100 dark:border-emerald-900">
+                        {formData.related_product_name && (
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md">
+                              <span className="text-white text-xs font-bold">📦</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-0.5">Nama Produk</p>
+                              <p className="text-base sm:text-lg font-bold text-emerald-900 dark:text-emerald-200 break-words leading-tight">{formData.related_product_name}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {formData.related_product_serial && (
+                          <div className="flex items-start gap-3 pt-3 border-t border-emerald-200/50 dark:border-emerald-800/50">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                              <span className="text-white text-xs font-bold">#</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-0.5">Serial/Lot Number</p>
+                              <p className="text-sm sm:text-base font-mono font-bold text-blue-900 dark:text-blue-200 break-all">{formData.related_product_serial}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
-                {/* ++ AKHIR PERUBAHAN ++ */}
               </div>
 
               {/* Right Column - Complaint Details */}
-              {/* ... (Bagian Detail Komplain tidak berubah) ... */}
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                   <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
@@ -531,7 +579,6 @@ export default function ComplaintForm() {
             </div>
 
             {/* Submit Section */}
-            {/* ... (Bagian Tombol Submit tidak berubah) ... */}
             <div className="mt-12 pt-8 border-t border-gray-200 dark:border-slate-700">
               <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                 <p className="text-sm text-gray-600 dark:text-slate-400">

@@ -1,7 +1,6 @@
 // app/survey/SurveyForm.tsx
 'use client';
 
-// ++ TAMBAHKAN import createBrowserClient ++
 import { createBrowserClient } from '@supabase/ssr';
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -11,17 +10,18 @@ import {
   HandThumbUpIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
-  SparklesIcon
+  SparklesIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import Link from 'next/link';
 
 interface SurveyFormData {
   customer_name: string;
-  customer_email: string; // Email akan kita buat opsional
+  customer_email: string;
   customer_phone: string;
   verification_serial?: string;
-  related_product_name?: string; // ++ TAMBAHKAN field ini
+  related_product_name?: string;
   survey_type: string;
   ratings: {
     overall_satisfaction: number;
@@ -40,7 +40,6 @@ export default function SurveyForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // ++ TAMBAHKAN: State untuk Supabase client ++
   const [supabase] = useState(() =>
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,22 +52,24 @@ export default function SurveyForm() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   
-  // ++ UBAH: Baca semua parameter yang mungkin dari URL ++
   const productId = searchParams?.get('product_id') || '';
   const serial = searchParams?.get('serial') || '';
   const lot = searchParams?.get('lot') || '';
-  const productNameQuery = searchParams?.get('product') || ''; // dari verifikasi
+  const productNameQuery = searchParams?.get('product') || '';
   const customerName = searchParams?.get('name') || '';
   const customerEmail = searchParams?.get('email') || '';
   const customerPhone = searchParams?.get('phone') || '';
   
-  // ++ UBAH: Inisialisasi state dengan data dari URL ++
+  // ++ TAMBAHKAN: State untuk foto produk ++
+  const [productPhoto, setProductPhoto] = useState<string>('');
+  const [photoLoading, setPhotoLoading] = useState(false);
+  
   const [formData, setFormData] = useState<SurveyFormData>({
     customer_name: customerName,
     customer_email: customerEmail,
     customer_phone: customerPhone,
     verification_serial: serial || lot,
-    related_product_name: productNameQuery, // Simpan nama produk dari query
+    related_product_name: productNameQuery,
     survey_type: 'post_verification',
     ratings: {
       overall_satisfaction: 0,
@@ -87,14 +88,14 @@ export default function SurveyForm() {
     setMounted(true);
   }, []);
 
-  // ++ TAMBAHKAN: useEffect untuk mengambil nama produk jika ada product_id ++
+  // ++ UBAH: useEffect untuk fetch nama produk DAN foto ++
   useEffect(() => {
-    // Hanya jalankan jika komponen sudah mounted dan ada productId
     if (mounted && productId) {
-      const fetchProductName = async () => {
+      const fetchProductData = async () => {
+        setPhotoLoading(true);
         const { data: productData, error } = await supabase
           .from('products')
-          .select('name')
+          .select('name, photo')
           .eq('id', productId)
           .single();
 
@@ -103,14 +104,15 @@ export default function SurveyForm() {
             ...prev,
             related_product_name: productData.name
           }));
+          setProductPhoto(productData.photo || '');
         } else {
-          console.error('Error fetching product name:', error?.message);
+          console.error('Error fetching product data:', error?.message);
         }
+        setPhotoLoading(false);
       };
-      fetchProductName();
+      fetchProductData();
     }
   }, [mounted, productId, supabase]);
-  
 
   const handleRatingChange = (category: string, rating: number) => {
     if (category === 'product_performance_rating' || category === 'packaging_quality_rating') {
@@ -214,12 +216,10 @@ export default function SurveyForm() {
 
   if (isSubmitted) {
     return (
-      // ... (Bagian 'isSubmitted' tidak berubah)
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
             
-            {/* Success Header */}
             <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 px-8 py-12 text-center">
               <div className="relative inline-block mb-6">
                 <CheckCircleIcon className="h-20 w-20 text-white mx-auto" />
@@ -265,8 +265,6 @@ export default function SurveyForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
       
-      {/* Header */}
-      {/* ... (Header tidak berubah) ... */}
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -288,11 +286,8 @@ export default function SurveyForm() {
         </div>
       </div>
 
-
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         
-        {/* Progress Bar */}
-        {/* ... (Progress Bar tidak berubah) ... */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             {[1, 2, 3].map(step => (
@@ -325,12 +320,8 @@ export default function SurveyForm() {
           </div>
         </div>
 
-
-        {/* Form Container */}
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
           
-          {/* Form Header */}
-          {/* ... (Header Formulir tidak berubah) ... */}
           <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 px-8 py-8 text-center">
             <FaceSmileIcon className="h-12 w-12 text-white mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">
@@ -341,10 +332,8 @@ export default function SurveyForm() {
             </p>
           </div>
 
-
           <form onSubmit={handleSubmit} className="p-8">
             
-            {/* Step 1: Contact Information */}
             {currentStep === 1 && (
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-6">Informasi Kontak</h3>
@@ -365,7 +354,6 @@ export default function SurveyForm() {
                 </div>
 
                 <div>
-                  {/* ++ UBAH: Buat email opsional ++ */}
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                     Email <span className="text-sm font-normal text-gray-500 dark:text-slate-400">(Opsional)</span>
                   </label>
@@ -374,7 +362,6 @@ export default function SurveyForm() {
                     name="customer_email"
                     value={formData.customer_email}
                     onChange={handleInputChange}
-                    // ++ HAPUS 'required' ++
                     className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="email@example.com"
                   />
@@ -395,27 +382,80 @@ export default function SurveyForm() {
                   />
                 </div>
 
-                {/* ++ UBAH: Logika tampilan produk ++ */}
+                {/* ++ TAMBAHKAN: Product Info Card dengan Foto - ENHANCED SIZE ++ */}
                 {(formData.verification_serial || formData.related_product_name) && (
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
-                    <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-2">Produk yang Disurvey</h4>
-                    {formData.verification_serial && (
-                      <p className="text-sm text-emerald-700 dark:text-emerald-200">
-                        Serial/Lot: {formData.verification_serial}
-                      </p>
-                    )}
-                    {formData.related_product_name && (
-                      <p className="text-sm text-emerald-700 dark:text-emerald-200 mt-1">
-                        Produk: {formData.related_product_name}
-                      </p>
-                    )}
+                  <div className="relative bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-900/20 dark:via-slate-800 dark:to-emerald-900/10 rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 dark:border-emerald-800 shadow-lg hover:shadow-xl transition-all duration-300">
+                    {/* Decorative Corner Elements */}
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/10 to-transparent rounded-bl-full"></div>
+                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-emerald-400/10 to-transparent rounded-tr-full"></div>
+                    
+                    <div className="relative z-10">
+                      <h4 className="text-lg sm:text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        Produk yang Disurvey
+                      </h4>
+                      
+                      {/* Product Photo Display - LARGER & MORE PROMINENT */}
+                      {photoLoading ? (
+                        <div className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse rounded-2xl mb-4 shadow-inner"></div>
+                      ) : productPhoto ? (
+                        <div className="group relative w-full mb-4 rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-xl hover:shadow-2xl transition-all duration-300 border-2 border-emerald-300 dark:border-emerald-700 hover:border-emerald-400 dark:hover:border-emerald-600">
+                          {/* Aspect Ratio Container for better responsiveness */}
+                          <div className="relative aspect-[4/3] sm:aspect-video w-full">
+                            <img 
+                              src={productPhoto} 
+                              alt={formData.related_product_name || 'Produk'}
+                              className="absolute inset-0 w-full h-full object-contain p-4 sm:p-6 transition-transform duration-300 group-hover:scale-105"
+                            />
+                            {/* Subtle gradient overlay on hover */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-48 sm:h-56 md:h-64 mb-4 rounded-2xl bg-gradient-to-br from-emerald-100 via-emerald-50 to-emerald-100/50 dark:from-emerald-900/30 dark:via-emerald-800/20 dark:to-emerald-900/10 border-2 border-dashed border-emerald-300 dark:border-emerald-700 flex items-center justify-center shadow-inner">
+                          <div className="text-center">
+                            <div className="relative inline-block mb-3">
+                              <PhotoIcon className="h-16 w-16 sm:h-20 sm:w-20 text-emerald-400 dark:text-emerald-500 opacity-40" />
+                              <div className="absolute inset-0 bg-emerald-400/20 blur-xl rounded-full"></div>
+                            </div>
+                            <p className="text-sm sm:text-base font-semibold text-emerald-600 dark:text-emerald-400">Foto Tidak Tersedia</p>
+                            <p className="text-xs text-emerald-500 dark:text-emerald-500 mt-1">Produk belum memiliki foto</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Product Info with Enhanced Styling */}
+                      <div className="space-y-3 bg-white/50 dark:bg-slate-900/30 rounded-xl p-4 backdrop-blur-sm border border-emerald-100 dark:border-emerald-900">
+                        {formData.related_product_name && (
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md">
+                              <span className="text-white text-xs font-bold">📦</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-0.5">Nama Produk</p>
+                              <p className="text-base sm:text-lg font-bold text-emerald-900 dark:text-emerald-200 break-words leading-tight">{formData.related_product_name}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {formData.verification_serial && (
+                          <div className="flex items-start gap-3 pt-3 border-t border-emerald-200/50 dark:border-emerald-800/50">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                              <span className="text-white text-xs font-bold">#</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-0.5">Serial/Lot Number</p>
+                              <p className="text-sm sm:text-base font-mono font-bold text-blue-900 dark:text-blue-200 break-all">{formData.verification_serial}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Step 2: Product Rating */}
-            {/* ... (Step 2 tidak berubah) ... */}
             {currentStep === 2 && (
               <div className="space-y-8">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-6">Penilaian Produk</h3>
@@ -479,8 +519,6 @@ export default function SurveyForm() {
               </div>
             )}
 
-            {/* Step 3: Feedback */}
-            {/* ... (Step 3 tidak berubah) ... */}
             {currentStep === 3 && (
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-6">Feedback & Saran</h3>
@@ -524,8 +562,6 @@ export default function SurveyForm() {
               </div>
             )}
 
-
-            {/* Navigation Buttons */}
             <div className="flex justify-between items-center mt-12 pt-8 border-t border-gray-200 dark:border-slate-700">
               {currentStep > 1 ? (
                 <button
@@ -552,7 +588,6 @@ export default function SurveyForm() {
                     nextStep();
                   }}
                   disabled={
-                    // ++ UBAH: Hapus validasi email dari sini ++
                     (currentStep === 1 && (!formData.customer_name)) ||
                     (currentStep === 2 && formData.ratings.overall_satisfaction === 0)
                   }
@@ -584,8 +619,6 @@ export default function SurveyForm() {
           </form>
         </div>
 
-        {/* Help Text */}
-        {/* ... (Footer tidak berubah) ... */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500 dark:text-slate-400">
             Mengalami kesulitan? Hubungi kami di{' '}

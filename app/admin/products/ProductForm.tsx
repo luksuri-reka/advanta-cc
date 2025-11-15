@@ -248,8 +248,9 @@ export default function ProductForm({
     
     const submitFormData = new FormData();
     
+    // PERBAIKAN: Jangan kirim SKU saat create (auto-generated di server)
     Object.entries(formData).forEach(([key, value]) => {
-      if (key !== 'qr_color_picker' && value !== '') {
+      if (key !== 'qr_color_picker' && key !== 'sku' && value !== '') {
         submitFormData.append(key, value);
       }
     });
@@ -480,11 +481,11 @@ export default function ProductForm({
                                 label="SKU" 
                                 name="sku" 
                                 type="text"
-                                placeholder="Contoh: U0000000163001307"
+                                placeholder={isEditMode ? formData.sku : "Auto-generated oleh sistem"}
                                 formData={formData}
                                 onChange={handleChange}
-                                required
-                                description="Kode unik produk untuk identifikasi"
+                                disabled={true}
+                                description={isEditMode ? "SKU tidak dapat diubah" : "SKU akan dibuat otomatis berdasarkan jenis tanaman"}
                               />
 
                               <FormSelect 
