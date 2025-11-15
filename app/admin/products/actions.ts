@@ -4,7 +4,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 
 const createSupabaseServerClient = async () => {
   const cookieStore = await cookies();
@@ -19,32 +19,43 @@ const createSupabaseServerClient = async () => {
   );
 };
 
-// Fungsi untuk upload foto - hanya menyimpan nama file, bukan URL lengkap
-async function uploadPhoto(photo: File) {
+// PERBAIKAN: Upload foto dengan nama SKU
+async function uploadPhoto(photo: File, sku: string) {
   if (!photo || photo.size === 0) return { data: null, error: null };
   
   const supabase = await createSupabaseServerClient();
-  const fileName = `${uuidv4()}-${photo.name}`;
+  
+  // Ambil extension dari file original
+  const ext = path.extname(photo.name);
+  // Format: SKU.ext (contoh: U00000000164000942.png)
+  const fileName = `${sku}${ext}`;
+  
   const { data, error } = await supabase.storage
     .from('product-photos')
-    .upload(fileName, photo);
+    .upload(fileName, photo, {
+      upsert: true // Timpa jika file sudah ada
+    });
 
   if (error) return { data: null, error };
   
-  // PERBAIKAN: Hanya kembalikan nama file, bukan URL lengkap
   return { data: { path: fileName }, error: null };
 }
 
-// Aksi untuk membuat produk baru
+// CREATE PRODUCT
 export async function createProduct(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   const photoFile = formData.get('photo') as File;
+  const sku = formData.get('sku') as string;
   const bahanAktifIds = formData.getAll('bahan_aktif_ids') as string[];
+  
+  if (!sku) {
+    return { error: { message: 'SKU wajib diisi.' } };
+  }
   
   let photoFileName = '';
   if (photoFile && photoFile.size > 0) {
-    const { data: photoData, error: photoError } = await uploadPhoto(photoFile);
+    const { data: photoData, error: photoError } = await uploadPhoto(photoFile, sku);
     if (photoError) return { error: { message: `Gagal upload foto: ${photoError.message}` } };
     photoFileName = photoData?.path || '';
   } else {
@@ -53,8 +64,8 @@ export async function createProduct(formData: FormData) {
 
   const productData = {
     name: formData.get('name') as string,
-    sku: formData.get('sku') as string,
-    photo: photoFileName, // Simpan hanya nama file
+    sku: sku,
+    photo: photoFileName, // Simpan nama file (SKU.ext)
     jenis_tanaman_id: Number(formData.get('jenis_tanaman_id')),
     kelas_benih_id: Number(formData.get('kelas_benih_id')),
     varietas_id: Number(formData.get('varietas_id')),
@@ -73,7 +84,6 @@ export async function createProduct(formData: FormData) {
 
   if (error) return { error };
 
-  // Handle relasi many-to-many dengan bahan_aktif
   if (bahanAktifIds.length > 0) {
     const pivotData = bahanAktifIds.map(id => ({
       product_id: newProduct.id,
@@ -87,42 +97,70 @@ export async function createProduct(formData: FormData) {
   return { data: newProduct };
 }
 
-// Aksi untuk memperbarui produk
+// UPDATE PRODUCT
 export async function updateProduct(id: number, formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   const photoFile = formData.get('photo') as File;
+  const newSku = formData.get('sku') as string;
   const bahanAktifIds = formData.getAll('bahan_aktif_ids') as string[];
   
-  // Ambil data produk lama untuk mengetahui foto yang ada
+  if (!newSku) {
+    return { error: { message: 'SKU wajib diisi.' } };
+  }
+  
   const { data: existingProduct, error: fetchError } = await supabase
     .from('products')
-    .select('photo')
+    .select('photo, sku')
     .eq('id', id)
     .single();
 
   if (fetchError) return { error: fetchError };
 
-  let photoFileName = existingProduct.photo; // Gunakan foto lama sebagai default
+  let photoFileName = existingProduct.photo;
 
-  // Jika ada foto baru yang diupload
+  // Jika ada foto baru
   if (photoFile && photoFile.size > 0) {
-    const { data: photoData, error: photoError } = await uploadPhoto(photoFile);
+    const { data: photoData, error: photoError } = await uploadPhoto(photoFile, newSku);
     if (photoError) return { error: { message: `Gagal upload foto: ${photoError.message}` } };
     photoFileName = photoData?.path || existingProduct.photo;
 
-    // Hapus foto lama jika ada foto baru
-    if (existingProduct.photo && photoData?.path) {
+    // Hapus foto lama HANYA jika SKU berubah
+    if (existingProduct.photo && existingProduct.sku !== newSku && photoData?.path) {
       await supabase.storage
         .from('product-photos')
         .remove([existingProduct.photo]);
+    }
+  } 
+  // Jika SKU berubah tapi tidak upload foto baru, rename file lama
+  else if (existingProduct.sku !== newSku && existingProduct.photo) {
+    const oldExt = path.extname(existingProduct.photo);
+    const newFileName = `${newSku}${oldExt}`;
+    
+    // Download foto lama
+    const { data: oldFileData } = await supabase.storage
+      .from('product-photos')
+      .download(existingProduct.photo);
+    
+    if (oldFileData) {
+      // Upload dengan nama baru
+      await supabase.storage
+        .from('product-photos')
+        .upload(newFileName, oldFileData, { upsert: true });
+      
+      // Hapus file lama
+      await supabase.storage
+        .from('product-photos')
+        .remove([existingProduct.photo]);
+      
+      photoFileName = newFileName;
     }
   }
 
   const updateData = {
     name: formData.get('name') as string,
-    sku: formData.get('sku') as string,
-    photo: photoFileName, // Simpan hanya nama file
+    sku: newSku,
+    photo: photoFileName,
     jenis_tanaman_id: Number(formData.get('jenis_tanaman_id')),
     kelas_benih_id: Number(formData.get('kelas_benih_id')),
     varietas_id: Number(formData.get('varietas_id')),
@@ -137,7 +175,6 @@ export async function updateProduct(id: number, formData: FormData) {
     qr_color: formData.get('qr_color') as string,
   };
 
-  // Update produk
   const { data: updatedProduct, error: updateError } = await supabase
     .from('products')
     .update(updateData)
@@ -147,10 +184,8 @@ export async function updateProduct(id: number, formData: FormData) {
 
   if (updateError) return { error: updateError };
 
-  // Hapus semua relasi bahan_aktif yang lama
   await supabase.from('product_bahan_aktif').delete().eq('product_id', id);
 
-  // Insert relasi bahan_aktif yang baru
   if (bahanAktifIds.length > 0) {
     const pivotData = bahanAktifIds.map(bahanAktifId => ({
       product_id: id,
@@ -164,11 +199,10 @@ export async function updateProduct(id: number, formData: FormData) {
   return { data: updatedProduct };
 }
 
-// Aksi untuk menghapus produk
+// DELETE PRODUCT (tetap sama)
 export async function deleteProduct(id: number) {
   const supabase = await createSupabaseServerClient();
   
-  // Ambil data produk untuk mengetahui foto yang akan dihapus
   const { data: product, error: fetchError } = await supabase
     .from('products')
     .select('photo')
@@ -177,14 +211,11 @@ export async function deleteProduct(id: number) {
 
   if (fetchError) return { error: fetchError };
 
-  // Hapus relasi di pivot table terlebih dahulu
   await supabase.from('product_bahan_aktif').delete().eq('product_id', id);
 
-  // Hapus produk utama
   const { error } = await supabase.from('products').delete().eq('id', id);
   if (error) return { error };
 
-  // Hapus foto dari storage jika ada
   if (product.photo) {
     await supabase.storage
       .from('product-photos')

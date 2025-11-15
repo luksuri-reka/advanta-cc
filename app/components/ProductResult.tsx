@@ -458,53 +458,6 @@ export default function ProductResult({ data, modelType, verificationType }: Pro
                     </p>
                   </>
                 )}
-
-                {/* Customer Feedback Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-                  {/* Survey CTA */}
-                  <Link
-                    href={`/survey?${verificationType === 'serial' ? 'serial' : 'lot'}=${identifier}&product=${encodeURIComponent(data.product_name)}`}
-                    className="group relative flex items-center justify-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-400 hover:to-blue-500 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                    
-                    <div className="relative z-10 flex items-center gap-3">
-                      <div className="p-1.5 bg-white/20 rounded-lg">
-                        <FaceSmileIcon className="h-4 w-4" />
-                      </div>
-                      <div className="text-left">
-                        <div className="text-sm font-bold">Berikan Rating</div>
-                        <div className="text-xs opacity-90">Bantu kami tingkatkan kualitas</div>
-                      </div>
-                      <ArrowRightIcon className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
-                    </div>
-                  </Link>
-
-                  {/* Complaint CTA */}
-                  <Link
-                    href={`/complaint?${verificationType === 'serial' ? 'serial' : 'lot'}=${identifier}&product=${encodeURIComponent(data.product_name)}`}
-                    className="group relative flex items-center justify-center gap-3 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl hover:from-orange-400 hover:to-red-400 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                    
-                    <div className="relative z-10 flex items-center gap-3">
-                      <div className="p-1.5 bg-white/20 rounded-lg">
-                        <ExclamationTriangleIcon className="h-4 w-4" />
-                      </div>
-                      <div className="text-left">
-                        <div className="text-sm font-bold">Ada Kendala?</div>
-                        <div className="text-xs opacity-90">Laporkan masalah produk</div>
-                      </div>
-                      <ArrowRightIcon className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
-                    </div>
-                  </Link>
-                </div>
-
-                {/* Trust Message */}
-                <p className="text-center text-slate-500 dark:text-slate-400 text-xs md:text-sm mt-4 flex items-center justify-center gap-2 px-4">
-                  <ShieldCheckIcon className="w-3 h-3 md:w-4 md:h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
-                  <span>Feedback Anda membantu kami memberikan layanan terbaik</span>
-                </p>
               </div>
             </div>
           </div>
