@@ -15,7 +15,8 @@ import {
   ArchiveBoxIcon,
   InboxIcon,
   WrenchIcon,
-  MapPinIcon
+  MapPinIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -45,6 +46,7 @@ export default function AdminComplaintsPage() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [filters, setFilters] = useState({
     status: '',
     search: ''
@@ -106,6 +108,32 @@ export default function AdminComplaintsPage() {
       console.error('Error fetching complaints:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number, complaintNumber: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus keluhan ${complaintNumber}? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+
+    setDeletingId(id);
+    try {
+      const response = await fetch(`/api/complaints/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        setComplaints(prev => prev.filter(c => c.id !== id));
+        alert('Keluhan berhasil dihapus');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Gagal menghapus keluhan');
+      }
+    } catch (error) {
+      console.error('Error deleting complaint:', error);
+      alert('Terjadi kesalahan saat menghapus keluhan');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -289,7 +317,6 @@ export default function AdminComplaintsPage() {
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">ID Keluhan</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Pelanggan</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Lokasi</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Subjek</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Tgl Masuk</th>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Aksi</th>
@@ -298,7 +325,7 @@ export default function AdminComplaintsPage() {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-16 px-6 text-gray-500 dark:text-gray-400">
+                    <td colSpan={6} className="text-center py-16 px-6 text-gray-500 dark:text-gray-400">
                       <div className="flex justify-center items-center gap-2">
                         <ArrowPathIcon className="h-5 w-5 animate-spin" />
                         <span>Memuat data keluhan...</span>
@@ -322,9 +349,6 @@ export default function AdminComplaintsPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-xs truncate">
-                        {complaint.subject}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(complaint.status)}`}>
                           {getStatusLabel(complaint.status)}
@@ -333,16 +357,41 @@ export default function AdminComplaintsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {formatDate(complaint.created_at)}
                       </td>
-                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link href={`/admin/complaints/${complaint.id}`} className="text-emerald-600 hover:text-emerald-900 dark:hover:text-emerald-400 inline-flex items-center gap-1">
-                          <EyeIcon className="h-4 w-4" /> Lihat
-                        </Link>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-3">
+                          <Link 
+                            href={`/admin/complaints/${complaint.id}`} 
+                            className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                            <span className="text-sm">Detail</span>
+                          </Link>
+                          {hasComplaintPermission('canDeleteComplaints') && (
+                            <button
+                              onClick={() => handleDelete(complaint.id, complaint.complaint_number)}
+                              disabled={deletingId === complaint.id}
+                              className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-sm"
+                            >
+                              {deletingId === complaint.id ? (
+                                <>
+                                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                                  <span className="text-sm">Hapus...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <TrashIcon className="h-4 w-4" />
+                                  <span className="text-sm">Hapus</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="text-center py-16 px-6">
+                    <td colSpan={6} className="text-center py-16 px-6">
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tidak ada keluhan</h3>
                       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Tidak ada data keluhan yang cocok dengan filter Anda.</p>
                     </td>

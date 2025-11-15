@@ -2,7 +2,6 @@
 import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
 
-// Daftar status yang valid (sesuaikan jika perlu, agar sama dengan di frontend)
 const complaintStatuses = [
   'submitted',
   'acknowledged',
@@ -20,33 +19,23 @@ export async function POST(
     const { id } = await params;
     const supabase = await createClient();
 
-    // 1. Autentikasi Pengguna
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Ambil Payload dari Frontend
     const body = await request.json();
-    const { status } = body; 
+    const { status } = body;
 
-    // 3. Validasi Payload
-    if (!status) {
+    if (!status || !complaintStatuses.includes(status)) {
       return NextResponse.json({ 
-        error: 'Status is required' 
+        error: `Invalid status: ${status}` 
       }, { status: 400 });
     }
 
-    if (!complaintStatuses.includes(status)) {
-      return NextResponse.json({ 
-        error: `Invalid status value: ${status}` 
-      }, { status: 400 });
-    }
-
-    // 4. Ambil Data Keluhan Saat Ini (untuk logging)
     const { data: complaint, error: complaintError } = await supabase
       .from('complaints')
-      .select('status, resolved_at') // Ambil status lama
+      .select('status, resolved_at, customer_email, customer_phone, complaint_number, customer_name')
       .eq('id', id)
       .single();
 
@@ -56,37 +45,28 @@ export async function POST(
       }, { status: 404 });
     }
 
-    // Jika status sudah sama, tidak perlu update
     if (complaint.status === status) {
       return NextResponse.json({ 
-        message: 'Status is already set to this value',
+        message: 'Status already set',
         data: complaint
       }, { status: 200 });
     }
 
-    // 5. Siapkan Data Update
     const updateData: {
       status: string;
       updated_at: string;
-      resolved_at?: string; // Opsional
-      resolved_by?: string; // Opsional
+      resolved_at?: string;
+      resolved_by?: string;
     } = {
       status: status,
       updated_at: new Date().toISOString(),
     };
 
-    // --- LOGIKA TAMBAHAN ---
-    // Jika status diubah menjadi 'resolved' atau 'closed',
-    // dan belum ada tgl penyelesaian, set tglnya sekarang.
-    if (
-      (status === 'resolved' || status === 'closed') &&
-      !complaint.resolved_at 
-    ) {
+    if ((status === 'resolved' || status === 'closed') && !complaint.resolved_at) {
       updateData.resolved_at = new Date().toISOString();
-      updateData.resolved_by = user.id; // Catat siapa yang menyelesaikannya
+      updateData.resolved_by = user.id;
     }
-    
-    // 6. Update Database Keluhan
+
     const { error: updateError } = await supabase
       .from('complaints')
       .update(updateData)
@@ -95,26 +75,59 @@ export async function POST(
     if (updateError) {
       console.error('Update status error:', updateError);
       return NextResponse.json({ 
-        error: 'Failed to update complaint status' 
+        error: 'Failed to update status' 
       }, { status: 500 });
     }
 
-    // 7. (Best Practice) Catat Riwayat Perubahan Status
-    // Anda disarankan memiliki tabel 'complaint_history' untuk ini
+    // Log history
     await supabase
-      .from('complaint_history') // Ganti nama tabel jika perlu
+      .from('complaint_history')
       .insert({
         complaint_id: parseInt(id),
         action: 'status_changed',
         old_value: complaint.status,
         new_value: status,
         created_by: user.id,
-        notes: `Status changed to ${status} by admin`
+        notes: `Status changed from ${complaint.status} to ${status}`
       });
+
+    // Kirim notifikasi ke customer
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    
+    // Email notification
+    if (complaint.customer_email) {
+      fetch(`${baseUrl}/api/notifications/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'status_update',
+          email: complaint.customer_email,
+          complaint_number: complaint.complaint_number,
+          customer_name: complaint.customer_name,
+          new_status: status
+        })
+      }).catch(err => console.error('Email notification failed:', err));
+    }
+
+    // WhatsApp notification
+    if (complaint.customer_phone) {
+      fetch(`${baseUrl}/api/notifications/whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'status_update',
+          phone: complaint.customer_phone,
+          complaint_number: complaint.complaint_number,
+          customer_name: complaint.customer_name,
+          new_status: status
+        })
+      }).catch(err => console.error('WhatsApp notification failed:', err));
+    }
 
     return NextResponse.json({ 
       success: true,
-      message: `Complaint status updated to ${status}`
+      message: `Status updated to ${status}`,
+      data: { old_status: complaint.status, new_status: status }
     });
 
   } catch (error: any) {

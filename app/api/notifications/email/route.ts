@@ -26,6 +26,7 @@ export async function POST(request: Request) {
 
     let subject = '';
     let htmlContent = '';
+    let html = '';
 
     switch (type) {
       case 'complaint_created':
@@ -38,10 +39,122 @@ export async function POST(request: Request) {
         htmlContent = generateComplaintResponseEmail(customer_name, complaint_number, baseUrl);
         break;
         
+      case 'status_update': {
+        const { complaint_number, customer_name, new_status } = body;
+        
+        const statusLabels: Record<string, string> = {
+          submitted: 'Dikirim',
+          acknowledged: 'Dikonfirmasi',
+          investigating: 'Sedang Diselidiki',
+          pending_response: 'Menunggu Respons Anda',
+          resolved: 'Selesai',
+          closed: 'Ditutup'
+        };
+
+        const statusDescriptions: Record<string, string> = {
+          submitted: 'Komplain Anda telah diterima oleh sistem kami dan menunggu verifikasi tim.',
+          acknowledged: 'Komplain Anda telah dikonfirmasi dan dialokasikan ke departemen yang tepat untuk penanganan lebih lanjut.',
+          investigating: 'Tim kami sedang aktif menyelidiki dan menganalisis masalah yang Anda laporkan.',
+          pending_response: 'Kami membutuhkan informasi tambahan dari Anda. Mohon cek pesan terbaru dan berikan respons Anda.',
+          resolved: 'Komplain Anda telah diselesaikan. Terima kasih atas kesabaran Anda.',
+          closed: 'Kasus komplain Anda telah ditutup.'
+        };
+
+        const statusColors: Record<string, string> = {
+          submitted: '#3B82F6',
+          acknowledged: '#F59E0B',
+          investigating: '#F97316',
+          pending_response: '#A855F7',
+          resolved: '#10B981',
+          closed: '#6B7280'
+        };
+
+        subject = `Update Status Komplain ${complaint_number}`;
+        html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Update Status Komplain</title>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+              <!-- Header -->
+              <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center;">
+                <img src="${process.env.NEXT_PUBLIC_BASE_URL}/advanta-logo-white.png" alt="Advanta Logo" style="height: 50px; margin-bottom: 20px;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">Status Komplain Diperbarui</h1>
+              </div>
+
+              <!-- Content -->
+              <div style="padding: 40px 30px;">
+                <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                  Halo <strong>${customer_name}</strong>,
+                </p>
+                
+                <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 30px 0;">
+                  Status komplain Anda telah diperbarui. Berikut adalah informasi terbaru:
+                </p>
+
+                <!-- Complaint Info -->
+                <div style="background-color: #f9fafb; border-left: 4px solid ${statusColors[new_status]}; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+                  <div style="margin-bottom: 15px;">
+                    <span style="color: #6b7280; font-size: 13px; display: block; margin-bottom: 5px;">Nomor Komplain</span>
+                    <span style="color: #1f2937; font-size: 18px; font-weight: 700;">${complaint_number}</span>
+                  </div>
+                  <div>
+                    <span style="color: #6b7280; font-size: 13px; display: block; margin-bottom: 8px;">Status Terbaru</span>
+                    <span style="display: inline-block; background-color: ${statusColors[new_status]}; color: #ffffff; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;">
+                      ${statusLabels[new_status]}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Status Description -->
+                <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+                  <p style="color: #1e40af; font-size: 14px; line-height: 1.6; margin: 0;">
+                    <strong>Apa artinya?</strong><br>
+                    ${statusDescriptions[new_status]}
+                  </p>
+                </div>
+
+                <!-- Action Button -->
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${process.env.NEXT_PUBLIC_BASE_URL}/complaint/${complaint_number}/status" 
+                    style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);">
+                    Lihat Detail Komplain
+                  </a>
+                </div>
+
+                <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0;">
+                  Jika Anda memiliki pertanyaan atau memerlukan bantuan lebih lanjut, jangan ragu untuk menghubungi tim customer care kami.
+                </p>
+              </div>
+
+              <!-- Footer -->
+              <div style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                <p style="color: #6b7280; font-size: 13px; margin: 0 0 10px 0;">
+                  PT Advanta Seeds Indonesia<br>
+                  Email: ${process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'support@advanta.co.id'}<br>
+                  Website: ${process.env.NEXT_PUBLIC_BASE_URL}
+                </p>
+                <p style="color: #9ca3af; font-size: 12px; margin: 15px 0 0 0;">
+                  Email ini dikirim secara otomatis. Mohon tidak membalas email ini.
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+        break;
+      }
+        
       default:
         subject = `Notifikasi dari Advanta Seeds - ${complaint_number}`;
         htmlContent = generateGenericEmail(customer_name, complaint_number, baseUrl);
     }
+
+    
 
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'noreply@advantaindonesia.com',

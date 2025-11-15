@@ -31,6 +31,7 @@ import {
   PencilIcon, // --- ICON BARU UNTUK UBAH STATUS ---
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { Toaster, toast } from 'react-hot-toast';
 
 // --- INTERFACE PENGGUNA TERKAIT ---
 interface RelatedUser {
@@ -52,6 +53,10 @@ interface Complaint {
   complaint_type: string;
   subject: string;
   description: string;
+
+  complaint_category_name?: string;
+  complaint_subcategory_name?: string;
+  complaint_case_type_name?: string;
   
   related_product_serial?: string;
   related_product_name?: string;
@@ -98,9 +103,11 @@ interface Complaint {
   complaint_responses: Array<{
     id: number;
     message: string;
-    admin_name: string;
+    admin_name: string; // Ini adalah nama admin
     created_at: string;
-    is_customer_response: boolean;
+    is_internal: boolean; // <-- INI YANG BENAR
+    // 'is_customer_response' tidak ada, balasan pelanggan
+    // mungkin perlu ditangani dengan logika 'admin_name === null'
   }>;
 }
 
@@ -152,6 +159,7 @@ export default function ComplaintDetailPage() {
   
   const [responseMessage, setResponseMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isInternalResponse, setIsInternalResponse] = useState(false);
   
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
@@ -256,30 +264,38 @@ export default function ComplaintDetailPage() {
   };
 
   const handlePostResponse = async () => {
-    // ... (fungsi ini tetap sama)
     if (!responseMessage.trim() || !user) return;
-    setIsSending(true);
+    
+    setIsSending(true); // 👈 Menggunakan 'isSending'
+    
     try {
       const response = await fetch(`/api/complaints/${id}/responses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: responseMessage,
-          admin_id: user.id,
-          admin_name: user.name,
-          is_customer_response: false
+          admin_id: user.id, // 👈 Menggunakan 'user.id'
+          admin_name: user.name, // 👈 Menggunakan 'user.name'
+          is_internal: isInternalResponse, // 👈 Menggunakan state 'isInternalResponse'
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to post response');
+        const errorData = await response.json().catch(() => null);
+        console.error('API Error:', errorData);
+        throw new Error(errorData?.error || 'Failed to post response');
       }
+      
       setResponseMessage('');
-      loadComplaint();
-    } catch (err) {
-      console.error('Error posting response:', err);
+      setIsInternalResponse(false); // 👈 Reset toggle setelah kirim
+      loadComplaint(); 
+      toast.success('Balasan berhasil dikirim!'); // 👈 Menggunakan 'toast'
+
+    } catch (error: any) {
+      console.error('Error posting response:', error.message);
+      toast.error(error.message || 'Gagal mengirim balasan'); // 👈 Menggunakan 'toast'
     } finally {
-      setIsSending(false);
+      setIsSending(false); // 👈 Menggunakan 'isSending'
     }
   };
 
@@ -453,10 +469,52 @@ export default function ComplaintDetailPage() {
     return labels[status] || status;
   };
 
+  const getStatusDescription = (status: string) => {
+    const descriptions: Record<string, string> = {
+      submitted: 'Komplain baru diterima, menunggu verifikasi tim',
+      acknowledged: 'Komplain dikonfirmasi dan dialokasikan ke departemen terkait',
+      investigating: 'Tim sedang menyelidiki dan menganalisis masalah',
+      pending_response: 'Menunggu informasi tambahan dari customer',
+      resolved: 'Masalah telah diselesaikan',
+      closed: 'Kasus ditutup'
+    };
+    return descriptions[status] || 'Status tidak diketahui';
+  };
+
   // Helper untuk format nama departemen
   const formatDepartment = (dept?: string) => {
     if (!dept) return '-';
     return dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // FUNGSI BARU: Untuk Tanggal di Header Bubble (Contoh: 16 Nov)
+  const formatDateShort = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+    });
+  };
+
+  // FUNGSI BARU: Untuk Jam di Kanan Bawah (Contoh: 14:30)
+  const formatTime = (dateString?: string) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // (Opsional: Jika Anda masih butuh format lama, ganti namanya)
+  const formatDateTimeFull = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (!user) {
@@ -487,6 +545,7 @@ export default function ComplaintDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Navbar user={user} onLogout={handleLogout} />
+      <Toaster position="top-right" />
       
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -560,7 +619,7 @@ export default function ComplaintDetailPage() {
                       <dd className="mt-1 text-sm text-gray-900 dark:text-white">{complaint.customer_email || '-'}</dd>
                     </div>
                     <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Telepon</dt>
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">WhatsApp</dt>
                       <dd className="mt-1 text-sm text-gray-900 dark:text-white">{complaint.customer_phone || '-'}</dd>
                     </div>
                   </div>
@@ -608,7 +667,35 @@ export default function ComplaintDetailPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  {(complaint.complaint_category_name || complaint.complaint_subcategory_name || complaint.complaint_case_type_name) && (
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                        Kategorisasi Komplain
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                            {complaint.complaint_category_name || '-'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Sub-Kategori</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                            {complaint.complaint_subcategory_name || '-'}
+                          </dd>
+                        </div>
+                        <div className="md:col-span-2">
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tipe Kasus</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                            {complaint.complaint_case_type_name || '-'}
+                          </dd>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <div>
                       <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Subjek</dt>
                       <dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{complaint.subject}</dd>
@@ -646,28 +733,255 @@ export default function ComplaintDetailPage() {
                   </div>
                 </div>
 
-                {/* Riwayat Pesan */}
+                {/* Riwayat Pesan (DENGAN BADGE YANG BERBEDA) */}
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-                    {/* ... (kode riwayat pesan tetap sama) ... */}
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">
+                    Riwayat Komunikasi
+                  </h3>
+
+                  {complaint.complaint_responses && complaint.complaint_responses.length > 0 ? (
+                    <div className="space-y-6">
+                      {complaint.complaint_responses
+                        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                        .map((response) => {
+                          
+                          // --- TAMPILAN 1: Catatan Internal (is_internal = TRUE) ---
+                          if (response.is_internal) {
+                            return (
+                              <div key={response.id} className="relative py-4">
+                                {/* Garis pemisah khusus internal */}
+                                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                  <div className="w-full border-t-2 border-amber-400 dark:border-amber-600 border-dashed"></div>
+                                </div>
+                                {/* Konten Catatan Internal */}
+                                <div className="relative flex justify-center">
+                                  <div className="px-5 py-4 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-amber-900/40 dark:via-yellow-900/40 dark:to-orange-900/40 rounded-xl shadow-lg border-2 border-amber-300 dark:border-amber-700 max-w-2xl">
+                                    <div className="flex items-start gap-3 mb-3">
+                                      <div className="flex-shrink-0 mt-0.5">
+                                        {/* Icon Gembok untuk Internal */}
+                                        <div className="p-2 bg-amber-500 dark:bg-amber-600 rounded-lg">
+                                          <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                          </svg>
+                                        </div>
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          {/* Badge "PRIVATE - INTERNAL ONLY" */}
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white text-xs font-bold uppercase rounded-full shadow-md">
+                                            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                            </svg>
+                                            Private
+                                          </span>
+                                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 text-xs font-semibold rounded-md">
+                                            <InformationCircleIcon className="h-3.5 w-3.5" />
+                                            Internal Only
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                                          <span className="font-semibold">{response.admin_name || 'Admin'}</span>
+                                          <span>•</span>
+                                          <span>{formatDate(response.created_at)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Pesan */}
+                                    <div className="pl-14">
+                                      <p className="text-sm text-amber-950 dark:text-amber-50 whitespace-pre-wrap leading-relaxed bg-white/60 dark:bg-black/20 rounded-lg p-3 border border-amber-200 dark:border-amber-800">
+                                        {response.message}
+                                      </p>
+                                    </div>
+                                    
+                                    {/* Info Footer dengan Icon */}
+                                    <div className="mt-3 pl-14 pt-3 border-t border-amber-300 dark:border-amber-700">
+                                      <div className="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200">
+                                        <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="font-medium italic">Catatan ini hanya terlihat oleh tim admin, tidak terlihat oleh customer</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // --- TAMPILAN 2: Balasan Pelanggan (admin_name = null, is_internal = FALSE) ---
+                          if (!response.admin_name) {
+                            return (
+                              <div key={response.id} className="flex gap-3 w-full flex-row">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-1
+                                                bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md">
+                                  <UserIcon className="h-5 w-5" />
+                                </div>
+                                <div className="max-w-xl rounded-2xl p-4
+                                              bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/40 dark:to-teal-900/40 
+                                              border-2 border-emerald-200 dark:border-emerald-800 shadow-md">
+                                  {/* Header: Badge Customer + Nama + Tanggal */}
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
+                                      <UserIcon className="h-3 w-3" />
+                                      Customer
+                                    </span>
+                                    <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                      {complaint.customer_name}
+                                    </span>
+                                    <span className="text-xs text-gray-600 dark:text-gray-400 ml-auto">
+                                      {formatDateShort(response.created_at)}
+                                    </span>
+                                  </div>
+                                  {/* Isi Pesan */}
+                                  <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                                    {response.message}
+                                  </p>
+                                  {/* Footer: Jam */}
+                                  <div className="flex justify-end mt-2">
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                                      {formatTime(response.created_at)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex-grow"></div>
+                              </div>
+                            );
+                          }
+
+                          // --- TAMPILAN 3: Balasan Admin PUBLIC (admin_name ada, is_internal = FALSE) ---
+                          return (
+                            <div key={response.id} className="flex gap-3 w-full flex-row-reverse">
+                              <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-1
+                                              bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-md">
+                                <ShieldCheckIcon className="h-5 w-5" />
+                              </div>
+                              <div className="max-w-xl rounded-2xl p-4
+                                            bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 
+                                            border-2 border-blue-200 dark:border-blue-800 shadow-md">
+                                {/* Header: Badge Public + Admin + Nama + Tanggal */}
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
+                                    <ShieldCheckIcon className="h-3 w-3" />
+                                    Admin
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-semibold rounded-md border border-green-300 dark:border-green-700">
+                                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                    Public
+                                  </span>
+                                  <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                    {response.admin_name}
+                                  </span>
+                                  <span className="text-xs text-gray-600 dark:text-gray-400 ml-auto">
+                                    {formatDateShort(response.created_at)}
+                                  </span>
+                                </div>
+                                {/* Isi Pesan */}
+                                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                                  {response.message}
+                                </p>
+                                {/* Footer: Jam + Terkirim ke Customer */}
+                                <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                                    {formatTime(response.created_at)}
+                                  </span>
+                                  <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                    <span className="font-medium">Terkirim</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex-grow"></div>
+                            </div>
+                          );
+
+                        })}
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                      <ChatBubbleLeftRightIcon className="h-10 w-10 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                      <h4 className="font-semibold text-gray-700 dark:text-gray-300">Belum Ada Riwayat</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Balasan dari pelanggan atau admin akan muncul di sini.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Kirim Balasan */}
+                {/* Kirim Balasan (DIPERBARUI - LEBIH RAPI) */}
                 {(complaint.status !== 'resolved' && complaint.status !== 'closed' && hasPermission('canRespondToComplaints')) && (
-                  // ... (kode kirim balasan tetap sama) ...
                   <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Kirim Balasan</h3>
-                    <textarea
-                      value={responseMessage}
-                      onChange={(e) => setResponseMessage(e.target.value)}
-                      rows={5}
-                      className="w-full text-sm rounded-xl border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 focus:ring-emerald-500 focus:border-emerald-500"
-                      placeholder="Tulis balasan Anda di sini..."
-                    />
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                      Kirim Balasan
+                    </h3>
+                    
+                    {/* Kotak Textarea yang sudah diperbaiki */}
+                    <div className="relative">
+                      <textarea
+                        value={responseMessage}
+                        onChange={(e) => setResponseMessage(e.target.value)}
+                        rows={5}
+                        className="
+                          w-full text-sm rounded-xl 
+                          border-gray-300 dark:border-gray-600 
+                          dark:bg-gray-700 dark:text-white 
+                          dark:placeholder-gray-400
+                          focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
+                          shadow-sm
+                          px-4 py-3 /* 👈 INI SOLUSINYA: Menambah padding internal */
+                        "
+                        placeholder="Tulis balasan Anda di sini..."
+                      />
+                      {/* Ikon di dalam textarea untuk membuatnya 'eye-catching' */}
+                      <div className="absolute top-3 right-3 text-gray-400 dark:text-gray-500">
+                        <PencilSquareIcon className="h-5 w-5" />
+                      </div>
+                    </div>
+
+                    {/* Checkbox Catatan Internal (Dengan Jarak) */}
+                    <div className="mt-4">
+                      <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isInternalResponse}
+                          onChange={(e) => setIsInternalResponse(e.target.checked)}
+                          className="
+                            rounded border-gray-400 
+                            dark:bg-gray-600 dark:border-gray-500 
+                            text-purple-600 focus:ring-purple-500
+                            w-5 h-5
+                          "
+                        />
+                        <span className="font-medium">Tandai sebagai catatan internal (tidak terlihat oleh pelanggan)</span>
+                      </label>
+                      
+                      {/* Info tambahan untuk checkbox internal */}
+                      {isInternalResponse && (
+                        <div className="mt-2 ml-8 text-xs text-yellow-700 dark:text-yellow-400 p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                          Catatan ini hanya akan terlihat oleh tim admin.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tombol Kirim (Dengan Jarak) */}
                     <div className="mt-4 flex justify-end">
                       <button
                         onClick={handlePostResponse}
                         disabled={isSending || !responseMessage.trim()}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+                        // Perubahan kecil: tombol jadi biru agar beda dengan 'emerald' pelanggan
+                        className="
+                          flex items-center gap-2 px-5 py-2.5 
+                          bg-blue-600 text-white 
+                          font-semibold rounded-xl 
+                          hover:bg-blue-500 
+                          disabled:opacity-50 transition-colors
+                          shadow-lg shadow-blue-500/30
+                        "
                       >
                         <PaperAirplaneIcon className="h-5 w-5" />
                         {isSending ? 'Mengirim...' : 'Kirim Balasan'}
@@ -928,9 +1242,9 @@ export default function ComplaintDetailPage() {
       )}
 
       {/* --- MODAL BARU: UBAH STATUS --- */}
-      {showStatusModal && (
+      {showStatusModal && complaint && ( // TAMBAHKAN && complaint
         <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full z-50 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full z-50 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Ubah Status Keluhan</h3>
               <button onClick={() => setShowStatusModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
@@ -938,27 +1252,90 @@ export default function ComplaintDetailPage() {
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-6">
+              {/* Current Status Display */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-3 mb-2">
+                  <InformationCircleIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-blue-900 dark:text-blue-300">Status Saat Ini</span>
+                </div>
+                <div className="ml-8">
+                  <span className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-bold rounded-full ${getStatusClass(complaint.status)}`}>
+                    {getStatusLabel(complaint.status)}
+                  </span>
+                  <p className="text-xs text-blue-700 dark:text-blue-400 mt-2">
+                    {getStatusDescription(complaint.status)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Selection with Descriptions */}
               <div>
-                <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Pilih Status Baru
                 </label>
-                <select
-                  id="status"
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="mt-2 w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500 text-base px-4 py-3"
-                >
+                <div className="space-y-2">
                   {complaintStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {getStatusLabel(status)}
-                    </option>
+                    <label
+                      key={status}
+                      className={`
+                        flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
+                        ${selectedStatus === status 
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-gray-800'
+                        }
+                      `}
+                    >
+                      <input
+                        type="radio"
+                        name="status"
+                        value={status}
+                        checked={selectedStatus === status}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        className="mt-1 h-4 w-4 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${getStatusClass(status)}`}>
+                            {getStatusLabel(status)}
+                          </span>
+                          {status === complaint.status && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">(Aktif)</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                          {getStatusDescription(status)}
+                        </p>
+                      </div>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Mengubah status akan memicu pembaruan dan dicatat dalam riwayat.
-              </p>
+
+              {/* Warning untuk status tertentu */}
+              {(selectedStatus === 'resolved' || selectedStatus === 'closed') && !complaint.resolved_at && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-4 border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-start gap-3">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-yellow-800 dark:text-yellow-300">
+                      <p className="font-semibold mb-1">Perhatian!</p>
+                      <p>Status ini akan menandai komplain sebagai selesai dan mencatat waktu penyelesaian. Customer akan menerima notifikasi bahwa komplain mereka telah diselesaikan.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedStatus === 'pending_response' && (
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+                  <div className="flex items-start gap-3">
+                    <InformationCircleIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-purple-800 dark:text-purple-300">
+                      <p className="font-semibold mb-1">Info</p>
+                      <p>Status ini menandakan tim menunggu respons atau informasi tambahan dari customer. Pastikan sudah mengirim pesan permintaan informasi sebelum mengubah status ini.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
@@ -970,42 +1347,38 @@ export default function ComplaintDetailPage() {
               </button>
               <button
                 onClick={handleUpdateStatus}
-                disabled={isUpdatingStatus || selectedStatus === complaint?.status}
+                disabled={isUpdatingStatus || selectedStatus === complaint.status}
                 className="
-                  w-full flex items-center justify-center gap-2 px-6 py-3
+                  flex items-center justify-center gap-2 px-6 py-3 min-w-[140px]
                   font-semibold text-white rounded-xl
-                  border border-transparent
-
-                  // --- Gaya Gradien Premium (Light Mode) ---
                   bg-gradient-to-r from-emerald-600 to-teal-600
                   shadow-lg shadow-emerald-500/40
                   hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl
-
-                  // --- Gaya Dark Mode ---
                   dark:from-emerald-500 dark:to-teal-500
-                  dark:shadow-lg dark:shadow-emerald-400/30
+                  dark:shadow-emerald-400/30
                   dark:hover:from-emerald-600 dark:hover:to-teal-600
-
-                  // --- Transisi & Status ---
-                  transition-all duration-300 ease-in-out
+                  transition-all duration-300
                   focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500
                   dark:ring-offset-gray-800
-                  disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-md 
-                  disabled:hover:from-emerald-600 disabled:dark:hover:from-emerald-500
+                  disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-md
                 "
               >
                 {isUpdatingStatus ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
                 ) : (
-                  <CheckIcon className="h-5 w-5" />
+                  <>
+                    <CheckIcon className="h-5 w-5" />
+                    <span>Simpan Status</span>
+                  </>
                 )}
-                Simpan Status
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

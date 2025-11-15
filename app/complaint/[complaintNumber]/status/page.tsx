@@ -1,4 +1,4 @@
-// app/complaint/[complaintNumber]/status/page.tsx
+// app/complaint/[complaintNumber]/status/page.tsx - PREMIUM UI (GAYA WHATSAPP + BADGE ADMIN DIHAPUS)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,21 +14,33 @@ import {
   StarIcon,
   ArrowPathIcon,
   ShieldCheckIcon,
-  MapPinIcon
+  MapPinIcon,
+  InformationCircleIcon,
+  PaperAirplaneIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { Toaster, toast } from 'react-hot-toast';
 
 interface Complaint {
   id: number;
   complaint_number: string;
   customer_name: string;
   customer_email: string;
+  customer_phone: string;
   customer_province: string;
   customer_city: string;
   customer_address: string;
   complaint_type: string;
   subject: string;
   description: string;
+
+  complaint_category_name?: string;
+  complaint_subcategory_name?: string;
+  complaint_case_type_name?: string;
+
+  related_product_name?: string;
+
   status: string;
   created_at: string;
   updated_at: string;
@@ -38,552 +50,673 @@ interface Complaint {
   complaint_responses: Array<{
     id: number;
     message: string;
-    admin_name: string;
+    admin_name: string; // Ini adalah nama admin (null jika dari customer)
     created_at: string;
-    is_internal: boolean;
+    is_internal: boolean; // Ini untuk memfilter
   }>;
 }
 
+const getStatusTimeline = (currentStatus: string) => {
+  const timeline = [
+    { status: 'submitted', label: 'Dikirim', icon: '📝' },
+    { status: 'acknowledged', label: 'Dikonfirmasi', icon: '✅' },
+    { status: 'investigating', label: 'Diselidiki', icon: '🔍' },
+    { status: 'pending_response', label: 'Menunggu Respons', icon: '⏳' },
+    { status: 'resolved', label: 'Selesai', icon: '🎉' },
+    { status: 'closed', label: 'Ditutup', icon: '🔒' }
+  ];
+
+  let currentIndex = timeline.findIndex(item => item.status === currentStatus);
+  if (currentIndex === -1) currentIndex = 0;
+
+  return timeline.map((item, index) => ({
+    ...item,
+    isCurrent: item.status === currentStatus,
+    isCompleted: index < currentIndex
+  }));
+};
+
+const getStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    submitted: 'Dikirim',
+    acknowledged: 'Dikonfirmasi',
+    investigating: 'Diselidiki',
+    pending_response: 'Menunggu Respons Anda',
+    resolved: 'Selesai',
+    closed: 'Ditutup'
+  };
+  return labels[status] || status;
+};
+
+// --- FUNGSI FORMAT WAKTU (SESUAI ADMIN) ---
+const formatDateShort = (dateString?: string) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+  });
+};
+
+const formatTime = (dateString?: string) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const formatDateTimeFull = (dateString?: string) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+// --- AKHIR FUNGSI FORMAT WAKTU ---
+
 export default function ComplaintStatusPage() {
   const params = useParams();
-  const complaintNumber = params?.complaintNumber as string;
+  const complaintNumber = params.complaintNumber as string;
+
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [rating, setRating] = useState(0);
-  const [feedback, setFeedback] = useState('');
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [responseMessage, setResponseMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  const loadComplaint = async () => {
+    setError(null);
+    try {
+      // Panggilan ini seharusnya sudah benar (dari perbaikan sebelumnya)
+      const response = await fetch(`/api/complaints?complaint_number=${complaintNumber}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Komplain tidak ditemukan.');
+      }
+      
+      const data = await response.json();
+      
+      // Ini juga seharusnya sudah benar (data.data[0])
+      if (!data.data || data.data.length === 0) {
+        throw new Error('Detail komplain tidak ditemukan.');
+      }
+      setComplaint(data.data[0]); 
+      
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (complaintNumber) {
-      fetchComplaintStatus();
+      loadComplaint();
     }
   }, [complaintNumber]);
 
-  useEffect(() => {
-    if (autoRefresh && complaintNumber) {
-      const interval = setInterval(() => {
-        fetchComplaintStatus(true);
-      }, 30000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [autoRefresh, complaintNumber]);
-
-  const fetchComplaintStatus = async (silent = false) => {
+  const handlePostResponse = async () => {
+    if (!responseMessage.trim() || !complaint) return;
+    
+    setIsSending(true);
     try {
-      if (!silent) setLoading(true);
-      
-      const response = await fetch(`/api/complaints?complaint_number=${encodeURIComponent(complaintNumber)}&limit=1`);
-      const result = await response.json();
-      
-      if (response.ok && result.data && result.data.length > 0) {
-        const foundComplaint = result.data.find(
-          (c: Complaint) => c.complaint_number === complaintNumber
-        );
-        
-        if (!foundComplaint) {
-          setError('Komplain tidak ditemukan');
-          return;
-        }
-        
-        const detailResponse = await fetch(`/api/complaints/${foundComplaint.id}`);
-        const detailResult = await detailResponse.json();
-        
-        if (detailResponse.ok) {
-          setComplaint(detailResult.data);
-          setError(null);
-        } else {
-          setError('Komplain tidak ditemukan');
-        }
-      } else {
-        setError('Komplain tidak ditemukan');
-      }
-    } catch (err) {
-      if (!silent) {
-        setError('Gagal memuat data komplain');
-      }
-      console.error('Error fetching complaint:', err);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
-
-  const submitFeedback = async () => {
-    if (!complaint || rating === 0) return;
-
-    setSubmittingFeedback(true);
-    try {
-      const response = await fetch(`/api/complaints/${complaint.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      // API ini memanggil /api/complaints/[id]/responses
+      const response = await fetch(`/api/complaints/${complaint.id}/responses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          customer_satisfaction_rating: rating,
-          customer_feedback: feedback,
-          customer_feedback_at: new Date().toISOString()
-        })
+          message: responseMessage,
+          admin_id: null,
+          admin_name: null, // null menandakan ini dari customer
+          is_internal: false
+        }),
       });
 
-      if (response.ok) {
-        setComplaint(prev => prev ? {
-          ...prev,
-          customer_satisfaction_rating: rating,
-          customer_feedback: feedback
-        } : null);
-        setShowFeedback(false);
-        alert('Terima kasih atas feedback Anda!');
-      } else {
-        alert('Gagal mengirim feedback. Silakan coba lagi.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Gagal mengirim balasan');
       }
-    } catch (error) {
-      alert('Terjadi kesalahan. Silakan coba lagi.');
-    } finally {
-      setSubmittingFeedback(false);
-    }
-  };
 
-  // --- PERUBAHAN DARK MODE ---
-  // Menambahkan kelas dark: pada string 'color'
-  const getStatusInfo = (status: string) => {
-    const statusMap = {
-      submitted: { 
-        label: 'Dikirim', 
-        color: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800',
-        icon: ClockIcon,
-        description: 'Komplain Anda telah diterima dan sedang menunggu review'
-      },
-      acknowledged: { 
-        label: 'Dikonfirmasi', 
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800',
-        icon: ExclamationTriangleIcon,
-        description: 'Komplain Anda telah dikonfirmasi dan dialokasikan ke tim yang tepat'
-      },
-      investigating: { 
-        label: 'Sedang Diselidiki', 
-        color: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-800',
-        icon: ArrowPathIcon,
-        description: 'Tim kami sedang menyelidiki masalah yang Anda laporkan'
-      },
-      pending_response: { 
-        label: 'Menunggu Respons Anda', 
-        color: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:border-purple-800',
-        icon: ChatBubbleLeftRightIcon,
-        description: 'Tim kami telah merespon dan menunggu informasi tambahan dari Anda'
-      },
-      resolved: { 
-        label: 'Selesai', 
-        color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800',
-        icon: CheckCircleIcon,
-        description: 'Komplain Anda telah diselesaikan'
-      },
-      closed: { 
-        label: 'Ditutup', 
-        color: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
-        icon: CheckCircleIcon,
-        description: 'Komplain telah ditutup'
-      }
-    };
-    return statusMap[status as keyof typeof statusMap] || statusMap.submitted;
+      toast.success('Balasan Anda berhasil terkirim!', {
+        style: {
+          background: '#10b981',
+          color: '#fff',
+          borderRadius: '12px',
+          padding: '16px',
+        },
+      });
+      setResponseMessage('');
+      loadComplaint(); // Muat ulang data komplain untuk menampilkan balasan baru
+
+    } catch (error: any) {
+      console.error('Error posting response:', error);
+      toast.error(error.message || 'Gagal mengirim balasan', {
+        style: {
+          background: '#ef4444',
+          color: '#fff',
+          borderRadius: '12px',
+          padding: '16px',
+        },
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-emerald-50/30 to-blue-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-blue-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Memuat status komplain...</p>
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full blur-2xl opacity-30 animate-pulse"></div>
+            <ArrowPathIcon className="relative h-16 w-16 text-emerald-600 dark:text-emerald-400 mx-auto animate-spin mb-6" />
+          </div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+            Memuat Status Komplain...
+          </h2>
         </div>
       </div>
     );
   }
 
-  if (error || !complaint) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center p-8">
-          <ExclamationTriangleIcon className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Komplain Tidak Ditemukan</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-red-50/30 to-orange-50 dark:from-gray-900 dark:via-red-950/20 dark:to-orange-950 flex items-center justify-center p-4">
+        <div className="text-center p-10 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 max-w-md w-full">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-orange-500 rounded-full blur-2xl opacity-20"></div>
+            <ExclamationTriangleIcon className="relative h-20 w-20 text-red-500 dark:text-red-400 mx-auto" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+            Terjadi Kesalahan
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">
+            {error}
+          </p>
           <Link
             href="/complaint"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-semibold rounded-2xl hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 transform hover:-translate-y-0.5"
           >
             <ArrowLeftIcon className="h-5 w-5" />
-            Ajukan Komplain Baru
+            Kembali
           </Link>
         </div>
       </div>
     );
   }
 
-  const statusInfo = getStatusInfo(complaint.status);
-  const StatusIcon = statusInfo.icon;
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-gray-900 dark:via-black dark:to-emerald-900/30">
-      <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img src="/advanta-logo.png" alt="Advanta Logo" className="h-8" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Status Komplain</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{complaint.complaint_number}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => fetchComplaintStatus()}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                title="Refresh"
-              >
-                <ArrowPathIcon className="h-5 w-5" />
-              </button>
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span className="hidden sm:inline">Beranda</span>
-              </Link>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-emerald-50/30 to-blue-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-blue-950 pb-16">
+      <Toaster position="top-right" />
+
+      {/* Header Premium dengan Glassmorphism */}
+      <div className="sticky top-0 z-50 bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl border-b border-white/20 dark:border-gray-700/30 shadow-lg">
+        <div className="max-w-4xl mx-auto px-6 py-5 flex justify-between items-center">
+          <Link
+            href="/complaint"
+            className="group inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-gray-100/50 dark:bg-gray-700/50 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all duration-300"
+          >
+            <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            Kembali
+          </Link>
+          <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+            Status Komplain
+          </h1>
+          <button
+            onClick={loadComplaint}
+            disabled={loading}
+            className="p-2.5 text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all duration-300"
+            title="Refresh"
+          >
+            <ArrowPathIcon className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-white/80 dark:border-gray-700/50 overflow-hidden mb-8">
-          <div className={`px-8 py-8 text-center border-b-4 ${statusInfo.color}`}>
-            <div className="flex items-center justify-center mb-4">
-              <StatusIcon className="h-12 w-12 text-current" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">
-              Status: {statusInfo.label}
-            </h2>
-            <p className="text-sm opacity-90 max-w-2xl mx-auto">
-              {statusInfo.description}
-            </p>
-          </div>
-
-          <div className="p-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
-              <div className="lg:col-span-2 space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <ShieldCheckIcon className="h-5 w-5 text-emerald-600" />
-                    Informasi Komplain
-                  </h3>
-                  
-                  <div className="space-y-3">
-                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Nomor Komplain</span>
-                          <span className="font-bold text-gray-900 dark:text-white block">{complaint.complaint_number}</span>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusInfo.color.split(' ').slice(0, 2).join(' ')} ${statusInfo.color.split(' ').slice(3, 5).join(' ')}`}>
-                          {statusInfo.label}
+      <main className="max-w-4xl mx-auto px-6 py-8">
+        {complaint && (
+          <div className="space-y-8">
+            
+            {/* Status Card Premium (Tidak ada perubahan) */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-600 to-blue-600 rounded-3xl blur opacity-20 group-hover:opacity-30 transition duration-500"></div>
+              <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-emerald-400/10 to-blue-500/10 rounded-full blur-3xl"></div>
+                <div className="relative p-8">
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <SparklesIcon className="h-6 w-6 text-emerald-500" />
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                          Komplain #{complaint.complaint_number}
+                        </h2>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base text-gray-600 dark:text-gray-400">Status:</span>
+                        <span className="px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-bold text-sm rounded-full shadow-lg shadow-emerald-500/30">
+                          {getStatusLabel(complaint.status)}
                         </span>
                       </div>
                     </div>
-
-                    <div className="p-4 bg-blue-50 dark:bg-blue-900/50 rounded-xl border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-start gap-3 mb-3">
-                        <MapPinIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300 block mb-2">Lokasi Pelanggan</span>
-                          <div className="space-y-1 text-sm text-blue-900 dark:text-blue-200">
-                            <p className="font-semibold">{complaint.customer_name}</p>
-                            <p>{complaint.customer_province}, {complaint.customer_city}</p>
-                            <p className="text-blue-700 dark:text-blue-300">{complaint.customer_address}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Subjek</h4>
-                  <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl">{complaint.subject}</p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Deskripsi</h4>
-                  <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl leading-relaxed whitespace-pre-wrap">
-                    {complaint.description}
-                  </p>
-                </div>
-
-                {/* Communication History */}
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <ChatBubbleLeftRightIcon className="h-5 w-5 text-blue-600" />
-                    Riwayat Komunikasi
-                    {complaint.complaint_responses?.filter(r => !r.is_internal).length > 0 && (
-                      <span className="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full font-bold">
-                        {complaint.complaint_responses.filter(r => !r.is_internal).length} pesan
-                      </span>
-                    )}
-                  </h3>
                   
-                  <div className="space-y-4">
-                    {complaint.complaint_responses && complaint.complaint_responses.length > 0 ? (
-                      complaint.complaint_responses
-                        .filter(response => !response.is_internal)
-                        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                        .map((response) => (
-                        <div key={response.id} className="bg-gradient-to-r from-blue-50 to-blue-50/50 dark:from-blue-900 dark:to-blue-900/50 rounded-xl p-5 border-l-4 border-blue-500 dark:border-blue-600 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
-                                <UserIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                              </div>
-                              <div>
-                                <span className="font-semibold text-blue-900 dark:text-blue-200 text-sm block">
-                                  {response.admin_name || 'Tim Customer Care'}
-                                </span>
-                                <span className="text-xs text-blue-600 dark:text-blue-400">
-                                  PT Advanta Seeds Indonesia
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-xs text-blue-700 dark:text-blue-300 font-medium block">
-                                {new Date(response.created_at).toLocaleDateString('id-ID', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric'
-                                })}
-                              </span>
-                              <span className="text-xs text-blue-600 dark:text-blue-400">
-                                {new Date(response.created_at).toLocaleTimeString('id-ID', {
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
+                  {/* Timeline Premium (Tidak ada perubahan) */}
+                  <div className="relative">
+                    <div className="absolute top-4 left-0 right-0 h-1 bg-gradient-to-r from-gray-200 via-emerald-200 to-gray-200 dark:from-gray-700 dark:via-emerald-700 dark:to-gray-700 rounded-full"></div>
+                    <div className="relative flex justify-between items-start">
+                      {getStatusTimeline(complaint.status).map((item, index) => (
+                        <div key={item.status} className="flex-1 text-center">
+                          <div className="relative mb-3">
+                            <div className={`
+                              w-10 h-10 rounded-full text-xl flex items-center justify-center mx-auto
+                              transition-all duration-500 transform hover:scale-110
+                              ${item.isCompleted || item.isCurrent 
+                                ? 'bg-gradient-to-br from-emerald-500 to-blue-500 text-white shadow-lg shadow-emerald-500/50' 
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}
+                              ${item.isCurrent ? 'ring-4 ring-emerald-300 dark:ring-emerald-500/50 animate-pulse' : ''}
+                            `}>
+                              {item.isCompleted ? '✓' : item.icon}
                             </div>
                           </div>
-                          <p className="text-blue-900 dark:text-blue-200 leading-relaxed whitespace-pre-wrap text-sm">
-                            {response.message}
-                          </p>
+                          <div className={`
+                            text-xs font-bold transition-colors duration-300
+                            ${item.isCompleted || item.isCurrent 
+                              ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600' 
+                              : 'text-gray-500 dark:text-gray-400'}
+                          `}>
+                            {item.label}
+                          </div>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center p-8 bg-gray-50 dark:bg-gray-700/50 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
-                        <ChatBubbleLeftRightIcon className="h-12 w-12 mx-auto mb-3 text-gray-400 dark:text-gray-500" />
-                        <p className="text-gray-600 dark:text-gray-300 font-medium">Belum ada komunikasi dari tim kami</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tim akan segera menghubungi Anda</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Customer Feedback Section */}
-                {(complaint.status === 'resolved' || complaint.status === 'closed') && (
-                  <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-900/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
-                    <h4 className="font-bold text-emerald-900 dark:text-emerald-200 mb-4 flex items-center gap-2">
-                      <StarIcon className="h-5 w-5" />
-                      Feedback Anda
-                    </h4>
-                    
-                    {complaint.customer_satisfaction_rating ? (
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Rating:</span>
-                          <div className="flex">
-                            {[1,2,3,4,5].map(star => (
-                              <StarIcon
-                                key={star}
-                                className={`h-5 w-5 ${star <= complaint.customer_satisfaction_rating! ? 'text-yellow-400 fill-current' : 'text-gray-300 dark:text-gray-600'}`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
-                            ({complaint.customer_satisfaction_rating}/5)
-                          </span>
-                        </div>
-                        {complaint.customer_feedback && (
-                          <div>
-                            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Komentar:</span>
-                            <p className="text-emerald-800 dark:text-emerald-200 mt-1 bg-white/50 dark:bg-gray-800/50 p-3 rounded-lg">
-                              {complaint.customer_feedback}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-emerald-700 dark:text-emerald-300 mb-4">
-                          Bagaimana pengalaman Anda dengan penyelesaian komplain ini?
-                        </p>
-                        
-                        {!showFeedback ? (
-                          <button
-                            onClick={() => setShowFeedback(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 transition-colors"
-                          >
-                            <StarIcon className="h-4 w-4" />
-                            Berikan Feedback
-                          </button>
-                        ) : (
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300 mb-2">
-                                Rating (1-5 bintang)
-                              </label>
-                              <div className="flex gap-1">
-                                {[1,2,3,4,5].map(star => (
-                                  <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => setRating(star)}
-                                    className="p-1 hover:scale-110 transition-transform"
-                                  >
-                                    <StarIcon
-                                      className={`h-8 w-8 ${star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-200 dark:hover:text-yellow-600'}`}
-                                    />
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300 mb-2">
-                                Komentar (Opsional)
-                              </label>
-                              <textarea
-                                value={feedback}
-                                onChange={(e) => setFeedback(e.target.value)}
-                                rows={3}
-                                className="w-full px-3 py-2 border border-emerald-300 dark:border-emerald-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white dark:bg-gray-700 dark:text-white"
-                                placeholder="Bagikan pengalaman Anda..."
-                              />
-                            </div>
-                            
-                            <div className="flex gap-2">
-                              <button
-                                onClick={submitFeedback}
-                                disabled={rating === 0 || submittingFeedback}
-                                className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {submittingFeedback ? 'Mengirim...' : 'Kirim Feedback'}
-                              </button>
-                              <button
-                                onClick={() => setShowFeedback(false)}
-                                className="px-4 py-2 text-emerald-600 dark:text-emerald-300 font-semibold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800"
-                              >
-                                Batal
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column - Timeline */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <CalendarDaysIcon className="h-5 w-5 text-blue-600" />
-                    Timeline
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg flex-shrink-0">
-                        <ClockIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Dibuat</p>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {new Date(complaint.created_at).toLocaleString('id-ID')}
-                        </p>
-                      </div>
+                      ))}
                     </div>
-                    
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex-shrink-0">
-                        <ClockIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Terakhir Diupdate</p>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {new Date(complaint.updated_at).toLocaleString('id-ID')}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {complaint.resolved_at && (
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg flex-shrink-0">
-                          <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Diselesaikan</p>
-                          <p className="text-sm text-gray-900 dark:text-white">
-                            {new Date(complaint.resolved_at).toLocaleString('id-ID')}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Auto Refresh Toggle */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">Auto Refresh</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Update otomatis setiap 30 detik</p>
-                    </div>
-                    <button
-                      onClick={() => setAutoRefresh(!autoRefresh)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        autoRefresh ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          autoRefresh ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 text-center">
-          <h3 className="font-bold text-gray-900 dark:text-white mb-2">Butuh Bantuan Lebih Lanjut?</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Jika Anda memiliki pertanyaan tambahan mengenai komplain ini, silakan hubungi tim customer care kami.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a
-              href={`mailto:${process.env.NEXT_PUBLIC_COMPANY_EMAIL}?subject=Komplain ${complaint.complaint_number}`}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold rounded-xl hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
-            >
-              <ChatBubbleLeftRightIcon className="h-4 w-4" />
-              Email Customer Care
-            </a>
-            <Link
-              href="/complaint"
-              className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              Ajukan Komplain Lain
-            </Link>
+            {/* Response Box Premium (Tidak ada perubahan) */}
+            {complaint.status === 'pending_response' && (
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl blur opacity-30 group-hover:opacity-40 transition duration-500 animate-pulse"></div>
+                <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-yellow-400/50 dark:border-yellow-600/50 overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400"></div>
+                  <div className="p-8">
+                    <div className="flex items-start gap-4 mb-6">
+                      <div className="flex-shrink-0">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl blur-xl opacity-50"></div>
+                          <div className="relative p-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl">
+                            <InformationCircleIcon className="h-8 w-8 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                          Balasan Anda Dibutuhkan
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                          Tim kami membutuhkan informasi tambahan dari Anda. Mohon tulis balasan di bawah ini untuk melanjutkan proses penanganan komplain.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="relative">
+                      <textarea
+                        value={responseMessage}
+                        onChange={(e) => setResponseMessage(e.target.value)}
+                        rows={5}
+                        className="
+                          w-full text-base rounded-2xl 
+                          border-2 border-gray-200 dark:border-gray-600 
+                          dark:bg-gray-700/50 dark:text-white 
+                          dark:placeholder-gray-400
+                          focus:ring-4 focus:ring-yellow-500/30 focus:border-yellow-500
+                          shadow-lg dark:shadow-xl
+                          px-5 py-4
+                          transition-all duration-300
+                          placeholder:text-gray-400
+                        "
+                        placeholder="Tulis balasan Anda di sini..."
+                        disabled={isSending}
+                      />
+                      <div className="absolute bottom-4 right-4 text-gray-300 dark:text-gray-600 pointer-events-none">
+                        <PaperAirplaneIcon className="h-6 w-6" />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        onClick={handlePostResponse}
+                        disabled={isSending || !responseMessage.trim()}
+                        className="
+                          group relative flex items-center gap-3 px-8 py-3.5
+                          bg-gradient-to-r from-emerald-600 to-blue-600 text-white 
+                          font-bold rounded-2xl 
+                          hover:shadow-2xl hover:shadow-emerald-500/50
+                          disabled:opacity-50 disabled:cursor-not-allowed
+                          transition-all duration-300
+                          transform hover:-translate-y-0.5
+                          overflow-hidden
+                        "
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <PaperAirplaneIcon className="relative h-5 w-5 transition-transform group-hover:translate-x-1" />
+                        <span className="relative">{isSending ? 'Mengirim...' : 'Kirim Balasan'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================== */}
+            {/* === 🎨 PERUBAHAN UI DIMULAI DI SINI (BADGE ADMIN DIHAPUS) 🎨 === */}
+            {/* Communication History Premium */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl blur opacity-10 group-hover:opacity-20 transition duration-500"></div>
+              <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30">
+                <div className="p-8">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
+                      <ChatBubbleLeftRightIcon className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      Riwayat Komunikasi
+                    </h3>
+                  </div>
+                  {complaint.complaint_responses && complaint.complaint_responses.filter(r => !r.is_internal).length > 0 ? (
+                    <div className="space-y-6">
+                      {complaint.complaint_responses
+                        .filter(response => !response.is_internal) // <-- Filter penting: jangan tampilkan catatan internal
+                        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                        .map((response) => {
+                          
+                          // --- TAMPILAN 1: Balasan Pelanggan (ANDA) ---
+                          // (Layout KANAN, Sesuai WA)
+                          if (!response.admin_name) {
+                            return (
+                              <div key={response.id} className="flex gap-3 w-full flex-row-reverse">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-1
+                                                bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md">
+                                  <UserIcon className="h-5 w-5" />
+                                </div>
+                                <div className="max-w-xl rounded-2xl p-4
+                                              bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/40 dark:to-teal-900/40 
+                                              border-2 border-emerald-200 dark:border-emerald-800 shadow-md">
+                                  {/* Header: Badge Customer + Nama + Tanggal */}
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
+                                      <UserIcon className="h-3 w-3" />
+                                      Anda
+                                    </span>
+                                    <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                      {complaint.customer_name}
+                                    </span>
+                                    <span className="text-xs text-gray-600 dark:text-gray-400 ml-auto">
+                                      {formatDateShort(response.created_at)}
+                                    </span>
+                                  </div>
+                                  {/* Isi Pesan */}
+                                  <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                                    {response.message}
+                                  </p>
+                                  
+                                  {/* Footer "Terkirim" (Tidak Berubah) */}
+                                  <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-emerald-200 dark:border-emerald-800">
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                                      {formatTime(response.created_at)}
+                                    </span>
+                                    <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                      <span className="font-medium">Terkirim</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex-grow"></div>
+                              </div>
+                            );
+                          }
+
+                          // --- TAMPILAN 2: Balasan Admin PUBLIC (ADMIN) ---
+                          // (Layout KIRI, Sesuai WA)
+                          return (
+                            <div key={response.id} className="flex gap-3 w-full flex-row">
+                              <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-1
+                                              bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-md">
+                                <ShieldCheckIcon className="h-5 w-5" />
+                              </div>
+                              <div className="max-w-xl rounded-2xl p-4
+                                            bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 
+                                            border-2 border-blue-200 dark:border-blue-800 shadow-md">
+                                {/* Header: Badge Public + Admin + Nama + Tanggal */}
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
+                                    <ShieldCheckIcon className="h-3 w-3" />
+                                    Admin
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-semibold rounded-md border border-green-300 dark:border-green-700">
+                                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                    Public
+                                  </span>
+                                  <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                    {response.admin_name}
+                                  </span>
+                                  <span className="text-xs text-gray-600 dark:text-gray-400 ml-auto">
+                                    {formatDateShort(response.created_at)}
+                                  </span>
+                                </div>
+                                {/* Isi Pesan */}
+                                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                                  {response.message}
+                                </p>
+                                
+                                {/* === FOOTER DIPERBAIKI DI SINI === */}
+                                <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                                    {formatTime(response.created_at)}
+                                  </span>
+                                  {/* Badge "Terkirim" sudah dihapus dari sini */}
+                                </div>
+                                {/* === AKHIR PERBAIKAN FOOTER === */}
+
+                              </div>
+                              <div className="flex-grow"></div>
+                            </div>
+                          );
+
+                        })}
+                    </div>
+                  ) : (
+                    // Placeholder (Sesuai Admin UI)
+                    <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl bg-gray-50/50 dark:bg-gray-700/20">
+                      <ChatBubbleLeftRightIcon className="h-14 w-14 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                      <h4 className="font-bold text-gray-700 dark:text-gray-300 text-lg mb-2">Belum Ada Riwayat</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Semua balasan dari tim kami akan muncul di sini.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {/* === 🎨 PERUBAHAN UI SELESAI DI SINI 🎨 === */}
+            {/* ======================================================== */}
+
+
+            {/* Detail Info Premium (Tidak ada perubahan) */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-3xl blur opacity-10 group-hover:opacity-20 transition duration-500"></div>
+              <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30">
+                <div className="p-8">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl">
+                      <InformationCircleIcon className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      Detail Komplain
+                    </h3>
+                  </div>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
+                      <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">Nama Pelanggan</dt>
+                      <dd className="text-base font-semibold text-gray-900 dark:text-white">{complaint.customer_name}</dd>
+                    </div>
+                    <div className="p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
+                      <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">Email</dt>
+                      <dd className="text-base font-semibold text-gray-900 dark:text-white">{complaint.customer_email || '-'}</dd>
+                    </div>
+                    <div className="p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
+      
+                      <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">WhatsApp</dt>
+                      <dd className="text-base font-semibold text-gray-900 dark:text-white">{complaint.customer_phone || '-'}</dd>
+                    </div>
+                    <div className="p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
+                      <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">Tanggal Lapor</dt>
+                      <dd className="text-base font-semibold text-gray-900 dark:text-white">{formatDateTimeFull(complaint.created_at)}</dd>
+                    </div>
+                    <div className="p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
+                      <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">Terakhir Diperbarui</dt>
+                      <dd className="text-base font-semibold text-gray-900 dark:text-white">{formatDateTimeFull(complaint.updated_at)}</dd>
+                    </div>
+
+                    {(complaint.complaint_category_name || complaint.complaint_subcategory_name || complaint.complaint_case_type_name) && (
+                      <div className="sm:col-span-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Kategori Komplain - Produk {complaint.related_product_name || '-'}</dt>
+                        <dd className="space-y-1 text-sm text-gray-900 dark:text-white">
+                          <p>
+                            <span className="font-medium">Kategori:</span> {complaint.complaint_category_name || '-'}
+                          </p>
+                          <p>
+                            <span className="font-medium">Sub-Kategori:</span> {complaint.complaint_subcategory_name || '-'}
+                          </p>
+                          <p>
+                            <span className="font-medium">Tipe Kasus:</span> {complaint.complaint_case_type_name || '-'}
+                          </p>
+                        </dd>
+                      </div>
+                    )}
+
+                    <div className="sm:col-span-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Subjek</dt>
+                      <dd className="text-base font-bold text-gray-900 dark:text-white">{complaint.subject}</dd>
+                    </div>
+                    <div className="sm:col-span-2 p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
+                      <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Deskripsi</dt>
+                      <dd className="text-base text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                        {complaint.description}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
+            {/* Rating Card Premium (Tidak ada perubahan) */}
+            {(complaint.status === 'resolved' || complaint.status === 'closed') && (
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl blur opacity-20 group-hover:opacity-30 transition duration-500"></div>
+                <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30">
+                  <div className="p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl">
+                        <StarIcon className="h-6 w-6 text-white" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        Feedback Anda
+                      </h3>
+                    </div>
+                    {complaint.customer_satisfaction_rating ? (
+                      <div>
+                        <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">Rating Kepuasan</dt>
+                        <dd className="flex items-center gap-2 mb-6">
+                          {[...Array(5)].map((_, i) => (
+                            <StarIcon
+                              key={i}
+                              className={`h-8 w-8 transition-all duration-300 hover:scale-110 ${
+                                i < (complaint.customer_satisfaction_rating || 0)
+                                  ? 'text-yellow-400 fill-yellow-400 drop-shadow-lg'
+                                  : 'text-gray-300 dark:text-gray-600'
+                              }`}
+                            />
+                          ))}
+                        </dd>
+                        {complaint.customer_feedback && (
+                          <div className="p-5 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
+                            <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Ulasan</dt>
+                            <dd className="text-base text-gray-700 dark:text-gray-300 italic leading-relaxed">
+                              "{complaint.customer_feedback}"
+                            </dd>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl bg-gray-50/50 dark:bg-gray-700/20">
+                        <InformationCircleIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Anda belum memberikan feedback untuk komplain ini.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Help Section Premium (Tidak ada perubahan) */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl blur opacity-20 group-hover:opacity-30 transition duration-500"></div>
+              <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
+                <div className="relative p-8 text-center">
+                  <div className="flex justify-center mb-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur-xl opacity-50"></div>
+                      <div className="relative p-4 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl">
+                        <ChatBubbleLeftRightIcon className="h-10 w-10 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                    Butuh Bantuan Lebih Lanjut?
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto leading-relaxed">
+                    Jika Anda memiliki pertanyaan tambahan mengenai komplain ini, tim customer care kami siap membantu Anda.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    {complaint && (
+                      <a
+                        href={`mailto:${process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'cs@advantaindonesia.com'}?subject=Komplain ${complaint.complaint_number}`}
+                        className="group inline-flex items-center justify-center gap-3 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-2xl hover:shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:-translate-y-0.5"
+                      >
+                        <ChatBubbleLeftRightIcon className="h-5 w-5 transition-transform group-hover:scale-110" />
+                        Email Customer Care
+                      </a>
+                    )}
+                    <Link
+                      href="/complaint"
+                      className="group inline-flex items-center justify-center gap-3 px-6 py-3.5 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300 transform hover:-translate-y-0.5"
+                    >
+                      <PaperAirplaneIcon className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                      Ajukan Komplain Baru
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
-        </div>
-      </div>
+        )}
+      </main>
     </div>
   );
 }

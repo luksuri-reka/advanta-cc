@@ -1,4 +1,4 @@
-// app/complaint/ComplaintForm.tsx
+// app/complaint/ComplaintForm.tsx - Updated with 3 Level Categories
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr'; 
@@ -14,7 +14,8 @@ import {
   PhoneIcon,
   ChatBubbleLeftRightIcon,
   MapPinIcon,
-  PhotoIcon
+  PhotoIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -25,49 +26,55 @@ interface ComplaintFormData {
   customer_province: string;
   customer_city: string;
   customer_address: string;
-  complaint_type: string;
+  // 3 Level Category Fields
+  complaint_category_id: string;
+  complaint_category_name: string;
+  complaint_subcategory_id: string;
+  complaint_subcategory_name: string;
+  complaint_case_type_id: string;
+  complaint_case_type_name: string;
+  // Legacy field (optional, bisa dihapus nanti)
+  complaint_type?: string;
   subject: string;
   description: string;
   related_product_serial?: string;
   related_product_name?: string;
 }
 
+interface CategorySelection {
+  categoryId: string;
+  categoryName: string;
+  subCategoryId: string;
+  subCategoryName: string;
+  caseTypeId: string;
+  caseTypeName: string;
+}
+
+interface CaseType {
+  id: string;
+  name: string;
+}
+
+interface SubCategory {
+  id: string;
+  name: string;
+  caseTypes: CaseType[];
+}
+
+interface ComplaintCategory {
+  id: string;
+  name: string;
+  description: string;
+  auto_assign_department?: string;
+  subCategories: SubCategory[];
+}
+
 // Data provinsi dan kabupaten/kota Indonesia
 const LOCATION_DATA: Record<string, string[]> = {
   'Aceh': ['Banda Aceh', 'Langsa', 'Lhokseumawe', 'Sabang', 'Subulussalam', 'Aceh Barat', 'Aceh Barat Daya', 'Aceh Besar', 'Aceh Jaya', 'Aceh Selatan', 'Aceh Singkil', 'Aceh Tamiang', 'Aceh Tengah', 'Aceh Tenggara', 'Aceh Timur', 'Aceh Utara', 'Bener Meriah', 'Bireuen', 'Gayo Lues', 'Nagan Raya', 'Pidie', 'Pidie Jaya', 'Simeulue'],
-  'Sumatera Utara': ['Medan', 'Binjai', 'Padang Sidempuan', 'Pematang Siantar', 'Sibolga', 'Tanjung Balai', 'Tebing Tinggi', 'Asahan', 'Batubara', 'Dairi', 'Deli Serdang', 'Humbang Hasundutan', 'Karo', 'Labuhanbatu', 'Labuhanbatu Selatan', 'Labuhanbatu Utara', 'Langkat', 'Mandailing Natal', 'Nias', 'Nias Barat', 'Nias Selatan', 'Nias Utara', 'Padang Lawas', 'Padang Lawas Utara', 'Pakpak Bharat', 'Samosir', 'Serdang Bedagai', 'Simalungun', 'Tapanuli Selatan', 'Tapanuli Tengah', 'Tapanuli Utara', 'Toba Samosir'],
-  'Sumatera Barat': ['Padang', 'Bukittinggi', 'Padang Panjang', 'Pariaman', 'Payakumbuh', 'Sawahlunto', 'Solok', 'Agam', 'Dharmasraya', 'Kepulauan Mentawai', 'Lima Puluh Kota', 'Padang Pariaman', 'Pasaman', 'Pasaman Barat', 'Pesisir Selatan', 'Sijunjung', 'Solok', 'Solok Selatan', 'Tanah Datar'],
-  'Riau': ['Pekanbaru', 'Dumai', 'Bengkalis', 'Indragiri Hilir', 'Indragiri Hulu', 'Kampar', 'Kepulauan Meranti', 'Kuantan Singingi', 'Pelalawan', 'Rokan Hilir', 'Rokan Hulu', 'Siak'],
-  'Jambi': ['Jambi', 'Sungai Penuh', 'Batang Hari', 'Bungo', 'Kerinci', 'Merangin', 'Muaro Jambi', 'Sarolangun', 'Tanjung Jabung Barat', 'Tanjung Jabung Timur', 'Tebo'],
-  'Sumatera Selatan': ['Palembang', 'Lubuklinggau', 'Pagar Alam', 'Prabumulih', 'Banyuasin', 'Empat Lawang', 'Lahat', 'Muara Enim', 'Musi Banyuasin', 'Musi Rawas', 'Musi Rawas Utara', 'Ogan Ilir', 'Ogan Komering Ilir', 'Ogan Komering Ulu', 'Ogan Komering Ulu Selatan', 'Ogan Komering Ulu Timur', 'Penukal Abab Lematang Ilir'],
-  'Bengkulu': ['Bengkulu', 'Bengkulu Selatan', 'Bengkulu Tengah', 'Bengkulu Utara', 'Kaur', 'Kepahiang', 'Lebong', 'Mukomuko', 'Rejang Lebong', 'Seluma'],
-  'Lampung': ['Bandar Lampung', 'Metro', 'Lampung Barat', 'Lampung Selatan', 'Lampung Tengah', 'Lampung Timur', 'Lampung Utara', 'Mesuji', 'Pesawaran', 'Pesisir Barat', 'Pringsewu', 'Tanggamus', 'Tulang Bawang', 'Tulang Bawang Barat', 'Way Kanan'],
-  'Kepulauan Bangka Belitung': ['Pangkal Pinang', 'Bangka', 'Bangka Barat', 'Bangka Selatan', 'Bangka Tengah', 'Belitung', 'Belitung Timur'],
-  'Kepulauan Riau': ['Batam', 'Tanjung Pinang', 'Bintan', 'Karimun', 'Kepulauan Anambas', 'Lingga', 'Natuna'],
-  'DKI Jakarta': ['Jakarta Barat', 'Jakarta Pusat', 'Jakarta Selatan', 'Jakarta Timur', 'Jakarta Utara', 'Kepulauan Seribu'],
-  'Jawa Barat': ['Bandung', 'Bekasi', 'Bogor', 'Cimahi', 'Cirebon', 'Depok', 'Sukabumi', 'Tasikmalaya', 'Banjar', 'Bandung', 'Bandung Barat', 'Bekasi', 'Bogor', 'Ciamis', 'Cianjur', 'Cirebon', 'Garut', 'Indramayu', 'Karawang', 'Kuningan', 'Majalengka', 'Pangandaran', 'Purwakarta', 'Subang', 'Sukabumi', 'Sumedang', 'Tasikmalaya'],
-  'Jawa Tengah': ['Magelang', 'Pekalongan', 'Salatiga', 'Semarang', 'Surakarta', 'Tegal', 'Banjarnegara', 'Banyumas', 'Batang', 'Blora', 'Boyolali', 'Brebes', 'Cilacap', 'Demak', 'Grobogan', 'Jepara', 'Karanganyar', 'Kebumen', 'Kendal', 'Klaten', 'Kudus', 'Magelang', 'Pati', 'Pekalongan', 'Pemalang', 'Purbalingga', 'Purworejo', 'Rembang', 'Semarang', 'Sragen', 'Sukoharjo', 'Tegal', 'Temanggung', 'Wonogiri', 'Wonosobo'],
-  'DI Yogyakarta': ['Yogyakarta', 'Bantul', 'Gunung Kidul', 'Kulon Progo', 'Sleman'],
-  'Jawa Timur': ['Batu', 'Blitar', 'Kediri', 'Madiun', 'Malang', 'Mojokerto', 'Pasuruan', 'Probolinggo', 'Surabaya', 'Bangkalan', 'Banyuwangi', 'Blitar', 'Bojonegoro', 'Bondowoso', 'Gresik', 'Jember', 'Jombang', 'Kediri', 'Lamongan', 'Lumajang', 'Madiun', 'Magetan', 'Malang', 'Mojokerto', 'Nganjuk', 'Ngawi', 'Pacitan', 'Pamekasan', 'Pasuruan', 'Ponorogo', 'Probolinggo', 'Sampang', 'Sidoarjo', 'Situbondo', 'Sumenep', 'Trenggalek', 'Tuban', 'Tulungagung'],
-  'Banten': ['Cilegon', 'Serang', 'Tangerang', 'Tangerang Selatan', 'Lebak', 'Pandeglang', 'Serang', 'Tangerang'],
-  'Bali': ['Denpasar', 'Badung', 'Bangli', 'Buleleng', 'Gianyar', 'Jembrana', 'Karangasem', 'Klungkung', 'Tabanan'],
-  'Nusa Tenggara Barat': ['Bima', 'Mataram', 'Bima', 'Dompu', 'Lombok Barat', 'Lombok Tengah', 'Lombok Timur', 'Lombok Utara', 'Sumbawa', 'Sumbawa Barat'],
-  'Nusa Tenggara Timur': ['Kupang', 'Alor', 'Belu', 'Ende', 'Flores Timur', 'Kupang', 'Lembata', 'Malaka', 'Manggarai', 'Manggarai Barat', 'Manggarai Timur', 'Nagekeo', 'Ngada', 'Rote Ndao', 'Sabu Raijua', 'Sikka', 'Sumba Barat', 'Sumba Barat Daya', 'Sumba Tengah', 'Sumba Timur', 'Timor Tengah Selatan', 'Timor Tengah Utara'],
-  'Kalimantan Barat': ['Pontianak', 'Singkawang', 'Bengkayang', 'Kapuas Hulu', 'Kayong Utara', 'Ketapang', 'Kubu Raya', 'Landak', 'Melawi', 'Mempawah', 'Sambas', 'Sanggau', 'Sekadau', 'Sintang'],
-  'Kalimantan Tengah': ['Palangka Raya', 'Barito Selatan', 'Barito Timur', 'Barito Utara', 'Gunung Mas', 'Kapuas', 'Katingan', 'Kotawaringin Barat', 'Kotawaringin Timur', 'Lamandau', 'Murung Raya', 'Pulang Pisau', 'Seruyan', 'Sukamara'],
-  'Kalimantan Selatan': ['Banjarbaru', 'Banjarmasin', 'Balangan', 'Banjar', 'Barito Kuala', 'Hulu Sungai Selatan', 'Hulu Sungai Tengah', 'Hulu Sungai Utara', 'Kotabaru', 'Tabalong', 'Tanah Bumbu', 'Tanah Laut', 'Tapin'],
-  'Kalimantan Timur': ['Balikpapan', 'Bontang', 'Samarinda', 'Berau', 'Kutai Barat', 'Kutai Kartanegara', 'Kutai Timur', 'Mahakam Ulu', 'Paser', 'Penajam Paser Utara'],
-  'Kalimantan Utara': ['Tarakan', 'Bulungan', 'Malinau', 'Nunukan', 'Tana Tidung'],
-  'Sulawesi Utara': ['Bitung', 'Kotamobagu', 'Manado', 'Tomohon', 'Bolaang Mongondow', 'Bolaang Mongondow Selatan', 'Bolaang Mongondow Timur', 'Bolaang Mongondow Utara', 'Kepulauan Sangihe', 'Kepulauan Siau Tagulandang Biaro', 'Kepulauan Talaud', 'Minahasa', 'Minahasa Selatan', 'Minahasa Tenggara', 'Minahasa Utara'],
-  'Sulawesi Tengah': ['Palu', 'Banggai', 'Banggai Kepulauan', 'Banggai Laut', 'Buol', 'Donggala', 'Morowali', 'Morowali Utara', 'Parigi Moutong', 'Poso', 'Sigi', 'Tojo Una-Una', 'Toli-Toli'],
-  'Sulawesi Selatan': ['Makassar', 'Palopo', 'Parepare', 'Bantaeng', 'Barru', 'Bone', 'Bulukumba', 'Enrekang', 'Gowa', 'Jeneponto', 'Kepulauan Selayar', 'Luwu', 'Luwu Timur', 'Luwu Utara', 'Maros', 'Pangkajene dan Kepulauan', 'Pinrang', 'Sidenreng Rappang', 'Sinjai', 'Soppeng', 'Takalar', 'Tana Toraja', 'Toraja Utara', 'Wajo'],
-  'Sulawesi Tenggara': ['Bau-Bau', 'Kendari', 'Bombana', 'Buton', 'Buton Selatan', 'Buton Tengah', 'Buton Utara', 'Kolaka', 'Kolaka Timur', 'Kolaka Utara', 'Konawe', 'Konawe Kepulauan', 'Konawe Selatan', 'Konawe Utara', 'Muna', 'Muna Barat', 'Wakatobi'],
-  'Gorontalo': ['Gorontalo', 'Boalemo', 'Bone Bolango', 'Gorontalo', 'Gorontalo Utara', 'Pohuwato'],
-  'Sulawesi Barat': ['Majene', 'Mamasa', 'Mamuju', 'Mamuju Tengah', 'Mamuju Utara', 'Polewali Mandar'],
-  'Maluku': ['Ambon', 'Tual', 'Buru', 'Buru Selatan', 'Kepulauan Aru', 'Maluku Barat Daya', 'Maluku Tengah', 'Maluku Tenggara', 'Maluku Tenggara Barat', 'Seram Bagian Barat', 'Seram Bagian Timur'],
-  'Maluku Utara': ['Ternate', 'Tidore Kepulauan', 'Halmahera Barat', 'Halmahera Selatan', 'Halmahera Tengah', 'Halmahera Timur', 'Halmahera Utara', 'Kepulauan Sula', 'Pulau Morotai', 'Pulau Taliabu'],
-  'Papua Barat': ['Sorong', 'Fakfak', 'Kaimana', 'Manokwari', 'Manokwari Selatan', 'Maybrat', 'Pegunungan Arfak', 'Raja Ampat', 'Sorong', 'Sorong Selatan', 'Tambraw', 'Teluk Bintuni', 'Teluk Wondama'],
-  'Papua': ['Jayapura', 'Asmat', 'Biak Numfor', 'Boven Digoel', 'Deiyai', 'Dogiyai', 'Intan Jaya', 'Jayapura', 'Jayawijaya', 'Keerom', 'Kepulauan Yapen', 'Lanny Jaya', 'Mamberamo Raya', 'Mamberamo Tengah', 'Mappi', 'Merauke', 'Mimika', 'Nabire', 'Nduga', 'Paniai', 'Pegunungan Bintang', 'Puncak', 'Puncak Jaya', 'Sarmi', 'Supiori', 'Tolikara', 'Waropen', 'Yahukimo', 'Yalimo']
+  'Jawa Barat': ['Bandung', 'Bekasi', 'Bogor', 'Cimahi', 'Cirebon', 'Depok', 'Sukabumi', 'Tasikmalaya', 'Banjar', 'Bandung Barat', 'Ciamis', 'Cianjur', 'Garut', 'Indramayu', 'Karawang', 'Kuningan', 'Majalengka', 'Pangandaran', 'Purwakarta', 'Subang', 'Sumedang'],
+  'Jawa Tengah': ['Magelang', 'Pekalongan', 'Salatiga', 'Semarang', 'Surakarta', 'Tegal', 'Banjarnegara', 'Banyumas', 'Batang', 'Blora', 'Boyolali', 'Brebes', 'Cilacap', 'Demak', 'Grobogan', 'Jepara', 'Karanganyar', 'Kebumen', 'Kendal', 'Klaten', 'Kudus', 'Pati', 'Pemalang', 'Purbalingga', 'Purworejo', 'Rembang', 'Sragen', 'Sukoharjo', 'Temanggung', 'Wonogiri', 'Wonosobo'],
+  'Jawa Timur': ['Batu', 'Blitar', 'Kediri', 'Madiun', 'Malang', 'Mojokerto', 'Pasuruan', 'Probolinggo', 'Surabaya', 'Bangkalan', 'Banyuwangi', 'Bojonegoro', 'Bondowoso', 'Gresik', 'Jember', 'Jombang', 'Lamongan', 'Lumajang', 'Magetan', 'Nganjuk', 'Ngawi', 'Pacitan', 'Pamekasan', 'Ponorogo', 'Sampang', 'Sidoarjo', 'Situbondo', 'Sumenep', 'Trenggalek', 'Tuban', 'Tulungagung'],
 };
 
 export default function ComplaintForm() {
@@ -94,9 +101,16 @@ export default function ComplaintForm() {
   const customerEmail = searchParams?.get('email') || '';
   const customerPhone = searchParams?.get('phone') || '';
   
-  // ++ TAMBAHKAN: State untuk foto produk ++
   const [productPhoto, setProductPhoto] = useState<string>('');
   const [photoLoading, setPhotoLoading] = useState(false);
+  
+  // State untuk 3 Level Categories
+  const [categories, setCategories] = useState<ComplaintCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
+  const [selectedCaseTypeId, setSelectedCaseTypeId] = useState('');
+  const [categoryError, setCategoryError] = useState('');
   
   const [formData, setFormData] = useState<ComplaintFormData>({
     customer_name: customerName,
@@ -105,7 +119,12 @@ export default function ComplaintForm() {
     customer_province: '',
     customer_city: '',
     customer_address: '',
-    complaint_type: 'other',
+    complaint_category_id: '',
+    complaint_category_name: '',
+    complaint_subcategory_id: '',
+    complaint_subcategory_name: '',
+    complaint_case_type_id: '',
+    complaint_case_type_name: '',
     subject: '',
     description: '',
     related_product_serial: serial || lot,
@@ -114,11 +133,14 @@ export default function ComplaintForm() {
 
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
+  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
+  const selectedSubCategory = selectedCategory?.subCategories.find(s => s.id === selectedSubCategoryId);
+
   useEffect(() => {
     setMounted(true);
+    loadCategories();
   }, []);
 
-  // ++ UBAH: useEffect untuk fetch nama produk DAN foto ++
   useEffect(() => {
     if (mounted && productId) {
       const fetchProductData = async () => {
@@ -153,15 +175,68 @@ export default function ComplaintForm() {
     }
   }, [formData.customer_province]);
 
-  const complaintTypes = [
-    { value: 'product_defect', label: 'Cacat Produk' },
-    { value: 'packaging_issue', label: 'Masalah Kemasan' },
-    { value: 'performance_issue', label: 'Masalah Performa Produk' },
-    { value: 'labeling_issue', label: 'Masalah Label' },
-    { value: 'delivery_issue', label: 'Masalah Pengiriman' },
-    { value: 'customer_service', label: 'Layanan Pelanggan' },
-    { value: 'other', label: 'Lainnya' }
-  ];
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('/api/complaint-settings/categories');
+      const data = await response.json();
+      if (data.success && data.data) {
+        setCategories(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    setSelectedSubCategoryId('');
+    setSelectedCaseTypeId('');
+    setFormData(prev => ({
+      ...prev,
+      complaint_category_id: '',
+      complaint_category_name: '',
+      complaint_subcategory_id: '',
+      complaint_subcategory_name: '',
+      complaint_case_type_id: '',
+      complaint_case_type_name: ''
+    }));
+    setCategoryError('');
+  };
+
+  const handleSubCategoryChange = (subCategoryId: string) => {
+    setSelectedSubCategoryId(subCategoryId);
+    setSelectedCaseTypeId('');
+    setFormData(prev => ({
+      ...prev,
+      complaint_subcategory_id: '',
+      complaint_subcategory_name: '',
+      complaint_case_type_id: '',
+      complaint_case_type_name: ''
+    }));
+  };
+
+  const handleCaseTypeChange = (caseTypeId: string) => {
+    setSelectedCaseTypeId(caseTypeId);
+    
+    const category = categories.find(c => c.id === selectedCategoryId);
+    const subCategory = category?.subCategories.find(s => s.id === selectedSubCategoryId);
+    const caseType = subCategory?.caseTypes.find(ct => ct.id === caseTypeId);
+
+    if (category && subCategory && caseType) {
+      setFormData(prev => ({
+        ...prev,
+        complaint_category_id: category.id,
+        complaint_category_name: category.name,
+        complaint_subcategory_id: subCategory.id,
+        complaint_subcategory_name: subCategory.name,
+        complaint_case_type_id: caseType.id,
+        complaint_case_type_name: caseType.name
+      }));
+      setCategoryError('');
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -170,6 +245,13 @@ export default function ComplaintForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validasi kategori 3 level
+    if (!formData.complaint_category_id || !formData.complaint_subcategory_id || !formData.complaint_case_type_id) {
+      setCategoryError('Silakan pilih kategori, sub-kategori, dan jenis kasus komplain');
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -447,10 +529,9 @@ export default function ComplaintForm() {
                   </div>
                 </div>
 
-                {/* ++ TAMBAHKAN: Product Info Card dengan Foto - ENHANCED SIZE ++ */}
+                {/* Product Info Card dengan Foto */}
                 {(formData.related_product_serial || formData.related_product_name) && (
                   <div className="relative bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-900/20 dark:via-slate-800 dark:to-emerald-900/10 rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 dark:border-emerald-800 shadow-lg hover:shadow-xl transition-all duration-300">
-                    {/* Decorative Corner Elements */}
                     <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/10 to-transparent rounded-bl-full"></div>
                     <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-emerald-400/10 to-transparent rounded-tr-full"></div>
                     
@@ -460,19 +541,16 @@ export default function ComplaintForm() {
                         Produk Terkait
                       </h4>
                       
-                      {/* Product Photo Display - LARGER & MORE PROMINENT */}
                       {photoLoading ? (
                         <div className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse rounded-2xl mb-4 shadow-inner"></div>
                       ) : productPhoto ? (
                         <div className="group relative w-full mb-4 rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-xl hover:shadow-2xl transition-all duration-300 border-2 border-emerald-300 dark:border-emerald-700 hover:border-emerald-400 dark:hover:border-emerald-600">
-                          {/* Aspect Ratio Container for better responsiveness */}
                           <div className="relative aspect-[4/3] sm:aspect-video w-full">
                             <img 
                               src={productPhoto} 
                               alt={formData.related_product_name || 'Produk'}
                               className="absolute inset-0 w-full h-full object-contain p-4 sm:p-6 transition-transform duration-300 group-hover:scale-105"
                             />
-                            {/* Subtle gradient overlay on hover */}
                             <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                           </div>
                         </div>
@@ -489,7 +567,6 @@ export default function ComplaintForm() {
                         </div>
                       )}
                       
-                      {/* Product Info with Enhanced Styling */}
                       <div className="space-y-3 bg-white/50 dark:bg-slate-900/30 rounded-xl p-4 backdrop-blur-sm border border-emerald-100 dark:border-emerald-900">
                         {formData.related_product_name && (
                           <div className="flex items-start gap-3">
@@ -527,23 +604,138 @@ export default function ComplaintForm() {
                   Detail Komplain
                 </h3>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Jenis Komplain *
-                  </label>
-                  <select
-                    name="complaint_type"
-                    value={formData.complaint_type}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors"
-                  >
-                    {complaintTypes.map(type => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
+                {/* 3 Level Category Selector */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TagIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100">Kategori Komplain</h4>
+                  </div>
+
+                  {categoriesLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2"></div>
+                          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      {/* Level 1: Kategori */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                          Kategori *
+                          <span className="ml-2 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 rounded text-xs font-bold">
+                            Level 1
+                          </span>
+                        </label>
+                        <select
+                          value={selectedCategoryId}
+                          onChange={(e) => handleCategoryChange(e.target.value)}
+                          required
+                          className="w-full px-4 py-3 border-2 border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-all"
+                        >
+                          <option value="">-- Pilih Kategori --</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedCategory && (
+                          <p className="text-xs text-gray-600 dark:text-slate-400 mt-1.5 ml-1">
+                            {selectedCategory.description}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Level 2: Sub-Kategori */}
+                      {selectedCategoryId && (
+                        <div className="pl-4 border-l-4 border-blue-300 dark:border-blue-700">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                            Sub-Kategori *
+                            <span className="ml-2 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs font-bold">
+                              Level 2
+                            </span>
+                          </label>
+                          <select
+                            value={selectedSubCategoryId}
+                            onChange={(e) => handleSubCategoryChange(e.target.value)}
+                            required
+                            className="w-full px-4 py-3 border-2 border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-all"
+                          >
+                            <option value="">-- Pilih Sub-Kategori --</option>
+                            {selectedCategory?.subCategories.map((subCategory) => (
+                              <option key={subCategory.id} value={subCategory.id}>
+                                {subCategory.name} ({subCategory.caseTypes.length} tipe)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Level 3: Jenis Kasus */}
+                      {selectedSubCategoryId && (
+                        <div className="pl-8 border-l-4 border-purple-300 dark:border-purple-700">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                            Jenis Kasus / Tipe Masalah *
+                            <span className="ml-2 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded text-xs font-bold">
+                              Level 3
+                            </span>
+                          </label>
+                          <select
+                            value={selectedCaseTypeId}
+                            onChange={(e) => handleCaseTypeChange(e.target.value)}
+                            required
+                            className="w-full px-4 py-3 border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-purple-500 dark:focus:border-purple-400 transition-all"
+                          >
+                            <option value="">-- Pilih Jenis Kasus --</option>
+                            {selectedSubCategory?.caseTypes.map((caseType) => (
+                              <option key={caseType.id} value={caseType.id}>
+                                {caseType.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {categoryError && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {categoryError}
+                        </p>
+                      )}
+
+                      {/* Summary Selection */}
+                      {selectedCategoryId && selectedSubCategoryId && selectedCaseTypeId && (
+                        <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-xl border-2 border-emerald-200 dark:border-emerald-800">
+                          <p className="text-xs font-bold text-gray-700 dark:text-slate-300 mb-2">
+                            Kategori yang dipilih:
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold">
+                              {selectedCategory?.name}
+                            </span>
+                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg text-sm font-bold">
+                              {selectedSubCategory?.name}
+                            </span>
+                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <span className="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 rounded-lg text-sm font-bold">
+                              {selectedSubCategory?.caseTypes.find(ct => ct.id === selectedCaseTypeId)?.name}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div>
@@ -570,7 +762,7 @@ export default function ComplaintForm() {
                     value={formData.description}
                     onChange={handleChange}
                     required
-                    rows={10}
+                    rows={8}
                     className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors resize-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="Jelaskan masalah Anda secara detail. Sertakan informasi seperti kapan masalah terjadi, langkah-langkah yang sudah dilakukan, dan dampak yang dialami."
                   />

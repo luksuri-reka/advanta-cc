@@ -3,8 +3,7 @@ import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-// --- FUNGSI HELPER BARU ---
-// (Fungsi ini sudah benar, tidak perlu diubah)
+// --- FUNGSI HELPER ---
 async function getUserProfile(supabase: SupabaseClient, userId: string | null) {
   if (!userId) return null;
   
@@ -30,7 +29,7 @@ async function getUserProfile(supabase: SupabaseClient, userId: string | null) {
   }
 }
 
-// --- FUNGSI GET UTAMA (YANG DIPERBARUI) ---
+// --- GET COMPLAINT BY ID ---
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -39,7 +38,6 @@ export async function GET(
     const { id } = await params;
     const supabase = await createClient();
 
-    // --- LANGKAH 1: Ambil data keluhan utama (query sederhana) ---
     const { data: complaint, error: complaintError } = await supabase
       .from('complaints')
       .select(`
@@ -61,7 +59,6 @@ export async function GET(
       .single();
 
     if (complaintError) {
-      // INI ADALAH ERROR YANG ANDA LIHAT
       console.error("Error fetching base complaint:", complaintError.message); 
       return NextResponse.json({ error: complaintError.message }, { status: 500 });
     }
@@ -70,8 +67,6 @@ export async function GET(
       return NextResponse.json({ error: 'Komplain tidak ditemukan' }, { status: 404 });
     }
 
-    // --- LANGKAH 2: Ambil data pengguna secara manual ---
-    // (Ini sudah benar, tidak perlu diubah)
     const [
       assigned_to_user,
       assigned_by_user,
@@ -86,8 +81,6 @@ export async function GET(
       getUserProfile(supabase, complaint.created_by)
     ]);
 
-    // --- LANGKAH 3: Gabungkan data secara manual ---
-    // (Ini sudah benar, tidak perlu diubah)
     const finalComplaintData = {
       ...complaint,
       assigned_to_user,
@@ -97,10 +90,115 @@ export async function GET(
       created_by_user
     };
 
-    // --- LANGKAH 4: Kirim data yang sudah lengkap ---
     return NextResponse.json({ data: finalComplaintData });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// --- DELETE COMPLAINT ---
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check permissions
+    const roles = user.app_metadata?.roles || [];
+    const complaintPermissions = user.user_metadata?.complaint_permissions || {};
+    
+    const isSuperadmin = roles.includes('Superadmin') || roles.includes('superadmin');
+    const hasDeletePermission = complaintPermissions.canDeleteComplaints === true;
+
+    if (!isSuperadmin && !hasDeletePermission) {
+      return NextResponse.json({ error: 'Forbidden: No permission to delete' }, { status: 403 });
+    }
+
+    console.log(`Starting deletion process for complaint ID: ${id}`);
+
+    // Gunakan database function untuk cascade delete
+    const { data, error } = await supabase
+      .rpc('delete_complaint_with_cascade', {
+        complaint_id_param: parseInt(id)
+      });
+
+    if (error) {
+      console.error('Error calling delete function:', error);
+      return NextResponse.json({ 
+        error: 'Failed to delete complaint', 
+        details: error.message 
+      }, { status: 500 });
+    }
+
+    console.log('Delete result:', data);
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Complaint and all related data deleted successfully',
+      details: data
+    });
+
+  } catch (error: any) {
+    console.error('Delete API error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error.message 
+    }, { status: 500 });
+  }
+}
+
+// --- UPDATE COMPLAINT (Optional, if needed) ---
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    const body = await request.json();
+
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Update complaint
+    const { data, error } = await supabase
+      .from('complaints')
+      .update(body)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ 
+        error: 'Failed to update complaint', 
+        details: error.message 
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      data,
+      message: 'Complaint updated successfully' 
+    });
+
+  } catch (error: any) {
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error.message 
+    }, { status: 500 });
   }
 }
