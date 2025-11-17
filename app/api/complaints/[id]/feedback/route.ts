@@ -4,11 +4,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // 🔥 UBAH: params jadi Promise
 ) {
   try {
     const supabase = await createClient();
-    const complaintId = params.id;
+    
+    // 🔥 AWAIT params dulu
+    const { id } = await params;
+    const complaintId = id;
     
     const body = await request.json();
     const { rating, quick_answers = [], feedback, complaint_number } = body;
@@ -43,7 +46,10 @@ export async function POST(
       );
     }
 
-    // Log activity sebagai internal note
+    // Optional: Kirim email notifikasi ke admin tentang feedback baru
+    // await sendFeedbackNotificationEmail(complaint);
+
+    // Optional: Log activity
     try {
       await supabase.from('complaint_responses').insert({
         complaint_id: complaintId,
@@ -56,6 +62,7 @@ export async function POST(
       });
     } catch (logError) {
       console.error('Error logging feedback:', logError);
+      // Don't fail the main operation if logging fails
     }
 
     return NextResponse.json({

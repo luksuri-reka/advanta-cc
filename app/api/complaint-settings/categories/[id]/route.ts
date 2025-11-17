@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // 🔥 UBAH: params jadi Promise
 ) {
   try {
     const supabase = await createClient();
@@ -14,7 +14,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const categoryId = parseInt(params.id); // Gunakan ID dari URL
+    // 🔥 AWAIT params dulu
+    const { id } = await params;
+    const categoryId = parseInt(id);
     const category = await request.json();
 
     console.log('PUT Request:', { categoryId, categoryName: category.name });
@@ -119,7 +121,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // 🔥 UBAH: params jadi Promise
 ) {
   try {
     const supabase = await createClient();
@@ -129,7 +131,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const categoryId = params.id;
+    // 🔥 AWAIT params dulu
+    const { id } = await params;
+    const categoryId = id;
 
     // 1. Ambil semua sub-kategori dari kategori ini
     const { data: subCategories, error: subCatFetchError } = await supabase
