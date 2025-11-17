@@ -219,7 +219,8 @@ export default function ComplaintForm() {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('/api/complaint-settings/categories');
+      // 🔥 UBAH: Ganti ke endpoint public
+      const response = await fetch('/api/public/complaint-categories');
       const data = await response.json();
       if (data.success && data.data) {
         setCategories(data.data);
