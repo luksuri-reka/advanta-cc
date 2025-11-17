@@ -57,7 +57,10 @@ export default function ComplaintSettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'sla' | 'categories' | 'notifications' | 'templates'>('sla');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  
+  // --- State 'saving' dipecah untuk kejelasan ---
+  const [isSavingSettings, setIsSavingSettings] = useState(false); // Untuk tab SLA
+  const [isSavingCategory, setIsSavingCategory] = useState(false); // Untuk modal Kategori
 
   const [settings, setSettings] = useState<ComplaintSettings>({
     sla_response_time: 24,
@@ -233,6 +236,7 @@ export default function ComplaintSettingsPage() {
 
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ComplaintCategory | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [selectedSubCategoryIndex, setSelectedSubCategoryIndex] = useState<number | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
@@ -297,7 +301,7 @@ export default function ComplaintSettingsPage() {
   };
 
   const handleSaveSettings = async () => {
-    setSaving(true);
+    setIsSavingSettings(true);
     try {
       const response = await fetch('/api/complaint-settings/sla', {
         method: 'POST',
@@ -314,31 +318,7 @@ export default function ComplaintSettingsPage() {
       console.error('Error saving settings:', error);
       alert('Gagal menyimpan pengaturan');
     } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveCategories = async () => {
-    setSaving(true);
-    try {
-      const response = await fetch('/api/complaint-settings/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(categories)
-      });
-
-      if (response.ok) {
-        alert('Kategori berhasil disimpan!');
-        setShowCategoryForm(false);
-        setEditingCategory(null);
-      } else {
-        throw new Error('Failed to save categories');
-      }
-    } catch (error) {
-      console.error('Error saving categories:', error);
-      alert('Gagal menyimpan kategori');
-    } finally {
-      setSaving(false);
+      setIsSavingSettings(false);
     }
   };
 
@@ -352,19 +332,39 @@ export default function ComplaintSettingsPage() {
     };
     setEditingCategory(newCategory);
     setSelectedSubCategoryIndex(null);
+    setIsEditing(false); // Tambahkan ini
     setShowCategoryForm(true);
   };
 
   const handleEditCategory = (category: ComplaintCategory) => {
-    setEditingCategory(JSON.parse(JSON.stringify(category)));
-    setSelectedSubCategoryIndex(null);
-    setShowCategoryForm(true);
-  };
+  setEditingCategory(JSON.parse(JSON.stringify(category)));
+  setSelectedSubCategoryIndex(null);
+  setIsEditing(true); // Tambahkan ini
+  setShowCategoryForm(true);
+};
 
-  const handleDeleteCategory = (categoryId: string) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus kategori ini?')) {
-      setCategories(prev => prev.filter(c => c.id !== categoryId));
-      handleSaveCategories();
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus kategori ini? Operasi ini tidak dapat dibatalkan.')) {
+      setIsSavingCategory(true); // Tampilkan loading
+      try {
+        // API ini harus menangani penghapusan dari 3 tabel
+        const response = await fetch(`/api/complaint-settings/categories/${categoryId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          alert('Kategori berhasil dihapus!');
+          await loadSettings(); // <-- Muat ulang data dari server
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Gagal menghapus kategori');
+        }
+      } catch (error) {
+        console.error('Error deleting category:', error);
+        alert(`Gagal menghapus kategori: ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        setIsSavingCategory(false);
+      }
     }
   };
 
@@ -438,42 +438,64 @@ export default function ComplaintSettingsPage() {
     setExpandedCategories(newExpanded);
   };
 
-  const handleSaveCategoryForm = () => {
-    if (!editingCategory) return;
-    
-    if (!editingCategory.name || !editingCategory.description) {
-      alert('Nama dan deskripsi kategori wajib diisi');
+  const handleSaveCategoryForm = async () => {
+  if (!editingCategory) return;
+  
+  if (!editingCategory.name || !editingCategory.description) {
+    alert('Nama dan deskripsi kategori wajib diisi');
+    return;
+  }
+
+  for (const sub of editingCategory.subCategories) {
+    if (!sub.name) {
+      alert('Semua sub-kategori harus memiliki nama');
       return;
     }
-
-    for (const sub of editingCategory.subCategories) {
-      if (!sub.name) {
-        alert('Semua sub-kategori harus memiliki nama');
+    if (sub.caseTypes.length === 0) {
+      alert(`Sub-kategori "${sub.name}" harus memiliki minimal 1 jenis kasus`);
+      return;
+    }
+    for (const caseType of sub.caseTypes) {
+      if (!caseType.name) {
+        alert('Semua jenis kasus harus memiliki nama');
         return;
       }
-      if (sub.caseTypes.length === 0) {
-        alert(`Sub-kategori "${sub.name}" harus memiliki minimal 1 jenis kasus`);
-        return;
-      }
-      for (const caseType of sub.caseTypes) {
-        if (!caseType.name) {
-          alert('Semua jenis kasus harus memiliki nama');
-          return;
-        }
-      }
     }
+  }
 
-    const existingIndex = categories.findIndex(c => c.id === editingCategory.id);
-    if (existingIndex >= 0) {
-      const updated = [...categories];
-      updated[existingIndex] = editingCategory;
-      setCategories(updated);
-    } else {
-      setCategories([...categories, editingCategory]);
-    }
+  setIsSavingCategory(true);
+  try {
+    const url = isEditing
+      ? `/api/complaint-settings/categories/${editingCategory.id}`
+      : '/api/complaint-settings/categories';
     
-    handleSaveCategories();
-  };
+    const method = isEditing ? 'PUT' : 'POST';
+
+    console.log('Saving:', { isEditing, url, method, categoryId: editingCategory.id });
+
+    const response = await fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editingCategory)
+    });
+
+    if (response.ok) {
+      alert(isEditing ? 'Kategori berhasil diupdate!' : 'Kategori berhasil ditambahkan!');
+      setShowCategoryForm(false);
+      setEditingCategory(null);
+      setIsEditing(false);
+      await loadSettings();
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Gagal menyimpan kategori');
+    }
+  } catch (error) {
+    console.error('Error saving category:', error);
+    alert(`Gagal menyimpan kategori: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    setIsSavingCategory(false);
+  }
+};
 
   const handleLogout = async () => {
     await logout();
@@ -646,10 +668,10 @@ export default function ComplaintSettingsPage() {
                 <div className="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={handleSaveSettings}
-                    disabled={saving}
+                    disabled={isSavingSettings}
                     className="flex items-center gap-2 px-6 py-3 bg-emerald-600 dark:bg-emerald-700 text-white font-semibold rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-600 disabled:opacity-50 transition-colors"
                   >
-                    {saving ? (
+                    {isSavingSettings ? (
                       <>
                         <ArrowPathIcon className="h-5 w-5 animate-spin" />
                         Menyimpan...
@@ -674,9 +696,11 @@ export default function ComplaintSettingsPage() {
                   </div>
                   <button
                     onClick={handleAddCategory}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 dark:bg-emerald-700 text-white font-semibold rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-600 transition-colors"
+                    className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-emerald-700 dark:hover:from-emerald-700 dark:hover:to-emerald-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                   >
-                    <TagIcon className="h-5 w-5" />
+                    <svg className="w-5 h-5 transition-transform group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                    </svg>
                     Tambah Kategori
                   </button>
                 </div>
@@ -743,14 +767,20 @@ export default function ComplaintSettingsPage() {
                           <div className="flex gap-2 ml-4">
                             <button
                               onClick={() => handleEditCategory(category)}
-                              className="px-4 py-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors text-sm font-semibold"
+                              className="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-bold text-sm"
                             >
+                              <svg className="w-4 h-4 transition-transform group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
                               Edit
                             </button>
                             <button
                               onClick={() => handleDeleteCategory(category.id)}
-                              className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors text-sm font-semibold"
+                              className="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 text-white rounded-xl hover:from-red-600 hover:to-red-700 dark:hover:from-red-700 dark:hover:to-red-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-bold text-sm"
                             >
+                              <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
                               Hapus
                             </button>
                           </div>
@@ -1085,24 +1115,33 @@ export default function ComplaintSettingsPage() {
                               setShowCategoryForm(false);
                               setEditingCategory(null);
                               setSelectedSubCategoryIndex(null);
+                              setIsEditing(false);
                             }}
-                            className="px-6 py-2.5 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-2 border-gray-300 dark:border-gray-600"
+                            className="group flex items-center gap-2 px-8 py-3 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                           >
+                            <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                             Batal
                           </button>
                           <button
                             onClick={handleSaveCategoryForm}
-                            disabled={saving}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-700 dark:to-emerald-800 text-white font-bold rounded-xl hover:from-emerald-500 hover:to-emerald-600 dark:hover:from-emerald-600 dark:hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                            disabled={isSavingCategory}
+                            className="group flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-emerald-700 dark:hover:from-emerald-700 dark:hover:to-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
                           >
-                            {saving ? (
+                            {isSavingCategory ? (
                               <>
-                                <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
                                 Menyimpan...
                               </>
                             ) : (
                               <>
-                                <CheckCircleIcon className="h-5 w-5" />
+                                <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
                                 Simpan Kategori
                               </>
                             )}
@@ -1166,10 +1205,10 @@ export default function ComplaintSettingsPage() {
                 <div className="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={handleSaveSettings}
-                    disabled={saving}
+                    disabled={isSavingSettings}
                     className="flex items-center gap-2 px-6 py-3 bg-emerald-600 dark:bg-emerald-700 text-white font-semibold rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-600 disabled:opacity-50 transition-colors"
                   >
-                    {saving ? (
+                    {isSavingSettings ? (
                       <>
                         <ArrowPathIcon className="h-5 w-5 animate-spin" />
                         Menyimpan...

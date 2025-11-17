@@ -56,7 +56,9 @@ interface Complaint {
 
   complaint_category_name?: string;
   complaint_subcategory_name?: string;
-  complaint_case_type_name?: string;
+  // UBAH DARI SINGLE KE ARRAY
+  complaint_case_type_ids?: string[];
+  complaint_case_type_names?: string[];
   
   related_product_serial?: string;
   related_product_name?: string;
@@ -83,6 +85,8 @@ interface Complaint {
   customer_satisfaction_rating?: number;
   customer_feedback?: string;
   customer_feedback_at?: string;
+  feedback_submitted_at?: string;
+  feedback_quick_answers?: string[];
   
   internal_notes?: string;
   
@@ -103,11 +107,9 @@ interface Complaint {
   complaint_responses: Array<{
     id: number;
     message: string;
-    admin_name: string; // Ini adalah nama admin
+    admin_name: string;
     created_at: string;
-    is_internal: boolean; // <-- INI YANG BENAR
-    // 'is_customer_response' tidak ada, balasan pelanggan
-    // mungkin perlu ditangani dengan logika 'admin_name === null'
+    is_internal: boolean;
   }>;
 }
 
@@ -667,33 +669,82 @@ export default function ComplaintDetailPage() {
                     </div>
                   </div>
 
-                  {(complaint.complaint_category_name || complaint.complaint_subcategory_name || complaint.complaint_case_type_name) && (
-                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                        Kategorisasi Komplain
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori</dt>
-                          <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                            {complaint.complaint_category_name || '-'}
-                          </dd>
+                  {(complaint.complaint_category_name || complaint.complaint_subcategory_name || (complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0)) && (
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                      <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      Kategorisasi Komplain
+                    </h4>
+                    
+                    {/* Path: Kategori → Sub-Kategori */}
+                    {complaint.complaint_category_name && (
+                      <div className="mb-4">
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Kategori Path:</dt>
+                        <dd className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold shadow-sm">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                            {complaint.complaint_category_name}
+                          </span>
+                          {complaint.complaint_subcategory_name && (
+                            <>
+                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg text-sm font-bold shadow-sm">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                {complaint.complaint_subcategory_name}
+                              </span>
+                            </>
+                          )}
+                        </dd>
+                      </div>
+                    )}
+
+                    {/* Multiple Case Types */}
+                    {complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0 && (
+                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+                        <div className="flex items-center gap-2 mb-3">
+                          <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          <dt className="text-sm font-bold text-purple-900 dark:text-purple-300">
+                            Jenis Masalah ({complaint.complaint_case_type_names.length}):
+                          </dt>
                         </div>
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Sub-Kategori</dt>
-                          <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                            {complaint.complaint_subcategory_name || '-'}
-                          </dd>
-                        </div>
-                        <div className="md:col-span-2">
-                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tipe Kasus</dt>
-                          <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                            {complaint.complaint_case_type_name || '-'}
-                          </dd>
+                        <dd className="flex flex-wrap gap-2 ml-7">
+                          {complaint.complaint_case_type_names.map((caseTypeName, index) => (
+                            <span 
+                              key={index}
+                              className="group inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/60 dark:to-pink-900/60 text-purple-800 dark:text-purple-200 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-300 border-2 border-purple-200 dark:border-purple-700 hover:scale-105"
+                            >
+                              <svg className="w-4 h-4 text-purple-600 dark:text-purple-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              {caseTypeName}
+                            </span>
+                          ))}
+                        </dd>
+                        
+                        {/* Info box untuk admin */}
+                        <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800">
+                          <div className="flex items-start gap-2 text-xs text-purple-700 dark:text-purple-300">
+                            <InformationCircleIcon className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                            <p className="italic">
+                              Customer melaporkan {complaint.complaint_case_type_names.length} jenis masalah dalam komplain ini. 
+                              Harap periksa dan tangani semua masalah yang dilaporkan.
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                )}
 
                   <div className="space-y-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <div>
@@ -1038,6 +1089,133 @@ export default function ComplaintDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* ========================================== */}
+              {/* === 🆕 FEEDBACK CUSTOMER CARD (BARU) === */}
+              {/* ========================================== */}
+              {(complaint.status === 'resolved' || complaint.status === 'closed') && complaint.customer_satisfaction_rating && (
+                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-2xl shadow-lg border-2 border-yellow-300 dark:border-yellow-700 overflow-hidden">
+                  {/* Header Banner */}
+                  <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <StarIcon className="h-5 w-5 text-white" />
+                      <span className="text-white font-bold text-sm">
+                        Feedback dari Customer
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-6 space-y-5">
+                    {/* Rating Display */}
+                    <div>
+                      <dt className="text-xs font-semibold uppercase text-gray-600 dark:text-gray-400 mb-3">
+                        Rating Kepuasan
+                      </dt>
+                      <dd className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <StarIcon
+                              key={i}
+                              className={`h-6 w-6 transition-all duration-300 ${
+                                i < (complaint.customer_satisfaction_rating || 0)
+                                  ? 'text-yellow-400 fill-yellow-400 drop-shadow-md'
+                                  : 'text-gray-300 dark:text-gray-600'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">
+                          {complaint.customer_satisfaction_rating}/5
+                        </span>
+                      </dd>
+
+                      {/* Rating Label with Emoji */}
+                      <div className="mt-2 text-center">
+                        <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm text-sm font-semibold">
+                          {complaint.customer_satisfaction_rating === 1 && '😞 Sangat Tidak Puas'}
+                          {complaint.customer_satisfaction_rating === 2 && '😕 Tidak Puas'}
+                          {complaint.customer_satisfaction_rating === 3 && '😐 Cukup'}
+                          {complaint.customer_satisfaction_rating === 4 && '😊 Puas'}
+                          {complaint.customer_satisfaction_rating === 5 && '🤩 Sangat Puas!'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Feedback Text */}
+                    {complaint.customer_feedback && (
+                      <div className="pt-4 border-t border-yellow-200 dark:border-yellow-800">
+                        <dt className="text-xs font-semibold uppercase text-gray-600 dark:text-gray-400 mb-2">
+                          Ulasan Customer
+                        </dt>
+                        <dd className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-yellow-200 dark:border-yellow-700 shadow-sm">
+                          <p className="text-sm text-gray-700 dark:text-gray-300 italic leading-relaxed">
+                            "{complaint.customer_feedback}"
+                          </p>
+                        </dd>
+                      </div>
+                    )}
+
+                    {/* Feedback Submitted At */}
+                    {complaint.feedback_submitted_at && (
+                      <div className="pt-3 border-t border-yellow-200 dark:border-yellow-800">
+                        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                          <CalendarDaysIcon className="h-4 w-4" />
+                          <span>Dikirim pada {formatDateTimeFull(complaint.feedback_submitted_at)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quick Answers (Jika ada) */}
+                    {complaint.feedback_quick_answers && complaint.feedback_quick_answers.length > 0 && (
+                      <div className="pt-4 border-t border-yellow-200 dark:border-yellow-800">
+                        <dt className="text-xs font-semibold uppercase text-gray-600 dark:text-gray-400 mb-2">
+                          Poin-poin Feedback
+                        </dt>
+                        <dd className="flex flex-wrap gap-2">
+                          {complaint.feedback_quick_answers.map((answer, index) => (
+                            <span 
+                              key={index}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 rounded-lg text-xs font-semibold border border-yellow-300 dark:border-yellow-700"
+                            >
+                              <CheckCircleIcon className="h-3.5 w-3.5" />
+                              {answer}
+                            </span>
+                          ))}
+                        </dd>
+                      </div>
+                    )}
+
+                    {/* Empty State - No Feedback Yet */}
+                    {!complaint.customer_feedback && (!complaint.feedback_quick_answers || complaint.feedback_quick_answers.length === 0) && (
+                      <div className="pt-4 border-t border-yellow-200 dark:border-yellow-800">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 italic text-center">
+                          Customer hanya memberikan rating tanpa ulasan tertulis
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Placeholder - Belum Ada Feedback */}
+              {(complaint.status === 'resolved' || complaint.status === 'closed') && !complaint.customer_satisfaction_rating && (
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl shadow-lg border-2 border-dashed border-gray-300 dark:border-gray-700 p-6">
+                  <div className="text-center">
+                    <div className="inline-flex p-3 bg-gray-100 dark:bg-gray-700 rounded-full mb-3">
+                      <StarIcon className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      Belum Ada Feedback
+                    </h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Customer belum memberikan rating atau ulasan untuk komplain ini
+                    </p>
+                  </div>
+                </div>
+              )}
+              {/* ========================================== */}
+              {/* === END FEEDBACK CUSTOMER CARD === */}
+              {/* ========================================== */}
 
               {/* Info Penugasan (JUDUL DIGANTI) */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">

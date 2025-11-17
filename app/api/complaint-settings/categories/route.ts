@@ -1,169 +1,6 @@
-// app/api/complaint-settings/categories/route.ts - UPDATED for 3 Level Structure
+// app/api/complaint-settings/categories/route.ts
 import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
-
-const DEFAULT_CATEGORIES = [
-  {
-    id: '1',
-    name: 'Masalah Pengiriman',
-    description: 'Masalah terkait pengiriman dan distribusi produk',
-    auto_assign_department: 'customer_service',
-    subCategories: [
-      {
-        id: '1-1',
-        name: 'Kerusakan pada Kemasan',
-        caseTypes: [
-          { id: '1-1-1', name: 'Kemasan Rusak' },
-          { id: '1-1-2', name: 'Kemasan Kotor' },
-          { id: '1-1-3', name: 'Kerusakan karena Forklift' },
-          { id: '1-1-4', name: 'Serangan / Hewan Pengerat' },
-          { id: '1-1-5', name: 'Kerusakan karena Tumpukan' },
-          { id: '1-1-6', name: 'Kemasan Basah / Lembab' }
-        ]
-      },
-      {
-        id: '1-2',
-        name: 'Masalah Pengiriman',
-        caseTypes: [
-          { id: '1-2-1', name: 'Dokumen Hilang / Salah' },
-          { id: '1-2-2', name: 'Dikirim ke Alamat yang Salah' },
-          { id: '1-2-3', name: 'Pengiriman Tidak Tepat Waktu' },
-          { id: '1-2-4', name: 'Kinerja Sopir' },
-          { id: '1-2-5', name: 'Kebocoran' },
-          { id: '1-2-6', name: 'Kehilangan Sebagian / Seluruhnya saat Pengiriman' },
-          { id: '1-2-7', name: 'Kesalahan Pihak Ketiga (vendor)' }
-        ]
-      },
-      {
-        id: '1-3',
-        name: 'Kesalahan Produk / Jumlah Pengiriman',
-        caseTypes: [
-          { id: '1-3-1', name: 'Salah Lot' },
-          { id: '1-3-2', name: 'Salah Jumlah' },
-          { id: '1-3-3', name: 'Salah Ukuran' },
-          { id: '1-3-4', name: 'Salah Varietas' }
-        ]
-      },
-      {
-        id: '1-4',
-        name: 'Kondisi Pengiriman',
-        caseTypes: [
-          { id: '1-4-1', name: 'Metode Pengiriman Salah' },
-          { id: '1-4-2', name: 'Pengiriman Tidak Dipersiapkan dengan Benar' },
-          { id: '1-4-3', name: 'Kondisi dari Transportasi' }
-        ]
-      }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Kualitas',
-    description: 'Masalah terkait kualitas produk',
-    auto_assign_department: 'quality_assurance',
-    subCategories: [
-      {
-        id: '2-1',
-        name: 'Masalah Pertumbuhan',
-        caseTypes: [
-          { id: '2-1-1', name: 'Rebah semai' },
-          { id: '2-1-2', name: 'Pertumbuhan Lambat' },
-          { id: '2-1-3', name: 'Perbedaan Penugian Pihak Ketiga' },
-          { id: '2-1-4', name: 'Keseragaman Jelek' },
-          { id: '2-1-5', name: 'Vigor Jelek' },
-          { id: '2-1-6', name: 'Yang Tumbuh Terlalu Rendah / Sedikit' }
-        ]
-      },
-      {
-        id: '2-2',
-        name: 'Faktor Fisiologis Lainnya',
-        caseTypes: [
-          { id: '2-2-1', name: 'Blind Plants' },
-          { id: '2-2-2', name: 'Bibit Cacat' },
-          { id: '2-2-3', name: 'Jack Plants' },
-          { id: '2-2-4', name: 'Tidak Berkecambah' },
-          { id: '2-2-5', name: 'Umur Simpan / Benih lama' }
-        ]
-      },
-      {
-        id: '2-3',
-        name: 'Kemurnian Produk',
-        caseTypes: [
-          { id: '2-3-1', name: 'Tongkol' },
-          { id: '2-3-2', name: 'Benda / Bahan Lain' },
-          { id: '2-3-3', name: 'Ditemukan Tanaman Lainnya' },
-          { id: '2-3-4', name: 'Benih Campuran' },
-          { id: '2-3-5', name: 'Benih Diganti' },
-          { id: '2-3-6', name: 'Batang' },
-          { id: '2-3-7', name: 'Benih Gulma' }
-        ]
-      },
-      {
-        id: '2-4',
-        name: 'Genetik',
-        caseTypes: [
-          { id: '2-4-1', name: 'Boiler' },
-          { id: '2-4-2', name: 'Perbedaan Penugian oleh Pihak Ketiga' },
-          { id: '2-4-3', name: 'Inbred' },
-          { id: '2-4-4', name: 'Offtype' }
-        ]
-      },
-      {
-        id: '2-5',
-        name: 'Treatment Benih',
-        caseTypes: [
-          { id: '2-5-1', name: 'Menggumpal' },
-          { id: '2-5-2', name: 'Treatment Lengket' },
-          { id: '2-5-3', name: 'Cakupan Treatment' }
-        ]
-      },
-      {
-        id: '2-6',
-        name: 'Penampilan Produk',
-        caseTypes: [
-          { id: '2-6-1', name: 'Berdebu' },
-          { id: '2-6-2', name: 'Invert matter' },
-          { id: '2-6-3', name: 'Rusak oleh Serangga' },
-          { id: '2-6-4', name: 'Lembab' },
-          { id: '2-6-5', name: 'Berjamir / Pudar / Kotor' },
-          { id: '2-6-6', name: 'Sclerotinia' },
-          { id: '2-6-7', name: 'Benih tidak Seragam' },
-          { id: '2-6-8', name: 'Benih Pecah / Retak / Patah' }
-        ]
-      },
-      {
-        id: '2-7',
-        name: 'Kesehatan Benih',
-        caseTypes: [
-          { id: '2-7-1', name: 'Perbedaan Penugian oleh Pihak Ketiga' },
-          { id: '2-7-2', name: 'Penyakit pada Tanaman' },
-          { id: '2-7-3', name: 'Penyakit pada Benih' },
-          { id: '2-7-4', name: 'Gejala Virus' }
-        ]
-      },
-      {
-        id: '2-8',
-        name: 'Produk Kadaluarsa',
-        caseTypes: [
-          { id: '2-8-1', name: 'Produk Kadaluarsa' }
-        ]
-      },
-      {
-        id: '2-9',
-        name: 'Kerusakan karena Herbisida',
-        caseTypes: [
-          { id: '2-9-1', name: 'Tanaman Terkena Herbisida' }
-        ]
-      },
-      {
-        id: '2-10',
-        name: 'Performa Produk',
-        caseTypes: [
-          { id: '2-10-1', name: 'Tanaman Tumbuh di Lapang' }
-        ]
-      }
-    ]
-  }
-];
 
 export async function GET() {
   try {
@@ -174,20 +11,62 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .from('complaint_system_settings')
-      .select('setting_value')
-      .eq('setting_key', 'complaint_categories')
-      .single();
+    // Ambil semua kategori dengan sub-kategori dan case types
+    const { data: categories, error: catError } = await supabase
+      .from('complaint_categories')
+      .select('*')
+      .order('id', { ascending: true });
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Database error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (catError) {
+      console.error('Error fetching categories:', catError);
+      return NextResponse.json({ error: catError.message }, { status: 500 });
     }
+
+    // Untuk setiap kategori, ambil sub-kategorinya
+    const categoriesWithSubs = await Promise.all(
+      (categories || []).map(async (cat) => {
+        const { data: subCategories, error: subError } = await supabase
+          .from('complaint_sub_categories')
+          .select('*')
+          .eq('category_id', cat.id)
+          .order('id', { ascending: true });
+
+        if (subError) {
+          console.error('Error fetching sub-categories:', subError);
+          return { ...cat, subCategories: [] };
+        }
+
+        // Untuk setiap sub-kategori, ambil case types
+        const subCategoriesWithCaseTypes = await Promise.all(
+          (subCategories || []).map(async (sub) => {
+            const { data: caseTypes, error: caseError } = await supabase
+              .from('complaint_case_types')
+              .select('*')
+              .eq('sub_category_id', sub.id)
+              .order('id', { ascending: true });
+
+            if (caseError) {
+              console.error('Error fetching case types:', caseError);
+              return { ...sub, caseTypes: [] };
+            }
+
+            return {
+              ...sub,
+              caseTypes: caseTypes || []
+            };
+          })
+        );
+
+        return {
+          ...cat,
+          subCategories: subCategoriesWithCaseTypes
+        };
+      })
+    );
 
     return NextResponse.json({
       success: true,
-      data: data?.setting_value || DEFAULT_CATEGORIES
+      data: categoriesWithSubs
     });
 
   } catch (error: any) {
@@ -205,73 +84,84 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const category = await request.json();
 
-    if (!Array.isArray(body)) {
+    // Validasi struktur kategori
+    if (!category.name || !category.description) {
       return NextResponse.json(
-        { error: 'Categories must be an array' },
+        { error: 'Nama dan deskripsi kategori wajib diisi' },
         { status: 400 }
       );
     }
 
-    // Validate 3-level structure
-    for (const category of body) {
-      if (!category.id || !category.name || !category.description) {
-        return NextResponse.json(
-          { error: 'Invalid category format: missing required fields (id, name, description)' },
-          { status: 400 }
-        );
-      }
+    // 1. Insert kategori utama (ID auto-increment dari sequence)
+    const { data: insertedCategory, error: categoryError } = await supabase
+      .from('complaint_categories')
+      .insert({
+        name: category.name,
+        description: category.description,
+        auto_assign_department: category.auto_assign_department || 'customer_service'
+      })
+      .select()
+      .single();
 
-      if (!Array.isArray(category.subCategories)) {
-        return NextResponse.json(
-          { error: `Category "${category.name}" must have subCategories array` },
-          { status: 400 }
-        );
-      }
+    if (categoryError) {
+      console.error('Error inserting category:', categoryError);
+      return NextResponse.json({ error: categoryError.message }, { status: 500 });
+    }
 
-      for (const subCat of category.subCategories) {
-        if (!subCat.id || !subCat.name || !Array.isArray(subCat.caseTypes)) {
-          return NextResponse.json(
-            { error: `Invalid sub-category format in "${category.name}"` },
-            { status: 400 }
-          );
+    const categoryId = insertedCategory.id;
+
+    // 2. Insert sub-kategori jika ada
+    if (category.subCategories && category.subCategories.length > 0) {
+      for (let subIdx = 0; subIdx < category.subCategories.length; subIdx++) {
+        const subCat = category.subCategories[subIdx];
+        const subCatId = `${categoryId}-${subIdx + 1}`;
+        
+        const { data: insertedSubCat, error: subCatError } = await supabase
+          .from('complaint_sub_categories')
+          .insert({
+            id: subCatId,
+            category_id: categoryId,
+            name: subCat.name
+          })
+          .select()
+          .single();
+
+        if (subCatError) {
+          console.error('Error inserting sub-category:', subCatError);
+          // Rollback kategori jika gagal
+          await supabase.from('complaint_categories').delete().eq('id', categoryId);
+          return NextResponse.json({ error: subCatError.message }, { status: 500 });
         }
 
-        for (const caseType of subCat.caseTypes) {
-          if (!caseType.id || !caseType.name) {
-            return NextResponse.json(
-              { error: `Invalid case type format in "${subCat.name}"` },
-              { status: 400 }
-            );
+        // 3. Insert case types jika ada
+        if (subCat.caseTypes && subCat.caseTypes.length > 0) {
+          const caseTypesData = subCat.caseTypes.map((caseType: any, caseIdx: number) => ({
+            id: `${subCatId}-${caseIdx + 1}`,
+            sub_category_id: subCatId,
+            name: caseType.name
+          }));
+
+          const { error: caseTypesError } = await supabase
+            .from('complaint_case_types')
+            .insert(caseTypesData);
+
+          if (caseTypesError) {
+            console.error('Error inserting case types:', caseTypesError);
+            // Rollback
+            await supabase.from('complaint_sub_categories').delete().eq('category_id', categoryId);
+            await supabase.from('complaint_categories').delete().eq('id', categoryId);
+            return NextResponse.json({ error: caseTypesError.message }, { status: 500 });
           }
         }
       }
     }
 
-    const { data, error } = await supabase
-      .from('complaint_system_settings')
-      .upsert({
-        setting_key: 'complaint_categories',
-        setting_value: body,
-        description: 'Complaint categories with 3-level hierarchy (Category → Sub-Category → Case Type)',
-        updated_at: new Date().toISOString(),
-        updated_by: user.id
-      }, {
-        onConflict: 'setting_key'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
     return NextResponse.json({
       success: true,
-      data: data.setting_value,
-      message: 'Categories saved successfully'
+      data: { ...insertedCategory, subCategories: category.subCategories },
+      message: 'Kategori berhasil disimpan'
     });
 
   } catch (error: any) {

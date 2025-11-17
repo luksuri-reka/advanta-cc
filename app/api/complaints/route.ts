@@ -17,8 +17,6 @@ export async function POST(request: Request) {
       'complaint_category_name',
       'complaint_subcategory_id',
       'complaint_subcategory_name',
-      'complaint_case_type_id',
-      'complaint_case_type_name',
       'subject',
       'description'
     ];
@@ -30,6 +28,14 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+    }
+
+    // Validasi minimal 1 case type
+    if (!body.complaint_case_type_ids || !Array.isArray(body.complaint_case_type_ids) || body.complaint_case_type_ids.length === 0) {
+      return NextResponse.json(
+        { error: 'At least 1 complaint case type is required' },
+        { status: 400 }
+      );
     }
 
     const today = new Date();
@@ -47,6 +53,8 @@ export async function POST(request: Request) {
       ...body,
       complaint_number: complaintNumber,
       status: 'submitted',
+      complaint_case_type_ids: body.complaint_case_type_ids,
+      complaint_case_type_names: body.complaint_case_type_names
     };
 
     const { data: complaint, error } = await supabase
@@ -136,7 +144,6 @@ export async function GET(request: Request) {
     
     const complaintNumber = searchParams.get('complaint_number');
     
-    // Jika ada complaint_number spesifik, ambil satu data
     if (complaintNumber) {
       const { data, error } = await supabase
         .from('complaints')
@@ -151,7 +158,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: [data] });
     }
 
-    // Jika tidak ada complaint_number, ambil SEMUA data tanpa limit
     const { data, error } = await supabase
       .from('complaints')
       .select('*')

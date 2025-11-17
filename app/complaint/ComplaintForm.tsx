@@ -1,4 +1,4 @@
-// app/complaint/ComplaintForm.tsx - Updated with 3 Level Categories
+// app/complaint/ComplaintForm.tsx
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr'; 
@@ -15,7 +15,8 @@ import {
   ChatBubbleLeftRightIcon,
   MapPinIcon,
   PhotoIcon,
-  TagIcon
+  TagIcon,
+  PlusCircleIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -26,28 +27,16 @@ interface ComplaintFormData {
   customer_province: string;
   customer_city: string;
   customer_address: string;
-  // 3 Level Category Fields
   complaint_category_id: string;
   complaint_category_name: string;
   complaint_subcategory_id: string;
   complaint_subcategory_name: string;
-  complaint_case_type_id: string;
-  complaint_case_type_name: string;
-  // Legacy field (optional, bisa dihapus nanti)
-  complaint_type?: string;
+  complaint_case_type_ids: string[];  // Array untuk multiple selection
+  complaint_case_type_names: string[]; // Array untuk multiple selection
   subject: string;
   description: string;
   related_product_serial?: string;
   related_product_name?: string;
-}
-
-interface CategorySelection {
-  categoryId: string;
-  categoryName: string;
-  subCategoryId: string;
-  subCategoryName: string;
-  caseTypeId: string;
-  caseTypeName: string;
 }
 
 interface CaseType {
@@ -62,20 +51,23 @@ interface SubCategory {
 }
 
 interface ComplaintCategory {
-  id: string;
+  id: number;
   name: string;
   description: string;
   auto_assign_department?: string;
   subCategories: SubCategory[];
 }
 
-// Data provinsi dan kabupaten/kota Indonesia
-const LOCATION_DATA: Record<string, string[]> = {
-  'Aceh': ['Banda Aceh', 'Langsa', 'Lhokseumawe', 'Sabang', 'Subulussalam', 'Aceh Barat', 'Aceh Barat Daya', 'Aceh Besar', 'Aceh Jaya', 'Aceh Selatan', 'Aceh Singkil', 'Aceh Tamiang', 'Aceh Tengah', 'Aceh Tenggara', 'Aceh Timur', 'Aceh Utara', 'Bener Meriah', 'Bireuen', 'Gayo Lues', 'Nagan Raya', 'Pidie', 'Pidie Jaya', 'Simeulue'],
-  'Jawa Barat': ['Bandung', 'Bekasi', 'Bogor', 'Cimahi', 'Cirebon', 'Depok', 'Sukabumi', 'Tasikmalaya', 'Banjar', 'Bandung Barat', 'Ciamis', 'Cianjur', 'Garut', 'Indramayu', 'Karawang', 'Kuningan', 'Majalengka', 'Pangandaran', 'Purwakarta', 'Subang', 'Sumedang'],
-  'Jawa Tengah': ['Magelang', 'Pekalongan', 'Salatiga', 'Semarang', 'Surakarta', 'Tegal', 'Banjarnegara', 'Banyumas', 'Batang', 'Blora', 'Boyolali', 'Brebes', 'Cilacap', 'Demak', 'Grobogan', 'Jepara', 'Karanganyar', 'Kebumen', 'Kendal', 'Klaten', 'Kudus', 'Pati', 'Pemalang', 'Purbalingga', 'Purworejo', 'Rembang', 'Sragen', 'Sukoharjo', 'Temanggung', 'Wonogiri', 'Wonosobo'],
-  'Jawa Timur': ['Batu', 'Blitar', 'Kediri', 'Madiun', 'Malang', 'Mojokerto', 'Pasuruan', 'Probolinggo', 'Surabaya', 'Bangkalan', 'Banyuwangi', 'Bojonegoro', 'Bondowoso', 'Gresik', 'Jember', 'Jombang', 'Lamongan', 'Lumajang', 'Magetan', 'Nganjuk', 'Ngawi', 'Pacitan', 'Pamekasan', 'Ponorogo', 'Sampang', 'Sidoarjo', 'Situbondo', 'Sumenep', 'Trenggalek', 'Tuban', 'Tulungagung'],
-};
+interface Province {
+  id: number;
+  name: string;
+}
+
+interface Regency {
+  id: number;
+  province_id: number;
+  name: string;
+}
 
 export default function ComplaintForm() {
   const searchParams = useSearchParams();
@@ -107,10 +99,16 @@ export default function ComplaintForm() {
   // State untuk 3 Level Categories
   const [categories, setCategories] = useState<ComplaintCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | ''>('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
-  const [selectedCaseTypeId, setSelectedCaseTypeId] = useState('');
+  const [selectedCaseTypeIds, setSelectedCaseTypeIds] = useState<string[]>([]); // Multiple selection
   const [categoryError, setCategoryError] = useState('');
+  
+  // State untuk lokasi dari Supabase
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [regencies, setRegencies] = useState<Regency[]>([]);
+  const [availableRegencies, setAvailableRegencies] = useState<Regency[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
   
   const [formData, setFormData] = useState<ComplaintFormData>({
     customer_name: customerName,
@@ -123,22 +121,21 @@ export default function ComplaintForm() {
     complaint_category_name: '',
     complaint_subcategory_id: '',
     complaint_subcategory_name: '',
-    complaint_case_type_id: '',
-    complaint_case_type_name: '',
+    complaint_case_type_ids: [],
+    complaint_case_type_names: [],
     subject: '',
     description: '',
     related_product_serial: serial || lot,
     related_product_name: productNameQuery
   });
 
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
-
-  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
+  const selectedCategory = categories.find(c => Number(c.id) === Number(selectedCategoryId));
   const selectedSubCategory = selectedCategory?.subCategories.find(s => s.id === selectedSubCategoryId);
 
   useEffect(() => {
     setMounted(true);
     loadCategories();
+    loadLocations();
   }, []);
 
   useEffect(() => {
@@ -168,12 +165,57 @@ export default function ComplaintForm() {
 
   useEffect(() => {
     if (formData.customer_province) {
-      setAvailableCities(LOCATION_DATA[formData.customer_province] || []);
+      const selectedProvince = provinces.find(p => p.name === formData.customer_province);
+      if (selectedProvince) {
+        const filtered = regencies.filter(r => r.province_id === selectedProvince.id);
+        setAvailableRegencies(filtered);
+      }
       setFormData(prev => ({ ...prev, customer_city: '' }));
     } else {
-      setAvailableCities([]);
+      setAvailableRegencies([]);
     }
-  }, [formData.customer_province]);
+  }, [formData.customer_province, provinces, regencies]);
+
+  // Update formData when case types change
+  useEffect(() => {
+    if (selectedSubCategory && selectedCaseTypeIds.length > 0) {
+      const selectedNames = selectedCaseTypeIds
+        .map(id => selectedSubCategory.caseTypes.find(ct => ct.id === id)?.name)
+        .filter(Boolean) as string[];
+      
+      setFormData(prev => ({
+        ...prev,
+        complaint_case_type_ids: selectedCaseTypeIds,
+        complaint_case_type_names: selectedNames
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        complaint_case_type_ids: [],
+        complaint_case_type_names: []
+      }));
+    }
+  }, [selectedCaseTypeIds, selectedSubCategory]);
+
+  const loadLocations = async () => {
+    try {
+      const [provincesRes, regenciesRes] = await Promise.all([
+        supabase.from('provinces').select('id, name').order('name'),
+        supabase.from('regencies').select('id, province_id, name').order('name')
+      ]);
+
+      if (provincesRes.data) {
+        setProvinces(provincesRes.data);
+      }
+      if (regenciesRes.data) {
+        setRegencies(regenciesRes.data);
+      }
+    } catch (error) {
+      console.error('Failed to load locations:', error);
+    } finally {
+      setLocationsLoading(false);
+    }
+  };
 
   const loadCategories = async () => {
     try {
@@ -190,52 +232,50 @@ export default function ComplaintForm() {
   };
 
   const handleCategoryChange = (categoryId: string) => {
-    setSelectedCategoryId(categoryId);
+    const numericId = categoryId ? Number(categoryId) : '';
+    setSelectedCategoryId(numericId);
     setSelectedSubCategoryId('');
-    setSelectedCaseTypeId('');
+    setSelectedCaseTypeIds([]);
     setFormData(prev => ({
       ...prev,
       complaint_category_id: '',
       complaint_category_name: '',
       complaint_subcategory_id: '',
       complaint_subcategory_name: '',
-      complaint_case_type_id: '',
-      complaint_case_type_name: ''
+      complaint_case_type_ids: [],
+      complaint_case_type_names: []
     }));
     setCategoryError('');
   };
 
   const handleSubCategoryChange = (subCategoryId: string) => {
     setSelectedSubCategoryId(subCategoryId);
-    setSelectedCaseTypeId('');
-    setFormData(prev => ({
-      ...prev,
-      complaint_subcategory_id: '',
-      complaint_subcategory_name: '',
-      complaint_case_type_id: '',
-      complaint_case_type_name: ''
-    }));
-  };
-
-  const handleCaseTypeChange = (caseTypeId: string) => {
-    setSelectedCaseTypeId(caseTypeId);
+    setSelectedCaseTypeIds([]);
     
-    const category = categories.find(c => c.id === selectedCategoryId);
-    const subCategory = category?.subCategories.find(s => s.id === selectedSubCategoryId);
-    const caseType = subCategory?.caseTypes.find(ct => ct.id === caseTypeId);
+    const category = categories.find(c => Number(c.id) === Number(selectedCategoryId));
+    const subCategory = category?.subCategories.find(s => s.id === subCategoryId);
 
-    if (category && subCategory && caseType) {
+    if (category && subCategory) {
       setFormData(prev => ({
         ...prev,
-        complaint_category_id: category.id,
+        complaint_category_id: String(category.id),
         complaint_category_name: category.name,
         complaint_subcategory_id: subCategory.id,
         complaint_subcategory_name: subCategory.name,
-        complaint_case_type_id: caseType.id,
-        complaint_case_type_name: caseType.name
+        complaint_case_type_ids: [],
+        complaint_case_type_names: []
       }));
-      setCategoryError('');
     }
+  };
+
+  const handleCaseTypeToggle = (caseTypeId: string) => {
+    setSelectedCaseTypeIds(prev => {
+      if (prev.includes(caseTypeId)) {
+        return prev.filter(id => id !== caseTypeId);
+      }
+      return [...prev, caseTypeId];
+    });
+    setCategoryError('');
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -246,9 +286,13 @@ export default function ComplaintForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validasi kategori 3 level
-    if (!formData.complaint_category_id || !formData.complaint_subcategory_id || !formData.complaint_case_type_id) {
-      setCategoryError('Silakan pilih kategori, sub-kategori, dan jenis kasus komplain');
+    if (!formData.complaint_category_id || !formData.complaint_subcategory_id) {
+      setCategoryError('Silakan pilih kategori dan sub-kategori');
+      return;
+    }
+
+    if (selectedCaseTypeIds.length === 0) {
+      setCategoryError('Silakan pilih minimal 1 jenis masalah');
       return;
     }
     
@@ -277,6 +321,33 @@ export default function ComplaintForm() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Handler untuk "Laporkan Masalah Lain"
+  const handleReportAnother = () => {
+    setIsSubmitted(false);
+    setComplaintNumber('');
+    
+    // Reset form tapi keep customer info
+    setSelectedCategoryId('');
+    setSelectedSubCategoryId('');
+    setSelectedCaseTypeIds([]);
+    setCategoryError('');
+    
+    setFormData(prev => ({
+      ...prev,
+      complaint_category_id: '',
+      complaint_category_name: '',
+      complaint_subcategory_id: '',
+      complaint_subcategory_name: '',
+      complaint_case_type_ids: [],
+      complaint_case_type_names: [],
+      subject: '',
+      description: ''
+    }));
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (!mounted) {
@@ -335,6 +406,34 @@ export default function ComplaintForm() {
                   <ArrowLeftIcon className="h-5 w-5" />
                   Kembali ke Beranda
                 </Link>
+              </div>
+
+              {/* Tombol "Laporkan Masalah Lain" - BARU */}
+              <div className="mb-8 pt-6 border-t-2 border-dashed border-gray-200 dark:border-slate-700">
+                <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl p-6 border-2 border-orange-200 dark:border-orange-800">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg">
+                        <PlusCircleIcon className="h-7 w-7 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
+                        Ada Masalah Lain?
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Jika Anda memiliki masalah tambahan yang berbeda, silakan buat laporan komplain terpisah dengan nomor referensi baru.
+                      </p>
+                      <button
+                        onClick={handleReportAnother}
+                        className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 dark:from-orange-600 dark:to-red-600 text-white font-bold rounded-xl hover:from-orange-600 hover:to-red-600 dark:hover:from-orange-700 dark:hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                      >
+                        <PlusCircleIcon className="h-5 w-5 transition-transform group-hover:rotate-90" />
+                        Laporkan Masalah Lain
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800">
@@ -404,7 +503,7 @@ export default function ComplaintForm() {
           <form onSubmit={handleSubmit} className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
-              {/* Left Column - Personal Info */}
+              {/* Left Column - Personal Info (SAMA SEPERTI SEBELUMNYA) */}
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                   <UserIcon className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
@@ -478,12 +577,13 @@ export default function ComplaintForm() {
                         value={formData.customer_province}
                         onChange={handleChange}
                         required
-                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors"
+                        disabled={locationsLoading}
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <option value="">Pilih Provinsi</option>
-                        {Object.keys(LOCATION_DATA).sort().map(province => (
-                          <option key={province} value={province}>
-                            {province}
+                        <option value="">{locationsLoading ? 'Memuat...' : 'Pilih Provinsi'}</option>
+                        {provinces.map(province => (
+                          <option key={province.id} value={province.name}>
+                            {province.name}
                           </option>
                         ))}
                       </select>
@@ -498,15 +598,15 @@ export default function ComplaintForm() {
                         value={formData.customer_city}
                         onChange={handleChange}
                         required
-                        disabled={!formData.customer_province}
+                        disabled={!formData.customer_province || locationsLoading}
                         className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="">
-                          {formData.customer_province ? 'Pilih Kabupaten/Kota' : 'Pilih Provinsi terlebih dahulu'}
+                          {locationsLoading ? 'Memuat...' : formData.customer_province ? 'Pilih Kabupaten/Kota' : 'Pilih Provinsi terlebih dahulu'}
                         </option>
-                        {availableCities.map(city => (
-                          <option key={city} value={city}>
-                            {city}
+                        {availableRegencies.map(regency => (
+                          <option key={regency.id} value={regency.name}>
+                            {regency.name}
                           </option>
                         ))}
                       </select>
@@ -529,7 +629,7 @@ export default function ComplaintForm() {
                   </div>
                 </div>
 
-                {/* Product Info Card dengan Foto */}
+                {/* Product Info Card (SAMA SEPERTI SEBELUMNYA) */}
                 {(formData.related_product_serial || formData.related_product_name) && (
                   <div className="relative bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-900/20 dark:via-slate-800 dark:to-emerald-900/10 rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 dark:border-emerald-800 shadow-lg hover:shadow-xl transition-all duration-300">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/10 to-transparent rounded-bl-full"></div>
@@ -597,14 +697,14 @@ export default function ComplaintForm() {
                 )}
               </div>
 
-              {/* Right Column - Complaint Details */}
+              {/* Right Column - Complaint Details dengan Multiple Checkbox */}
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                   <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
                   Detail Komplain
                 </h3>
 
-                {/* 3 Level Category Selector */}
+                {/* 3 Level Category Selector dengan Multiple Selection */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-2">
                     <TagIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
@@ -675,28 +775,56 @@ export default function ComplaintForm() {
                         </div>
                       )}
 
-                      {/* Level 3: Jenis Kasus */}
+                      {/* Level 3: Multiple Case Types dengan Checkbox */}
                       {selectedSubCategoryId && (
                         <div className="pl-8 border-l-4 border-purple-300 dark:border-purple-700">
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                            Jenis Kasus / Tipe Masalah *
-                            <span className="ml-2 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded text-xs font-bold">
-                              Level 3
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">
+                            <span className="flex items-center gap-2">
+                              Jenis Masalah *
+                              <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded text-xs font-bold">
+                                Level 3
+                              </span>
                             </span>
                           </label>
-                          <select
-                            value={selectedCaseTypeId}
-                            onChange={(e) => handleCaseTypeChange(e.target.value)}
-                            required
-                            className="w-full px-4 py-3 border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-purple-500 dark:focus:border-purple-400 transition-all"
-                          >
-                            <option value="">-- Pilih Jenis Kasus --</option>
+                          
+                          <p className="text-xs text-purple-600 dark:text-purple-400 mb-3">
+                            Pilih semua masalah yang Anda alami (bisa lebih dari 1):
+                          </p>
+
+                          <div className="space-y-2 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                             {selectedSubCategory?.caseTypes.map((caseType) => (
-                              <option key={caseType.id} value={caseType.id}>
-                                {caseType.name}
-                              </option>
+                              <label 
+                                key={caseType.id}
+                                className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                                  selectedCaseTypeIds.includes(caseType.id)
+                                    ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-400 dark:border-purple-600 shadow-md'
+                                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:border-purple-300 dark:hover:border-purple-700'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCaseTypeIds.includes(caseType.id)}
+                                  onChange={() => handleCaseTypeToggle(caseType.id)}
+                                  className="mt-0.5 w-5 h-5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500 transition-all"
+                                />
+                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 flex-1 leading-relaxed">
+                                  {caseType.name}
+                                </span>
+                                {selectedCaseTypeIds.includes(caseType.id) && (
+                                  <CheckCircleIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                                )}
+                              </label>
                             ))}
-                          </select>
+                          </div>
+
+                          {selectedCaseTypeIds.length > 0 && (
+                            <div className="mt-4 flex items-center gap-2 text-sm p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                              <CheckCircleIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                              <span className="font-bold text-purple-700 dark:text-purple-300">
+                                {selectedCaseTypeIds.length} jenis masalah dipilih
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -710,27 +838,48 @@ export default function ComplaintForm() {
                       )}
 
                       {/* Summary Selection */}
-                      {selectedCategoryId && selectedSubCategoryId && selectedCaseTypeId && (
-                        <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-xl border-2 border-emerald-200 dark:border-emerald-800">
-                          <p className="text-xs font-bold text-gray-700 dark:text-slate-300 mb-2">
-                            Kategori yang dipilih:
+                      {selectedCategoryId && selectedSubCategoryId && selectedCaseTypeIds.length > 0 && (
+                        <div className="mt-4 p-5 bg-gradient-to-r from-emerald-50 to-purple-50 dark:from-emerald-900/20 dark:to-purple-900/20 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 shadow-inner">
+                          <p className="text-xs font-bold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            Ringkasan Kategori:
                           </p>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold">
+                          
+                          {/* Path */}
+                          <div className="flex items-center gap-2 flex-wrap mb-4">
+                            <span className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold shadow-sm">
                               {selectedCategory?.name}
                             </span>
                             <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
-                            <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg text-sm font-bold">
+                            <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg text-sm font-bold shadow-sm">
                               {selectedSubCategory?.name}
                             </span>
-                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                            <span className="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 rounded-lg text-sm font-bold">
-                              {selectedSubCategory?.caseTypes.find(ct => ct.id === selectedCaseTypeId)?.name}
-                            </span>
+                          </div>
+
+                          {/* Selected Issues */}
+                          <div>
+                            <p className="text-xs text-gray-600 dark:text-slate-400 mb-2 flex items-center gap-1">
+                              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                              Masalah yang Dipilih ({selectedCaseTypeIds.length}):
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedCaseTypeIds.map(id => {
+                                const caseType = selectedSubCategory?.caseTypes.find(ct => ct.id === id);
+                                return (
+                                  <span 
+                                    key={id}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 rounded-lg text-xs font-semibold shadow-sm"
+                                  >
+                                    <CheckCircleIcon className="h-3.5 w-3.5" />
+                                    {caseType?.name}
+                                  </span>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -738,6 +887,7 @@ export default function ComplaintForm() {
                   )}
                 </div>
 
+                {/* Subject & Description */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                     Subjek Komplain *
@@ -799,6 +949,29 @@ export default function ComplaintForm() {
           </form>
         </div>
       </div>
+
+      {/* Custom Scrollbar Style */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #475569;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #64748b;
+        }
+      `}</style>
     </div>
   );
 }
