@@ -10,18 +10,14 @@ export async function POST(
     const { id } = await params;
     const supabase = await createClient();
 
-    // Check auth
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // --- PERUBAHAN 1: Menerima payload yang benar dari frontend ---
     const body = await request.json();
-    const { admin_id, department, notes } = body; 
-    // Mengganti: const { assigned_to, assignment_reason } = body;
+    const { admin_id, department, notes } = body;
 
-    // --- PERUBAHAN 2: Validasi payload baru ---
     if (!admin_id) {
       return NextResponse.json({ 
         error: 'admin_id is required' 
@@ -35,9 +31,9 @@ export async function POST(
 
     // Validate target user exists and is active
     const { data: targetUser, error: userCheckError } = await supabase
-      .from('user_complaint_profiles') // Asumsi tabel ini ada
+      .from('user_complaint_profiles')
       .select('*')
-      .eq('user_id', admin_id) // Menggunakan admin_id
+      .eq('user_id', admin_id)
       .eq('is_active', true)
       .single();
 
@@ -45,14 +41,6 @@ export async function POST(
       return NextResponse.json({ 
         error: 'Target user not found or inactive' 
       }, { status: 404 });
-    }
-
-    // Opsional: Cek beban kerja (logika Anda sebelumnya sudah bagus)
-    if (targetUser.current_assigned_count >= targetUser.max_assigned_complaints) {
-      return NextResponse.json({ 
-        error: `User has reached maximum workload (${targetUser.max_assigned_complaints})`,
-        warning: 'Assignment can still be forced, but consider redistributing load'
-      }, { status: 400 });
     }
 
     // Get current complaint data
@@ -70,14 +58,25 @@ export async function POST(
 
     const previousAssignee = complaint.assigned_to;
 
-    // --- PERUBAHAN 3: Update keluhan dengan department dari payload ---
+    // Tentukan status baru berdasarkan department
+    let newStatus = complaint.status;
+    
+    if (department === 'observasi' && complaint.status === 'acknowledged') {
+      newStatus = 'observation';
+    } else if ((department === 'investigasi_1' || department === 'investigasi_2' || department === 'lab_tasting') 
+               && (complaint.status === 'observation' || complaint.status === 'acknowledged')) {
+      newStatus = 'investigation';
+    }
+
+    // Update complaint dengan department dan status
     const { error: updateError } = await supabase
       .from('complaints')
       .update({
-        assigned_to: admin_id, // Menggunakan admin_id
+        assigned_to: admin_id,
         assigned_at: new Date().toISOString(),
         assigned_by: user.id,
-        department: department, // <-- PENTING: Menggunakan department dari frontend
+        department: department,
+        status: newStatus,
         updated_at: new Date().toISOString()
       })
       .eq('id', id);
@@ -92,7 +91,7 @@ export async function POST(
     // Deactivate previous assignment if exists
     if (previousAssignee) {
       await supabase
-        .from('complaint_assignments') // Asumsi tabel ini ada
+        .from('complaint_assignments')
         .update({ 
           is_active: false,
           unassigned_at: new Date().toISOString(),
@@ -104,23 +103,22 @@ export async function POST(
 
     // Log new assignment
     await supabase
-      .from('complaint_assignments') // Asumsi tabel ini ada
+      .from('complaint_assignments')
       .insert({
         complaint_id: parseInt(id),
-        assigned_to: admin_id, // Menggunakan admin_id
+        assigned_to: admin_id,
         assigned_by: user.id,
-        assignment_reason: notes || 'Manual assignment by admin', // Menggunakan notes
+        assignment_reason: notes || 'Manual assignment by admin',
         previous_assignee: previousAssignee,
         is_active: true
       });
 
-    // Note: Triggers will handle increment/decrement of counts
-
     return NextResponse.json({ 
       success: true,
       data: {
-        assigned_to: targetUser.full_name, // Asumsi 'full_name' ada
-        department: department, // Mengembalikan department yang baru diset
+        assigned_to: targetUser.full_name,
+        department: department,
+        new_status: newStatus,
         previous_assignee: previousAssignee
       },
       message: 'Complaint assigned successfully'

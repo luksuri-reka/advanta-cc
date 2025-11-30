@@ -59,6 +59,22 @@ export default function ComplaintUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const formatDepartment = (dept: string) => {
+    const departments: Record<string, string> = {
+      admin: 'Admin',
+      customer_service: 'Customer Service',
+      quality_assurance: 'Quality Assurance',
+      technical: 'Technical',
+      management: 'Management',
+      observasi: 'Observasi',
+      investigasi_1: 'Investigasi 1',
+      investigasi_2: 'Investigasi 2',
+      lab_tasting: 'Lab Tasting',
+      sales: 'Sales'
+    };
+    return departments[dept] || dept;
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -82,6 +98,19 @@ export default function ComplaintUserDetailPage() {
       loadUserDetail();
     }
   }, [user, userId]);
+
+  const permissionList = [
+    { id: 'canViewComplaints', name: 'View Complaints' },
+    { id: 'canEditComplaints', name: 'Edit Complaints' },
+    { id: 'canAssignComplaints', name: 'Assign Complaints' },
+    { id: 'canResolveComplaints', name: 'Resolve Complaints' },
+    { id: 'canRespondToComplaints', name: 'Respond to Complaints' },
+    { id: 'canUpdateComplaintStatus', name: 'Update Status' }, // TAMBAHKAN
+    { id: 'canDeleteComplaints', name: 'Delete Complaints' }, // TAMBAHKAN
+    { id: 'canManageComplaintSettings', name: 'Manage Settings' },
+    { id: 'canViewComplaintAnalytics', name: 'View Analytics' },
+    { id: 'canExportComplaintData', name: 'Export Data' }, // TAMBAHKAN
+  ];
 
   const loadUserDetail = async () => {
     setLoading(true);
@@ -222,9 +251,11 @@ export default function ComplaintUserDetailPage() {
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Departemen</dt>
-                    <dd className="mt-1 text-sm text-gray-900 dark:text-white">{userDetail.department || '-'}</dd>
+                    <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                      {formatDepartment(userDetail.department) || '-'}
+                    </dd>
                   </div>
-                   <div>
+                  <div>
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
                     <dd className="mt-1 text-sm">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${

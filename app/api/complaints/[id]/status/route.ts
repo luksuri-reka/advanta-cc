@@ -3,12 +3,14 @@ import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
 
 const complaintStatuses = [
-  'submitted',
-  'acknowledged',
-  'investigating',
-  'pending_response',
-  'resolved',
-  'closed'
+  'submitted',        // 1. Dikirim
+  'acknowledged',     // 2. Dikonfirmasi
+  'observation',      // 3. Proses Observasi
+  'investigation',    // 4. Proses Investigasi & Lab Testing
+  'decision',         // 5. Menunggu Keputusan
+  'pending_response', // 6. Menunggu Respon Customer
+  'resolved',         // 7. Selesai
+  'closed'            // (Opsional, untuk arsip)
 ];
 
 export async function POST(

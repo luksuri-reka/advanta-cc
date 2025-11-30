@@ -3,7 +3,7 @@ import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-// --- FUNGSI HELPER ---
+// --- FUNGSI HELPER DIPERBAIKI ---
 async function getUserProfile(supabase: SupabaseClient, userId: string | null) {
   if (!userId) return null;
   
@@ -11,20 +11,26 @@ async function getUserProfile(supabase: SupabaseClient, userId: string | null) {
     const { data, error } = await supabase
       .from('user_complaint_profiles') 
       .select('user_id, full_name, department')
-      .eq('user_id', userId) 
-      .single();
+      .eq('user_id', userId)
+      .maybeSingle(); // ← PERBAIKAN: gunakan maybeSingle() bukan single()
       
-    if (error || !data) {
-      console.error(`Error fetching profile for ${userId}:`, error?.message);
+    if (error) {
+      console.error(`Error fetching profile for ${userId}:`, error.message);
+      return null;
+    }
+    
+    if (!data) {
+      console.warn(`No profile found for user ${userId}`);
       return null;
     }
     
     return {
       id: data.user_id,
-      name: data.full_name, 
+      name: data.full_name || 'Unknown User', 
       department: data.department
     };
-  } catch (err) {
+  } catch (err: any) {
+    console.error(`Exception fetching profile for ${userId}:`, err.message);
     return null;
   }
 }
@@ -48,7 +54,7 @@ export async function GET(
           admin_name,
           admin_id,
           created_at,
-          is_customer_response:is_internal 
+          is_internal
         )
       `)
       .eq('id', id)
@@ -67,6 +73,7 @@ export async function GET(
       return NextResponse.json({ error: 'Komplain tidak ditemukan' }, { status: 404 });
     }
 
+    // Fetch user profiles dengan error handling
     const [
       assigned_to_user,
       assigned_by_user,
@@ -93,6 +100,7 @@ export async function GET(
     return NextResponse.json({ data: finalComplaintData });
 
   } catch (error: any) {
+    console.error('GET Complaint Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -157,7 +165,7 @@ export async function DELETE(
   }
 }
 
-// --- UPDATE COMPLAINT (Optional, if needed) ---
+// --- UPDATE COMPLAINT ---
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

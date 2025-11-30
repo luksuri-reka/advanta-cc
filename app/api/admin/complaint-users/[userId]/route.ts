@@ -77,20 +77,29 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // PERBAIKAN: Hanya update field yang ada di tabel user_complaint_profiles
+    const allowedFields = {
+      department: body.department,
+      job_title: body.job_title,
+      complaint_permissions: body.complaint_permissions,
+      max_assigned_complaints: body.max_assigned_complaints,
+      is_active: body.is_active,
+      updated_at: new Date().toISOString()
+    };
+
     // Update profile
     const { data, error } = await supabase
       .from('user_complaint_profiles')
-      .update({
-        ...body,
-        updated_at: new Date().toISOString()
-      })
+      .update(allowedFields)
       .eq('user_id', userId)
       .select()
       .single();
 
     if (error) {
       console.error('Update error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ 
+        error: error.message 
+      }, { status: 500 });
     }
 
     return NextResponse.json({ 
@@ -101,7 +110,9 @@ export async function PATCH(
 
   } catch (error: any) {
     console.error('API error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message 
+    }, { status: 500 });
   }
 }
 

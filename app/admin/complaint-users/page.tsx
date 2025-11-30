@@ -53,8 +53,8 @@ interface AuthUser {
 // Data yang dikirim ke form
 interface FormData {
   user_id: string;
-  department: string;
-  job_title: string;
+  department: string; // tidak boleh null
+  job_title: string;  // tidak boleh null
   max_assigned_complaints: number;
   is_active: boolean;
   complaint_permissions: Record<string, boolean>;
@@ -77,6 +77,22 @@ export default function ComplaintUsersPage() {
     is_active: true,
     complaint_permissions: {}
   });
+
+  const formatDepartment = (dept: string) => {
+    const departments: Record<string, string> = {
+      admin: 'Admin',
+      customer_service: 'Customer Service',
+      quality_assurance: 'Quality Assurance',
+      technical: 'Technical',
+      management: 'Management',
+      observasi: 'Observasi',
+      investigasi_1: 'Investigasi 1',
+      investigasi_2: 'Investigasi 2',
+      lab_tasting: 'Lab Tasting',
+      sales: 'Sales'
+    };
+    return departments[dept] || dept;
+  };
 
   useEffect(() => {
     (async () => {
@@ -143,49 +159,49 @@ export default function ComplaintUsersPage() {
   };
 
   const openModal = (user: ComplaintUser | null) => {
-    if (user) {
-      setEditingUser(user);
-      setFormData({
-        user_id: user.user_id,
-        department: user.department,
-        job_title: user.job_title,
-        max_assigned_complaints: user.max_assigned_complaints,
-        is_active: user.is_active,
-        complaint_permissions: user.complaint_permissions || {}
-      });
-    } else {
-      setEditingUser(null);
-      setFormData({
-        user_id: '',
-        department: '',
-        job_title: '',
-        max_assigned_complaints: 5,
-        is_active: true,
-        complaint_permissions: {}
-      });
-    }
-    setShowModal(true);
-  };
+  if (user) {
+    setEditingUser(user);
+    setFormData({
+      user_id: user.user_id,
+      department: user.department || '', // ← Handle null
+      job_title: user.job_title || '', // ← Handle null
+      max_assigned_complaints: user.max_assigned_complaints || 5,
+      is_active: user.is_active ?? true, // ← Handle null/undefined
+      complaint_permissions: user.complaint_permissions || {}
+    });
+  } else {
+    setEditingUser(null);
+    setFormData({
+      user_id: '',
+      department: '',
+      job_title: '',
+      max_assigned_complaints: 5,
+      is_active: true,
+      complaint_permissions: {}
+    });
+  }
+  setShowModal(true);
+};
   
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    
-    if (type === 'checkbox') {
-      const { checked } = e.target as HTMLInputElement;
-      setFormData(prev => ({
-        ...prev,
-        complaint_permissions: {
-          ...prev.complaint_permissions,
-          [name]: checked
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: type === 'number' ? parseInt(value) : value
-      }));
-    }
-  };
+  const { name, value, type } = e.target;
+  
+  if (type === 'checkbox') {
+    const { checked } = e.target as HTMLInputElement;
+    setFormData(prev => ({
+      ...prev,
+      complaint_permissions: {
+        ...prev.complaint_permissions,
+        [name]: checked
+      }
+    }));
+  } else {
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? (parseInt(value) || 0) : (value || '') // ← Handle empty
+    }));
+  }
+};
   
   const handleToggleChange = (name: string, checked: boolean) => {
      setFormData(prev => ({
@@ -194,18 +210,39 @@ export default function ComplaintUsersPage() {
     }));
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    setIsSaving(true); // ← Set loading
+    
     const selectedAuthUser = availableAuthUsers.find(u => u.id === formData.user_id);
-    const apiData = {
-      ...formData,
-      full_name: editingUser?.full_name || selectedAuthUser?.full_name,
-      email: editingUser?.email || selectedAuthUser?.email
-    };
+    
+    let apiData: any;
+    
+    if (editingUser) {
+      apiData = {
+        department: formData.department || 'customer_service',
+        job_title: formData.job_title || null,
+        max_assigned_complaints: formData.max_assigned_complaints || 5,
+        is_active: formData.is_active,
+        complaint_permissions: formData.complaint_permissions
+      };
+    } else {
+      apiData = {
+        user_id: formData.user_id,
+        full_name: selectedAuthUser?.full_name || '',
+        department: formData.department || 'customer_service',
+        job_title: formData.job_title || null,
+        max_assigned_complaints: formData.max_assigned_complaints || 5,
+        is_active: formData.is_active,
+        complaint_permissions: formData.complaint_permissions
+      };
+    }
 
     try {
-      const method = editingUser ? 'PUT' : 'POST';
+      const method = editingUser ? 'PATCH' : 'POST';
       const url = editingUser 
         ? `/api/admin/complaint-users/${editingUser.user_id}`
         : '/api/admin/complaint-users';
@@ -217,17 +254,21 @@ export default function ComplaintUsersPage() {
       });
 
       if (response.ok) {
-        alert(editingUser ? 'User updated successfully' : 'User created successfully');
+        alert(editingUser ? 'User berhasil diperbarui' : 'User berhasil ditambahkan');
         setShowModal(false);
         loadComplaintUsers();
-        loadAvailableAuthUsers(); // Refresh list if a user was just added
+        if (!editingUser) {
+          loadAvailableAuthUsers();
+        }
       } else {
         const errorData = await response.json();
-        alert(`Error: ${errorData.message}`);
+        alert(`Error: ${errorData.error || errorData.message || 'Gagal menyimpan'}`);
       }
     } catch (error) {
       console.error('Failed to save user:', error);
-      alert('Failed to save user');
+      alert('Gagal menyimpan user');
+    } finally {
+      setIsSaving(false); // ← Reset loading
     }
   };
 
@@ -329,7 +370,7 @@ export default function ComplaintUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                          {member.department || 'N/A'}
+                          {formatDepartment(member.department) || 'N/A'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -427,31 +468,49 @@ export default function ComplaintUsersPage() {
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Departemen</label>
-                      <input
-                        type="text"
-                        name="department"
-                        id="department"
-                        value={formData.department}
-                        onChange={handleFormChange}
-                        className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
-                        placeholder="cth: Customer Service"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="job_title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jabatan</label>
-                      <input
-                        type="text"
-                        name="job_title"
-                        id="job_title"
-                        value={formData.job_title}
-                        onChange={handleFormChange}
-                        className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
-                        placeholder="cth: Staff Support"
-                      />
-                    </div>
+                  {/* DROPDOWN DEPARTEMEN - DIPERBAIKI */}
+                  <div>
+                    <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Departemen
+                    </label>
+                    <select
+                      name="department"
+                      id="department"
+                      value={formData.department || ''} // ← Always string
+                      onChange={handleFormChange}
+                      className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                      required
+                    >
+                      <option value="">-- Pilih Departemen --</option>
+                      <option value="admin">Admin</option>
+                      <option value="customer_service">Customer Service</option>
+                      <option value="quality_assurance">Quality Assurance</option>
+                      <option value="technical">Technical</option>
+                      <option value="management">Management</option>
+                      <option value="observasi">Observasi</option>
+                      <option value="investigasi_1">Investigasi 1</option>
+                      <option value="investigasi_2">Investigasi 2</option>
+                      <option value="lab_tasting">Lab Tasting</option>
+                      <option value="sales">Sales</option>
+                    </select>
                   </div>
+                  
+                  {/* Job Title tetap sama */}
+                  <div>
+                    <label htmlFor="job_title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Jabatan
+                    </label>
+                    <input
+                      type="text"
+                      name="job_title"
+                      id="job_title"
+                      value={formData.job_title || ''} // ← Always string
+                      onChange={handleFormChange}
+                      className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                      placeholder="cth: Staff Support"
+                    />
+                  </div>
+                </div>
                   
                   <div>
                     <label htmlFor="max_assigned_complaints" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -520,11 +579,20 @@ export default function ComplaintUsersPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={!editingUser && (!formData.user_id || availableAuthUsers.length === 0)}
+                    disabled={isSaving || (!editingUser && (!formData.user_id || availableAuthUsers.length === 0))}
                     className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <CheckCircleIcon className="h-5 w-5" />
-                    Simpan User
+                    {isSaving ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Menyimpan...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="h-5 w-5" />
+                        Simpan User
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

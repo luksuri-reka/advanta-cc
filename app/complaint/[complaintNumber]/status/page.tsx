@@ -58,31 +58,48 @@ interface Complaint {
   }>;
 }
 
+// GANTI FUNGSI INI
 const getStatusTimeline = (currentStatus: string) => {
+  // Tambahkan status baru: observation, investigation, decision
   const timeline = [
     { status: 'submitted', label: 'Dikirim', icon: '📝' },
     { status: 'acknowledged', label: 'Dikonfirmasi', icon: '✅' },
-    { status: 'investigating', label: 'Diselidiki', icon: '🔍' },
+    { status: 'observation', label: 'Observasi', icon: '👀' },     // <-- BARU
+    { status: 'investigation', label: 'Investigasi', icon: '🔬' }, // <-- BARU
+    { status: 'decision', label: 'Keputusan', icon: '⚖️' },       // <-- BARU
     { status: 'pending_response', label: 'Menunggu Respons', icon: '⏳' },
     { status: 'resolved', label: 'Selesai', icon: '🎉' },
     { status: 'closed', label: 'Ditutup', icon: '🔒' }
   ];
 
   let currentIndex = timeline.findIndex(item => item.status === currentStatus);
-  if (currentIndex === -1) currentIndex = 0;
+  
+  // LOGIKA PENTING: Jika data lama masih pakai status 'investigating',
+  // kita paksa arahkan ke 'investigation' agar tidak error.
+  if (currentIndex === -1) {
+    if (currentStatus === 'investigating') {
+      currentIndex = timeline.findIndex(item => item.status === 'investigation');
+    } else {
+      currentIndex = 0;
+    }
+  }
 
   return timeline.map((item, index) => ({
     ...item,
-    isCurrent: item.status === currentStatus,
+    isCurrent: item.status === currentStatus || (currentStatus === 'investigating' && item.status === 'investigation'),
     isCompleted: index < currentIndex
   }));
 };
 
+// GANTI FUNGSI INI
 const getStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
     submitted: 'Dikirim',
     acknowledged: 'Dikonfirmasi',
-    investigating: 'Diselidiki',
+    observation: 'Proses Observasi',           // <-- BARU
+    investigation: 'Proses Investigasi & Lab', // <-- BARU
+    investigating: 'Proses Investigasi',       // Legacy support
+    decision: 'Menunggu Keputusan',            // <-- BARU
     pending_response: 'Menunggu Respons Anda',
     resolved: 'Selesai',
     closed: 'Ditutup'
@@ -362,8 +379,12 @@ export default function ComplaintStatusPage() {
                   </div>
                   
                   {/* Timeline Premium (Tidak ada perubahan) */}
-                  <div className="relative">
-                    <div className="absolute top-4 left-0 right-0 h-1 bg-gradient-to-r from-gray-200 via-emerald-200 to-gray-200 dark:from-gray-700 dark:via-emerald-700 dark:to-gray-700 rounded-full"></div>
+                  <div className="relative overflow-x-auto pb-4"> {/* <-- UBAH DI SINI: Tambah overflow & padding */}
+  
+  <div className="min-w-[600px]"> {/* <-- TAMBAH INI: Agar timeline tidak gepeng di HP */}
+    
+    {/* Garis Abu-abu Background */}
+    <div className="absolute top-4 left-0 right-0 h-1 bg-gradient-to-r from-gray-200 via-emerald-200 to-gray-200 dark:from-gray-700 dark:via-emerald-700 dark:to-gray-700 rounded-full"></div>
                     <div className="relative flex justify-between items-start">
                       {getStatusTimeline(complaint.status).map((item, index) => (
                         <div key={item.status} className="flex-1 text-center">
@@ -390,6 +411,7 @@ export default function ComplaintStatusPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
                   </div>
                 </div>
               </div>
