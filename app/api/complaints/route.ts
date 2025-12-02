@@ -30,7 +30,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Validasi minimal 1 case type
     if (!body.complaint_case_type_ids || !Array.isArray(body.complaint_case_type_ids) || body.complaint_case_type_ids.length === 0) {
       return NextResponse.json(
         { error: 'At least 1 complaint case type is required' },
@@ -38,35 +37,69 @@ export async function POST(request: Request) {
       );
     }
 
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+    // Retry logic untuk handle race condition
+    let complaint = null;
+    let complaintNumber = '';
+    let lastError = null;
     
-    const { count } = await supabase
-      .from('complaints')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', `${today.toISOString().slice(0, 10)}T00:00:00Z`);
-      
-    const newCount = (count || 0) + 1;
-    const complaintNumber = `CMP-${dateStr}-${String(newCount).padStart(4, '0')}`;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        // Generate unique complaint number
+        complaintNumber = await generateUniqueComplaintNumber(supabase);
+        
+        const complaintData = {
+          complaint_number: complaintNumber,
+          customer_name: body.customer_name,
+          customer_email: body.customer_email,
+          customer_phone: body.customer_phone,
+          customer_province: body.customer_province,
+          customer_city: body.customer_city,
+          customer_address: body.customer_address,
+          complaint_category_id: body.complaint_category_id,
+          complaint_category_name: body.complaint_category_name,
+          complaint_subcategory_id: body.complaint_subcategory_id,
+          complaint_subcategory_name: body.complaint_subcategory_name,
+          subject: body.subject,
+          description: body.description,
+          related_product_serial: body.related_product_serial || '',
+          related_product_name: body.related_product_name || '',
+          priority: body.priority || 'medium',
+          status: 'submitted',
+          complaint_case_type_ids: body.complaint_case_type_ids,
+          complaint_case_type_names: body.complaint_case_type_names,
+          attachments: body.attachments || []
+        };
 
-    const complaintData = {
-      ...body,
-      complaint_number: complaintNumber,
-      status: 'submitted',
-      complaint_case_type_ids: body.complaint_case_type_ids,
-      complaint_case_type_names: body.complaint_case_type_names
-    };
+        const { data, error } = await supabase
+          .from('complaints')
+          .insert(complaintData)
+          .select()
+          .single();
 
-    const { data: complaint, error } = await supabase
-      .from('complaints')
-      .insert(complaintData)
-      .select()
-      .single();
+        if (error) {
+          // Jika duplicate key, retry dengan nomor baru
+          if (error.code === '23505') {
+            lastError = error;
+            await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
+            continue;
+          }
+          throw error;
+        }
 
-    if (error) {
-      console.error('Supabase error:', error);
+        complaint = data;
+        break;
+        
+      } catch (err: any) {
+        lastError = err;
+        if (attempt === 9) break;
+        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
+      }
+    }
+
+    if (!complaint) {
+      console.error('Failed after retries:', lastError);
       return NextResponse.json(
-        { error: 'Failed to create complaint', details: error.message },
+        { error: 'Failed to create complaint', details: lastError?.message },
         { status: 500 }
       );
     }
@@ -89,8 +122,6 @@ export async function POST(request: Request) {
       if (!waResponse.ok) {
         const notifError = await waResponse.json();
         console.error('Gagal mengirim notifikasi WhatsApp:', notifError);
-      } else {
-        console.log('Notifikasi WhatsApp berhasil:', complaintNumber);
       }
     } catch (notificationError: any) {
       console.error('Error WhatsApp notification:', notificationError.message);
@@ -111,10 +142,7 @@ export async function POST(request: Request) {
         });
 
         if (!emailResponse.ok) {
-          const emailError = await emailResponse.json();
-          console.error('Gagal mengirim notifikasi Email:', emailError);
-        } else {
-          console.log('Notifikasi Email berhasil dikirim.');
+          console.error('Gagal mengirim notifikasi Email');
         }
       } catch (emailError: any) {
         console.error('Error Email notification:', emailError.message);
@@ -135,6 +163,35 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+async function generateUniqueComplaintNumber(supabase: any): Promise<string> {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  // Ambil nomor tertinggi + tambahkan random untuk avoid collision
+  const { data: existingComplaints } = await supabase
+    .from('complaints')
+    .select('complaint_number')
+    .like('complaint_number', `CMP-${dateStr}-%`)
+    .order('complaint_number', { ascending: false })
+    .limit(1);
+
+  let newCounter = 1;
+  
+  if (existingComplaints && existingComplaints.length > 0) {
+    const lastNumber = existingComplaints[0].complaint_number;
+    const match = lastNumber.match(/CMP-\d{8}-(\d{4})$/);
+    if (match) {
+      newCounter = parseInt(match[1], 10) + 1;
+    }
+  }
+
+  // Tambahkan timestamp microsecond untuk uniqueness
+  const microtime = Date.now().toString().slice(-4);
+  const uniqueId = `${newCounter}${microtime}`.slice(0, 4).padStart(4, '0');
+  
+  return `CMP-${dateStr}-${uniqueId}`;
 }
 
 export async function GET(request: Request) {
