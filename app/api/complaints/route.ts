@@ -2,6 +2,21 @@
 import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
 
+// Tambahkan helper function
+function formatPhoneNumber(phone: string): string {
+  let cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.substring(1);
+  }
+  
+  if (!cleaned.startsWith('62')) {
+    cleaned = '62' + cleaned;
+  }
+  
+  return cleaned;
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -37,21 +52,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Retry logic untuk handle race condition
+    // Format nomor telepon
+    const formattedPhone = formatPhoneNumber(body.customer_phone);
+
     let complaint = null;
     let complaintNumber = '';
     let lastError = null;
     
     for (let attempt = 0; attempt < 10; attempt++) {
       try {
-        // Generate unique complaint number
         complaintNumber = await generateUniqueComplaintNumber(supabase);
         
         const complaintData = {
           complaint_number: complaintNumber,
           customer_name: body.customer_name,
           customer_email: body.customer_email,
-          customer_phone: body.customer_phone,
+          customer_phone: formattedPhone, // ← Pakai yang diformat
           customer_province: body.customer_province,
           customer_city: body.customer_city,
           customer_address: body.customer_address,
@@ -77,7 +93,6 @@ export async function POST(request: Request) {
           .single();
 
         if (error) {
-          // Jika duplicate key, retry dengan nomor baru
           if (error.code === '23505') {
             lastError = error;
             await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
@@ -113,7 +128,7 @@ export async function POST(request: Request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'complaint_created',
-          phone: body.customer_phone,
+          customer_phone: formattedPhone, // ← Ubah dari phone ke customer_phone
           customer_name: body.customer_name,
           complaint_number: complaintNumber, 
         }),
@@ -169,7 +184,6 @@ async function generateUniqueComplaintNumber(supabase: any): Promise<string> {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
   
-  // Ambil nomor tertinggi + tambahkan random untuk avoid collision
   const { data: existingComplaints } = await supabase
     .from('complaints')
     .select('complaint_number')
@@ -187,7 +201,6 @@ async function generateUniqueComplaintNumber(supabase: any): Promise<string> {
     }
   }
 
-  // Tambahkan timestamp microsecond untuk uniqueness
   const microtime = Date.now().toString().slice(-4);
   const uniqueId = `${newCounter}${microtime}`.slice(0, 4).padStart(4, '0');
   

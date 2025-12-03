@@ -10,7 +10,7 @@ const complaintStatuses = [
   'decision',         // 5. Menunggu Keputusan
   'pending_response', // 6. Menunggu Respon Customer
   'resolved',         // 7. Selesai
-  'closed'            // (Opsional, untuk arsip)
+  'closed'            // 8. Ditutup/Arsip
 ];
 
 export async function POST(
@@ -118,7 +118,7 @@ export async function POST(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'status_update',
-          phone: complaint.customer_phone,
+          customer_phone: complaint.customer_phone, // ← Ubah dari phone
           complaint_number: complaint.complaint_number,
           customer_name: complaint.customer_name,
           new_status: status

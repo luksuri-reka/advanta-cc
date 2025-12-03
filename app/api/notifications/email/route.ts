@@ -1,8 +1,23 @@
 // app/api/notifications/email/route.ts
 import { NextResponse } from 'next/server';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+function getLogoBase64() {
+  try {
+    const logoPath = join(process.cwd(), 'lib', 'advanta-logo-white.webp');
+    const logoBuffer = readFileSync(logoPath);
+    const base64Logo = logoBuffer.toString('base64');
+    return `data:image/webp;base64,${base64Logo}`;
+  } catch (error) {
+    console.error('Failed to load logo:', error);
+    return ''; // Fallback ke empty string
+  }
+}
 
 export async function POST(request: Request) {
   try {
+    const logoBase64 = getLogoBase64();
     const body = await request.json();
     const { type, email, complaint_number, customer_name } = body;
 
@@ -25,8 +40,7 @@ export async function POST(request: Request) {
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     let subject = '';
-    let htmlContent = '';
-    let html = '';
+    let htmlContent = ''; // ← Gunakan htmlContent konsisten
 
     switch (type) {
       case 'complaint_created':
@@ -45,7 +59,9 @@ export async function POST(request: Request) {
         const statusLabels: Record<string, string> = {
           submitted: 'Dikirim',
           acknowledged: 'Dikonfirmasi',
-          investigating: 'Sedang Diselidiki',
+          observation: 'Proses Observasi',
+          investigation: 'Proses Investigasi & Lab Testing',
+          decision: 'Menunggu Keputusan',
           pending_response: 'Menunggu Respons Anda',
           resolved: 'Selesai',
           closed: 'Ditutup'
@@ -54,7 +70,9 @@ export async function POST(request: Request) {
         const statusDescriptions: Record<string, string> = {
           submitted: 'Komplain Anda telah diterima oleh sistem kami dan menunggu verifikasi tim.',
           acknowledged: 'Komplain Anda telah dikonfirmasi dan dialokasikan ke departemen yang tepat untuk penanganan lebih lanjut.',
-          investigating: 'Tim kami sedang aktif menyelidiki dan menganalisis masalah yang Anda laporkan.',
+          observation: 'Tim kami sedang melakukan observasi terhadap produk yang Anda laporkan.',
+          investigation: 'Produk sedang dalam proses investigasi mendalam dan lab testing.',
+          decision: 'Tim kami sedang menentukan solusi terbaik untuk masalah Anda.',
           pending_response: 'Kami membutuhkan informasi tambahan dari Anda. Mohon cek pesan terbaru dan berikan respons Anda.',
           resolved: 'Komplain Anda telah diselesaikan. Terima kasih atas kesabaran Anda.',
           closed: 'Kasus komplain Anda telah ditutup.'
@@ -63,14 +81,16 @@ export async function POST(request: Request) {
         const statusColors: Record<string, string> = {
           submitted: '#3B82F6',
           acknowledged: '#F59E0B',
-          investigating: '#F97316',
+          observation: '#8B5CF6',
+          investigation: '#EC4899',
+          decision: '#F97316',
           pending_response: '#A855F7',
           resolved: '#10B981',
           closed: '#6B7280'
         };
 
         subject = `Update Status Komplain ${complaint_number}`;
-        html = `
+        htmlContent = `
           <!DOCTYPE html>
           <html>
           <head>
@@ -82,7 +102,7 @@ export async function POST(request: Request) {
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
               <!-- Header -->
               <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center;">
-                <img src="${process.env.NEXT_PUBLIC_BASE_URL}/advanta-logo-white.png" alt="Advanta Logo" style="height: 50px; margin-bottom: 20px;">
+                <img src="${logoBase64}" alt="Advanta Logo" style="height: 50px; margin-bottom: 20px;">
                 <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">Status Komplain Diperbarui</h1>
               </div>
 
@@ -120,7 +140,7 @@ export async function POST(request: Request) {
 
                 <!-- Action Button -->
                 <div style="text-align: center; margin: 30px 0;">
-                  <a href="${process.env.NEXT_PUBLIC_BASE_URL}/complaint/${complaint_number}/status" 
+                  <a href="${baseUrl}/complaint/${complaint_number}/status" 
                     style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);">
                     Lihat Detail Komplain
                   </a>
@@ -136,7 +156,7 @@ export async function POST(request: Request) {
                 <p style="color: #6b7280; font-size: 13px; margin: 0 0 10px 0;">
                   PT Advanta Seeds Indonesia<br>
                   Email: ${process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'support@advanta.co.id'}<br>
-                  Website: ${process.env.NEXT_PUBLIC_BASE_URL}
+                  Website: ${baseUrl}
                 </p>
                 <p style="color: #9ca3af; font-size: 12px; margin: 15px 0 0 0;">
                   Email ini dikirim secara otomatis. Mohon tidak membalas email ini.
@@ -154,13 +174,11 @@ export async function POST(request: Request) {
         htmlContent = generateGenericEmail(customer_name, complaint_number, baseUrl);
     }
 
-    
-
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'noreply@advantaindonesia.com',
       to: email,
       subject,
-      html: htmlContent,
+      html: htmlContent, // ← Fix: gunakan htmlContent saja
     });
 
     if (error) {
@@ -183,6 +201,7 @@ export async function POST(request: Request) {
   }
 }
 
+// Function generators tetap sama...
 function generateComplaintCreatedEmail(customerName: string, complaintNumber: string, baseUrl: string) {
   return `
     <!DOCTYPE html>
