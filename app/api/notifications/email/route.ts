@@ -1,27 +1,11 @@
 // app/api/notifications/email/route.ts
 import { NextResponse } from 'next/server';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-
-function getLogoBase64() {
-  try {
-    const logoPath = join(process.cwd(), 'lib', 'advanta-logo-white.webp');
-    const logoBuffer = readFileSync(logoPath);
-    const base64Logo = logoBuffer.toString('base64');
-    return `data:image/webp;base64,${base64Logo}`;
-  } catch (error) {
-    console.error('Failed to load logo:', error);
-    return ''; // Fallback ke empty string
-  }
-}
 
 export async function POST(request: Request) {
   try {
-    const logoBase64 = getLogoBase64();
     const body = await request.json();
     const { type, email, complaint_number, customer_name } = body;
 
-    // Skip if email notifications disabled
     if (process.env.ENABLE_EMAIL_NOTIFICATIONS !== 'true') {
       console.log('Email notifications disabled, skipping...');
       return NextResponse.json({ 
@@ -30,27 +14,28 @@ export async function POST(request: Request) {
       });
     }
 
-    // Get base URL - fallback to request origin
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
                     request.headers.get('origin') || 
                     'http://localhost:3000';
 
-    // Dynamic import Resend only when needed
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     let subject = '';
-    let htmlContent = ''; // ← Gunakan htmlContent konsisten
+    let htmlContent = '';
+
+    // Logo URL - langsung dari public folder
+    const logoUrl = `${baseUrl}/advanta-logo-white.webp`; // ← Tambah ini
 
     switch (type) {
       case 'complaint_created':
         subject = `Komplain Anda Telah Diterima - ${complaint_number}`;
-        htmlContent = generateComplaintCreatedEmail(customer_name, complaint_number, baseUrl);
+        htmlContent = generateComplaintCreatedEmail(customer_name, complaint_number, baseUrl, logoUrl);
         break;
       
       case 'complaint_response':
         subject = `Update Komplain ${complaint_number}`;
-        htmlContent = generateComplaintResponseEmail(customer_name, complaint_number, baseUrl);
+        htmlContent = generateComplaintResponseEmail(customer_name, complaint_number, baseUrl, logoUrl);
         break;
         
       case 'status_update': {
@@ -100,13 +85,11 @@ export async function POST(request: Request) {
           </head>
           <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-              <!-- Header -->
               <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center;">
-                <img src="${logoBase64}" alt="Advanta Logo" style="height: 50px; margin-bottom: 20px;">
+                <img src="${logoUrl}" alt="Advanta Logo" style="height: 50px; margin-bottom: 20px;">
                 <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">Status Komplain Diperbarui</h1>
               </div>
 
-              <!-- Content -->
               <div style="padding: 40px 30px;">
                 <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
                   Halo <strong>${customer_name}</strong>,
@@ -116,7 +99,6 @@ export async function POST(request: Request) {
                   Status komplain Anda telah diperbarui. Berikut adalah informasi terbaru:
                 </p>
 
-                <!-- Complaint Info -->
                 <div style="background-color: #f9fafb; border-left: 4px solid ${statusColors[new_status]}; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
                   <div style="margin-bottom: 15px;">
                     <span style="color: #6b7280; font-size: 13px; display: block; margin-bottom: 5px;">Nomor Komplain</span>
@@ -130,7 +112,6 @@ export async function POST(request: Request) {
                   </div>
                 </div>
 
-                <!-- Status Description -->
                 <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
                   <p style="color: #1e40af; font-size: 14px; line-height: 1.6; margin: 0;">
                     <strong>Apa artinya?</strong><br>
@@ -138,7 +119,6 @@ export async function POST(request: Request) {
                   </p>
                 </div>
 
-                <!-- Action Button -->
                 <div style="text-align: center; margin: 30px 0;">
                   <a href="${baseUrl}/complaint/${complaint_number}/status" 
                     style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);">
@@ -151,7 +131,6 @@ export async function POST(request: Request) {
                 </p>
               </div>
 
-              <!-- Footer -->
               <div style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
                 <p style="color: #6b7280; font-size: 13px; margin: 0 0 10px 0;">
                   PT Advanta Seeds Indonesia<br>
@@ -171,14 +150,14 @@ export async function POST(request: Request) {
         
       default:
         subject = `Notifikasi dari Advanta Seeds - ${complaint_number}`;
-        htmlContent = generateGenericEmail(customer_name, complaint_number, baseUrl);
+        htmlContent = generateGenericEmail(customer_name, complaint_number, baseUrl, logoUrl);
     }
 
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'noreply@advantaindonesia.com',
       to: email,
       subject,
-      html: htmlContent, // ← Fix: gunakan htmlContent saja
+      html: htmlContent,
     });
 
     if (error) {
@@ -201,8 +180,8 @@ export async function POST(request: Request) {
   }
 }
 
-// Function generators tetap sama...
-function generateComplaintCreatedEmail(customerName: string, complaintNumber: string, baseUrl: string) {
+// Update function signatures - tambah parameter logoUrl
+function generateComplaintCreatedEmail(customerName: string, complaintNumber: string, baseUrl: string, logoUrl: string) {
   return `
     <!DOCTYPE html>
     <html>
@@ -214,6 +193,7 @@ function generateComplaintCreatedEmail(customerName: string, complaintNumber: st
     <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #10b981, #3b82f6); padding: 30px 20px; text-align: center;">
+          <img src="${logoUrl}" alt="Advanta Logo" style="height: 50px; margin-bottom: 20px;">
           <h1 style="color: white; margin: 0; font-size: 24px; font-weight: bold;">
             Komplain Telah Diterima
           </h1>
@@ -276,7 +256,7 @@ function generateComplaintCreatedEmail(customerName: string, complaintNumber: st
   `;
 }
 
-function generateComplaintResponseEmail(customerName: string, complaintNumber: string, baseUrl: string) {
+function generateComplaintResponseEmail(customerName: string, complaintNumber: string, baseUrl: string, logoUrl: string) {
   return `
     <!DOCTYPE html>
     <html>
@@ -288,6 +268,7 @@ function generateComplaintResponseEmail(customerName: string, complaintNumber: s
     <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #3b82f6, #6366f1); padding: 30px 20px; text-align: center;">
+          <img src="${logoUrl}" alt="Advanta Logo" style="height: 50px; margin-bottom: 20px;">
           <h1 style="color: white; margin: 0; font-size: 24px; font-weight: bold;">
             Update Komplain Anda
           </h1>
@@ -328,7 +309,7 @@ function generateComplaintResponseEmail(customerName: string, complaintNumber: s
   `;
 }
 
-function generateGenericEmail(customerName: string, complaintNumber: string, baseUrl: string) {
+function generateGenericEmail(customerName: string, complaintNumber: string, baseUrl: string, logoUrl: string) {
   return `
     <!DOCTYPE html>
     <html>
@@ -340,6 +321,7 @@ function generateGenericEmail(customerName: string, complaintNumber: string, bas
     <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px 20px; text-align: center;">
+          <img src="${logoUrl}" alt="Advanta Logo" style="height: 50px; margin-bottom: 20px;">
           <h1 style="color: white; margin: 0; font-size: 24px; font-weight: bold;">
             Notifikasi dari Advanta Seeds
           </h1>
