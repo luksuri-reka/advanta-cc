@@ -626,8 +626,6 @@ export default function ComplaintForm() {
                       <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                         Provinsi *
                       </label>
-                      // Ganti bagian select provinsi (sekitar line 635) dengan:
-
                       <select
                         name="customer_province"
                         value={formData.customer_province}
