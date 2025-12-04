@@ -165,13 +165,19 @@ export default function AdminComplaintsPage() {
       case 'submitted':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
       case 'acknowledged':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+      case 'observation':
+        return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300';
+      case 'investigation':
       case 'investigating':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300';
+      case 'decision':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300';
       case 'pending_response':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
       case 'resolved':
       case 'closed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
@@ -181,7 +187,10 @@ export default function AdminComplaintsPage() {
     const labels: Record<string, string> = {
       submitted: 'Dikirim',
       acknowledged: 'Dikonfirmasi',
-      investigating: 'Diselidiki',
+      observation: 'Observasi',
+      investigation: 'Investigasi',
+      investigating: 'Investigasi',
+      decision: 'Keputusan',
       pending_response: 'Menunggu Respons',
       resolved: 'Selesai',
       closed: 'Ditutup'
@@ -228,7 +237,7 @@ export default function AdminComplaintsPage() {
   
   const stats = [
     { label: 'Total Keluhan', value: complaints.length, color: 'blue', icon: InboxIcon },
-    { label: 'Sedang Diproses', value: complaints.filter(c => ['submitted', 'acknowledged', 'investigating'].includes(c.status)).length, color: 'yellow', icon: WrenchIcon },
+    { label: 'Sedang Diproses', value: complaints.filter(c => ['submitted', 'acknowledged', 'observation', 'investigation', 'investigating', 'decision'].includes(c.status)).length, color: 'yellow', icon: WrenchIcon },
     { label: 'Selesai', value: complaints.filter(c => ['resolved', 'closed'].includes(c.status)).length, color: 'green', icon: CheckCircleIcon },
     { label: 'Menunggu Respons', value: complaints.filter(c => c.status === 'pending_response').length, color: 'purple', icon: ExclamationTriangleIcon }
   ];
@@ -301,7 +310,10 @@ export default function AdminComplaintsPage() {
                 <option value="">Semua Status</option>
                 <option value="submitted">Dikirim</option>
                 <option value="acknowledged">Dikonfirmasi</option>
+                <option value="observation">Observasi</option>
+                <option value="investigation">Investigasi & Lab</option>
                 <option value="investigating">Diselidiki</option>
+                <option value="decision">Menunggu Keputusan</option>
                 <option value="pending_response">Menunggu Respons</option>
                 <option value="resolved">Selesai</option>
                 <option value="closed">Ditutup</option>
