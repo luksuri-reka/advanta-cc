@@ -16,7 +16,12 @@ import {
   MapPinIcon,
   PhotoIcon,
   TagIcon,
-  PlusCircleIcon
+  PlusCircleIcon,
+  QrCodeIcon,
+  ScaleIcon,
+  CubeIcon,
+  ChevronDownIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -31,12 +36,14 @@ interface ComplaintFormData {
   complaint_category_name: string;
   complaint_subcategory_id: string;
   complaint_subcategory_name: string;
-  complaint_case_type_ids: string[];  // Array untuk multiple selection
-  complaint_case_type_names: string[]; // Array untuk multiple selection
+  complaint_case_type_ids: string[];
+  complaint_case_type_names: string[];
   subject: string;
   description: string;
   related_product_serial?: string;
   related_product_name?: string;
+  lot_number: string;
+  problematic_quantity: string;
 }
 
 interface CaseType {
@@ -69,6 +76,13 @@ interface Regency {
   name: string;
 }
 
+// 🔥 TAMBAHKAN: Interface untuk Produk
+interface Product {
+  id: number;
+  name: string;
+  photo?: string;
+}
+
 export default function ComplaintForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -96,15 +110,18 @@ export default function ComplaintForm() {
   const [productPhoto, setProductPhoto] = useState<string>('');
   const [photoLoading, setPhotoLoading] = useState(false);
   
-  // State untuk 3 Level Categories
+  // 🔥 TAMBAHKAN: State untuk daftar produk & dropdown
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState(productId);
+  
   const [categories, setCategories] = useState<ComplaintCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | ''>('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
-  const [selectedCaseTypeIds, setSelectedCaseTypeIds] = useState<string[]>([]); // Multiple selection
+  const [selectedCaseTypeIds, setSelectedCaseTypeIds] = useState<string[]>([]);
   const [categoryError, setCategoryError] = useState('');
   
-  // State untuk lokasi dari Supabase
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [regencies, setRegencies] = useState<Regency[]>([]);
   const [availableRegencies, setAvailableRegencies] = useState<Regency[]>([]);
@@ -125,27 +142,53 @@ export default function ComplaintForm() {
     complaint_case_type_names: [],
     subject: '',
     description: '',
-    related_product_serial: serial || lot,
-    related_product_name: productNameQuery
+    related_product_serial: serial,
+    related_product_name: productNameQuery,
+    lot_number: lot, 
+    problematic_quantity: ''
   });
 
   const selectedCategory = categories.find(c => Number(c.id) === Number(selectedCategoryId));
   const selectedSubCategory = selectedCategory?.subCategories.find(s => s.id === selectedSubCategoryId);
 
+  // 🔥 TAMBAHKAN: Fetch semua produk saat component mount
+  const loadProducts = async () => {
+    setProductsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, photo')
+        .order('name', { ascending: true });
+        
+      if (data) {
+        setAllProducts(data);
+      }
+      if (error) {
+        console.error("Gagal memuat produk:", error.message);
+      }
+    } catch (err) {
+      console.error('Error loading products:', err);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
     loadCategories();
     loadLocations();
+    loadProducts(); // 🔥 PANGGIL fungsi load products
   }, []);
 
+  // 🔥 MODIFIKASI: Fetch product data ketika selectedProductId berubah
   useEffect(() => {
-    if (mounted && productId) {
+    if (mounted && selectedProductId) {
       const fetchProductData = async () => {
         setPhotoLoading(true);
         const { data: productData, error } = await supabase
           .from('products')
           .select('name, photo')
-          .eq('id', productId)
+          .eq('id', selectedProductId)
           .single();
 
         if (productData) {
@@ -160,8 +203,15 @@ export default function ComplaintForm() {
         setPhotoLoading(false);
       };
       fetchProductData();
+    } else if (!selectedProductId) {
+      // Reset jika tidak ada product dipilih
+      setFormData(prev => ({
+        ...prev,
+        related_product_name: ''
+      }));
+      setProductPhoto('');
     }
-  }, [mounted, productId, supabase]);
+  }, [mounted, selectedProductId, supabase]);
 
   useEffect(() => {
     if (formData.customer_province) {
@@ -176,7 +226,6 @@ export default function ComplaintForm() {
     }
   }, [formData.customer_province, provinces, regencies]);
 
-  // Update formData when case types change
   useEffect(() => {
     if (selectedSubCategory && selectedCaseTypeIds.length > 0) {
       const selectedNames = selectedCaseTypeIds
@@ -219,7 +268,6 @@ export default function ComplaintForm() {
 
   const loadCategories = async () => {
     try {
-      // 🔥 UBAH: Ganti ke endpoint public
       const response = await fetch('/api/public/complaint-categories');
       const data = await response.json();
       if (data.success && data.data) {
@@ -284,6 +332,12 @@ export default function ComplaintForm() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // 🔥 TAMBAHKAN: Handler untuk product dropdown
+  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newProductId = e.target.value;
+    setSelectedProductId(newProductId);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -324,16 +378,15 @@ export default function ComplaintForm() {
     }
   };
 
-  // Handler untuk "Laporkan Masalah Lain"
   const handleReportAnother = () => {
     setIsSubmitted(false);
     setComplaintNumber('');
     
-    // Reset form tapi keep customer info
     setSelectedCategoryId('');
     setSelectedSubCategoryId('');
     setSelectedCaseTypeIds([]);
     setCategoryError('');
+    setSelectedProductId(''); // 🔥 RESET selected product
     
     setFormData(prev => ({
       ...prev,
@@ -344,10 +397,11 @@ export default function ComplaintForm() {
       complaint_case_type_ids: [],
       complaint_case_type_names: [],
       subject: '',
-      description: ''
+      description: '',
+      lot_number: '',
+      problematic_quantity: ''
     }));
 
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -409,7 +463,6 @@ export default function ComplaintForm() {
                 </Link>
               </div>
 
-              {/* Tombol "Laporkan Masalah Lain" - BARU */}
               <div className="mb-8 pt-6 border-t-2 border-dashed border-gray-200 dark:border-slate-700">
                 <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl p-6 border-2 border-orange-200 dark:border-orange-800">
                   <div className="flex items-start gap-4">
@@ -504,7 +557,7 @@ export default function ComplaintForm() {
           <form onSubmit={handleSubmit} className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
-              {/* Left Column - Personal Info (SAMA SEPERTI SEBELUMNYA) */}
+              {/* Left Column - Personal Info */}
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                   <UserIcon className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
@@ -573,6 +626,8 @@ export default function ComplaintForm() {
                       <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                         Provinsi *
                       </label>
+                      // Ganti bagian select provinsi (sekitar line 635) dengan:
+
                       <select
                         name="customer_province"
                         value={formData.customer_province}
@@ -630,8 +685,110 @@ export default function ComplaintForm() {
                   </div>
                 </div>
 
-                {/* Product Info Card (SAMA SEPERTI SEBELUMNYA) */}
-                {(formData.related_product_serial || formData.related_product_name) && (
+                {/* 🔥 TAMBAHKAN: Product Dropdown - SELALU TAMPIL */}
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <div className="relative group">
+                    <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-slate-100 mb-3">
+                      <CubeIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      Pilih Produk
+                      <span className="text-slate-400 text-xs">(Opsional)</span>
+                    </label>
+                    
+                    <div className="relative">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4 z-10">
+                        <div className={`p-1.5 rounded-lg transition-all duration-300 ${
+                          selectedProductId 
+                            ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20' 
+                            : 'bg-slate-100 dark:bg-slate-800'
+                        }`}>
+                          <CubeIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${
+                            selectedProductId 
+                              ? 'text-emerald-600 dark:text-emerald-400 scale-110' 
+                              : 'text-slate-400'
+                          }`} />
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <select
+                          name="product_id"
+                          value={selectedProductId}
+                          onChange={handleProductChange}
+                          disabled={productsLoading}
+                          className={`block w-full rounded-xl sm:rounded-2xl border-2 py-3.5 sm:py-4 pl-14 sm:pl-16 pr-12 text-sm sm:text-base font-medium transition-all duration-300 appearance-none cursor-pointer ${
+                            selectedProductId
+                              ? 'text-slate-900 dark:text-slate-100 bg-gradient-to-r from-white to-emerald-50/50 dark:from-slate-900 dark:to-emerald-950/30 border-emerald-500 dark:border-emerald-600 ring-4 ring-emerald-500/10 shadow-xl shadow-emerald-500/20'
+                              : 'text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 shadow-lg hover:shadow-xl'
+                          } focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:border-emerald-400 focus:scale-[1.01] disabled:opacity-60 disabled:cursor-not-allowed`}
+                        >
+                          <option value="" className="text-slate-400">
+                            {productsLoading ? '⏳ Memuat produk...' : '🌱 Pilih produk (opsional)'}
+                          </option>
+                          {allProducts.map((product) => (
+                            <option 
+                              key={product.id} 
+                              value={product.id.toString()}
+                              className="text-slate-900 dark:text-slate-100 py-2"
+                            >
+                              {product.name}
+                            </option>
+                          ))}
+                        </select>
+
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4">
+                          <div className={`p-1.5 rounded-lg transition-all duration-300 ${
+                            selectedProductId 
+                              ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20' 
+                              : 'bg-slate-100 dark:bg-slate-800'
+                          }`}>
+                            <ChevronDownIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${
+                              selectedProductId 
+                                ? 'text-emerald-600 dark:text-emerald-400' 
+                                : 'text-slate-400'
+                            }`} />
+                          </div>
+                        </div>
+
+                        {productsLoading && (
+                          <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl flex items-center justify-center">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Memuat...</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {allProducts.length > 0 && !productsLoading && (
+                        <div className="absolute -top-2 -right-2 z-20">
+                          <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full shadow-lg">
+                            <span className="text-[10px] font-bold text-white">{allProducts.length}</span>
+                            <span className="text-[10px] font-medium text-white/90">produk</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={`mt-2 sm:mt-3 transition-all duration-300 ${
+                      selectedProductId ? 'opacity-100 translate-y-0' : 'opacity-70 translate-y-1'
+                    }`}>
+                      <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <SparklesIcon className={`w-3 h-3 transition-all duration-300 ${
+                          selectedProductId ? 'text-emerald-500 animate-pulse' : 'text-slate-400'
+                        }`} />
+                        <span>
+                          {selectedProductId 
+                            ? `Produk dipilih - ${allProducts.find(p => p.id.toString() === selectedProductId)?.name || ''}`
+                            : 'Pilih produk yang ingin dikomplain (opsional)'
+                          }
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Info Card - Hanya tampil jika ada product dipilih */}
+                {selectedProductId && formData.related_product_name && (
                   <div className="relative bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-900/20 dark:via-slate-800 dark:to-emerald-900/10 rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 dark:border-emerald-800 shadow-lg hover:shadow-xl transition-all duration-300">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/10 to-transparent rounded-bl-full"></div>
                     <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-emerald-400/10 to-transparent rounded-tr-full"></div>
@@ -680,32 +837,20 @@ export default function ComplaintForm() {
                             </div>
                           </div>
                         )}
-                        
-                        {formData.related_product_serial && (
-                          <div className="flex items-start gap-3 pt-3 border-t border-emerald-200/50 dark:border-emerald-800/50">
-                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-                              <span className="text-white text-xs font-bold">#</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-0.5">Serial/Lot Number</p>
-                              <p className="text-sm sm:text-base font-mono font-bold text-blue-900 dark:text-blue-200 break-all">{formData.related_product_serial}</p>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Right Column - Complaint Details dengan Multiple Checkbox */}
+              {/* Right Column - Complaint Details */}
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                   <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
                   Detail Komplain
                 </h3>
 
-                {/* 3 Level Category Selector dengan Multiple Selection */}
+                {/* Category Selector - SAMA SEPERTI SEBELUMNYA */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-2">
                     <TagIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
@@ -776,7 +921,7 @@ export default function ComplaintForm() {
                         </div>
                       )}
 
-                      {/* Level 3: Multiple Case Types dengan Checkbox */}
+                      {/* Level 3: Multiple Case Types */}
                       {selectedSubCategoryId && (
                         <div className="pl-8 border-l-4 border-purple-300 dark:border-purple-700">
                           <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">
@@ -886,6 +1031,46 @@ export default function ComplaintForm() {
                       )}
                     </>
                   )}
+                </div>
+
+                {/* Lot Number dan Quantity */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                      Nomor Lot/Kelompok
+                    </label>
+                    <div className="relative">
+                      <QrCodeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
+                      <input
+                        type="text"
+                        name="lot_number"
+                        value={formData.lot_number}
+                        onChange={handleChange}
+                        className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
+                        placeholder="Contoh: 123456"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                      Jumlah Benih Bermasalah
+                    </label>
+                    <div className="relative">
+                      <ScaleIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
+                      <input
+                        type="text"
+                        name="problematic_quantity"
+                        value={formData.problematic_quantity}
+                        onChange={handleChange}
+                        className="w-full pl-12 pr-12 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
+                        placeholder="0"
+                      />
+                      <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-slate-400 font-medium">
+                        kg
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Subject & Description */}

@@ -67,7 +67,7 @@ export async function POST(request: Request) {
           complaint_number: complaintNumber,
           customer_name: body.customer_name,
           customer_email: body.customer_email,
-          customer_phone: formattedPhone, // ← Pakai yang diformat
+          customer_phone: formattedPhone,
           customer_province: body.customer_province,
           customer_city: body.customer_city,
           customer_address: body.customer_address,
@@ -79,6 +79,10 @@ export async function POST(request: Request) {
           description: body.description,
           related_product_serial: body.related_product_serial || '',
           related_product_name: body.related_product_name || '',
+          // 🔥 BARU: Simpan data Lot dan Quantity
+          lot_number: body.lot_number || '',
+          problematic_quantity: body.problematic_quantity || '',
+          
           priority: body.priority || 'medium',
           status: 'submitted',
           complaint_case_type_ids: body.complaint_case_type_ids,
@@ -128,7 +132,7 @@ export async function POST(request: Request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'complaint_created',
-          customer_phone: formattedPhone, // ← Ubah dari phone ke customer_phone
+          customer_phone: formattedPhone,
           customer_name: body.customer_name,
           complaint_number: complaintNumber, 
         }),

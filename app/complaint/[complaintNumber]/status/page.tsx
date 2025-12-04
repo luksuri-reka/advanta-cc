@@ -1,4 +1,4 @@
-// app/complaint/[complaintNumber]/status/page.tsx - PREMIUM UI (GAYA WHATSAPP + BADGE ADMIN DIHAPUS)
+// app/complaint/[complaintNumber]/status/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,7 +17,9 @@ import {
   MapPinIcon,
   InformationCircleIcon,
   PaperAirplaneIcon,
-  SparklesIcon
+  SparklesIcon,
+  QrCodeIcon, // 🔥 BARU: Import Icon
+  ScaleIcon   // 🔥 BARU: Import Icon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
@@ -41,6 +43,9 @@ interface Complaint {
   complaint_case_type_names?: string[];
 
   related_product_name?: string;
+  // 🔥 BARU: Definisi Field Baru di Interface
+  lot_number?: string;
+  problematic_quantity?: string;
 
   status: string;
   created_at: string;
@@ -58,15 +63,13 @@ interface Complaint {
   }>;
 }
 
-// GANTI FUNGSI INI
 const getStatusTimeline = (currentStatus: string) => {
-  // Tambahkan status baru: observation, investigation, decision
   const timeline = [
     { status: 'submitted', label: 'Dikirim', icon: '📝' },
     { status: 'acknowledged', label: 'Dikonfirmasi', icon: '✅' },
-    { status: 'observation', label: 'Observasi', icon: '👀' },     // <-- BARU
-    { status: 'investigation', label: 'Investigasi', icon: '🔬' }, // <-- BARU
-    { status: 'decision', label: 'Keputusan', icon: '⚖️' },       // <-- BARU
+    { status: 'observation', label: 'Observasi', icon: '👀' },
+    { status: 'investigation', label: 'Investigasi', icon: '🔬' },
+    { status: 'decision', label: 'Keputusan', icon: '⚖️' },
     { status: 'pending_response', label: 'Menunggu Respons', icon: '⏳' },
     { status: 'resolved', label: 'Selesai', icon: '🎉' },
     { status: 'closed', label: 'Ditutup', icon: '🔒' }
@@ -74,8 +77,6 @@ const getStatusTimeline = (currentStatus: string) => {
 
   let currentIndex = timeline.findIndex(item => item.status === currentStatus);
   
-  // LOGIKA PENTING: Jika data lama masih pakai status 'investigating',
-  // kita paksa arahkan ke 'investigation' agar tidak error.
   if (currentIndex === -1) {
     if (currentStatus === 'investigating') {
       currentIndex = timeline.findIndex(item => item.status === 'investigation');
@@ -91,15 +92,14 @@ const getStatusTimeline = (currentStatus: string) => {
   }));
 };
 
-// GANTI FUNGSI INI
 const getStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
     submitted: 'Dikirim',
     acknowledged: 'Dikonfirmasi',
-    observation: 'Proses Observasi',           // <-- BARU
-    investigation: 'Proses Investigasi & Lab', // <-- BARU
-    investigating: 'Proses Investigasi',       // Legacy support
-    decision: 'Menunggu Keputusan',            // <-- BARU
+    observation: 'Proses Observasi',
+    investigation: 'Proses Investigasi & Lab',
+    investigating: 'Proses Investigasi',
+    decision: 'Menunggu Keputusan',
     pending_response: 'Menunggu Respons Anda',
     resolved: 'Selesai',
     closed: 'Ditutup'
@@ -107,7 +107,7 @@ const getStatusLabel = (status: string) => {
   return labels[status] || status;
 };
 
-// --- FUNGSI FORMAT WAKTU (SESUAI ADMIN) ---
+// --- FUNGSI FORMAT WAKTU ---
 const formatDateShort = (dateString?: string) => {
   if (!dateString) return '-';
   return new Date(dateString).toLocaleString('id-ID', {
@@ -189,7 +189,6 @@ export default function ComplaintStatusPage() {
         },
       });
 
-      // Reload complaint data
       loadComplaint();
     } catch (error: any) {
       console.error('Error submitting feedback:', error);
@@ -202,7 +201,6 @@ export default function ComplaintStatusPage() {
   const loadComplaint = async () => {
     setError(null);
     try {
-      // Panggilan ini seharusnya sudah benar (dari perbaikan sebelumnya)
       const response = await fetch(`/api/complaints?complaint_number=${complaintNumber}`);
       
       if (!response.ok) {
@@ -212,7 +210,6 @@ export default function ComplaintStatusPage() {
       
       const data = await response.json();
       
-      // Ini juga seharusnya sudah benar (data.data[0])
       if (!data.data || data.data.length === 0) {
         throw new Error('Detail komplain tidak ditemukan.');
       }
@@ -236,7 +233,6 @@ export default function ComplaintStatusPage() {
     
     setIsSending(true);
     try {
-      // API ini memanggil /api/complaints/[id]/responses
       const response = await fetch(`/api/complaints/${complaint.id}/responses`, {
         method: 'POST',
         headers: {
@@ -245,7 +241,7 @@ export default function ComplaintStatusPage() {
         body: JSON.stringify({
           message: responseMessage,
           admin_id: null,
-          admin_name: null, // null menandakan ini dari customer
+          admin_name: null, 
           is_internal: false
         }),
       });
@@ -264,7 +260,7 @@ export default function ComplaintStatusPage() {
         },
       });
       setResponseMessage('');
-      loadComplaint(); // Muat ulang data komplain untuk menampilkan balasan baru
+      loadComplaint(); 
 
     } catch (error: any) {
       console.error('Error posting response:', error);
@@ -327,7 +323,7 @@ export default function ComplaintStatusPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-emerald-50/30 to-blue-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-blue-950 pb-16">
       <Toaster position="top-right" />
 
-      {/* Header Premium dengan Glassmorphism */}
+      {/* Header Premium */}
       <div className="sticky top-0 z-50 bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl border-b border-white/20 dark:border-gray-700/30 shadow-lg">
         <div className="max-w-4xl mx-auto px-6 py-5 flex justify-between items-center">
           <Link
@@ -355,7 +351,7 @@ export default function ComplaintStatusPage() {
         {complaint && (
           <div className="space-y-8">
             
-            {/* Status Card Premium (Tidak ada perubahan) */}
+            {/* Status Card Premium */}
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-600 to-blue-600 rounded-3xl blur opacity-20 group-hover:opacity-30 transition duration-500"></div>
               <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden">
@@ -378,46 +374,43 @@ export default function ComplaintStatusPage() {
                     </div>
                   </div>
                   
-                  {/* Timeline Premium (Tidak ada perubahan) */}
-                  <div className="relative overflow-x-auto pb-4"> {/* <-- UBAH DI SINI: Tambah overflow & padding */}
-  
-  <div className="min-w-[600px]"> {/* <-- TAMBAH INI: Agar timeline tidak gepeng di HP */}
-    
-    {/* Garis Abu-abu Background */}
-    <div className="absolute top-4 left-0 right-0 h-1 bg-gradient-to-r from-gray-200 via-emerald-200 to-gray-200 dark:from-gray-700 dark:via-emerald-700 dark:to-gray-700 rounded-full"></div>
-                    <div className="relative flex justify-between items-start">
-                      {getStatusTimeline(complaint.status).map((item, index) => (
-                        <div key={item.status} className="flex-1 text-center">
-                          <div className="relative mb-3">
+                  {/* Timeline */}
+                  <div className="relative overflow-x-auto pb-4">
+                    <div className="min-w-[600px]">
+                      <div className="absolute top-4 left-0 right-0 h-1 bg-gradient-to-r from-gray-200 via-emerald-200 to-gray-200 dark:from-gray-700 dark:via-emerald-700 dark:to-gray-700 rounded-full"></div>
+                      <div className="relative flex justify-between items-start">
+                        {getStatusTimeline(complaint.status).map((item, index) => (
+                          <div key={item.status} className="flex-1 text-center">
+                            <div className="relative mb-3">
+                              <div className={`
+                                w-10 h-10 rounded-full text-xl flex items-center justify-center mx-auto
+                                transition-all duration-500 transform hover:scale-110
+                                ${item.isCompleted || item.isCurrent 
+                                  ? 'bg-gradient-to-br from-emerald-500 to-blue-500 text-white shadow-lg shadow-emerald-500/50' 
+                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}
+                                ${item.isCurrent ? 'ring-4 ring-emerald-300 dark:ring-emerald-500/50 animate-pulse' : ''}
+                              `}>
+                                {item.isCompleted ? '✓' : item.icon}
+                              </div>
+                            </div>
                             <div className={`
-                              w-10 h-10 rounded-full text-xl flex items-center justify-center mx-auto
-                              transition-all duration-500 transform hover:scale-110
+                              text-xs font-bold transition-colors duration-300
                               ${item.isCompleted || item.isCurrent 
-                                ? 'bg-gradient-to-br from-emerald-500 to-blue-500 text-white shadow-lg shadow-emerald-500/50' 
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}
-                              ${item.isCurrent ? 'ring-4 ring-emerald-300 dark:ring-emerald-500/50 animate-pulse' : ''}
+                                ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600' 
+                                : 'text-gray-500 dark:text-gray-400'}
                             `}>
-                              {item.isCompleted ? '✓' : item.icon}
+                              {item.label}
                             </div>
                           </div>
-                          <div className={`
-                            text-xs font-bold transition-colors duration-300
-                            ${item.isCompleted || item.isCurrent 
-                              ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600' 
-                              : 'text-gray-500 dark:text-gray-400'}
-                          `}>
-                            {item.label}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Response Box Premium (Tidak ada perubahan) */}
+            {/* Response Box */}
             {complaint.status === 'pending_response' && (
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl blur opacity-30 group-hover:opacity-40 transition duration-500 animate-pulse"></div>
@@ -492,9 +485,7 @@ export default function ComplaintStatusPage() {
               </div>
             )}
 
-            {/* ========================================================== */}
-            {/* === 🎨 PERUBAHAN UI DIMULAI DI SINI (BADGE ADMIN DIHAPUS) 🎨 === */}
-            {/* Communication History Premium */}
+            {/* Communication History */}
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl blur opacity-10 group-hover:opacity-20 transition duration-500"></div>
               <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30">
@@ -510,12 +501,11 @@ export default function ComplaintStatusPage() {
                   {complaint.complaint_responses && complaint.complaint_responses.filter(r => !r.is_internal).length > 0 ? (
                     <div className="space-y-6">
                       {complaint.complaint_responses
-                        .filter(response => !response.is_internal) // <-- Filter penting: jangan tampilkan catatan internal
+                        .filter(response => !response.is_internal)
                         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                         .map((response) => {
                           
-                          // --- TAMPILAN 1: Balasan Pelanggan (ANDA) ---
-                          // (Layout KANAN, Sesuai WA)
+                          // Customer Response (ANDA)
                           if (!response.admin_name) {
                             return (
                               <div key={response.id} className="flex gap-3 w-full flex-row-reverse">
@@ -526,7 +516,6 @@ export default function ComplaintStatusPage() {
                                 <div className="max-w-xl rounded-2xl p-4
                                               bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/40 dark:to-teal-900/40 
                                               border-2 border-emerald-200 dark:border-emerald-800 shadow-md">
-                                  {/* Header: Badge Customer + Nama + Tanggal */}
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
                                       <UserIcon className="h-3 w-3" />
@@ -539,12 +528,9 @@ export default function ComplaintStatusPage() {
                                       {formatDateShort(response.created_at)}
                                     </span>
                                   </div>
-                                  {/* Isi Pesan */}
                                   <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                                     {response.message}
                                   </p>
-                                  
-                                  {/* Footer "Terkirim" (Tidak Berubah) */}
                                   <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-emerald-200 dark:border-emerald-800">
                                     <span className="text-xs text-gray-600 dark:text-gray-400">
                                       {formatTime(response.created_at)}
@@ -562,8 +548,7 @@ export default function ComplaintStatusPage() {
                             );
                           }
 
-                          // --- TAMPILAN 2: Balasan Admin PUBLIC (ADMIN) ---
-                          // (Layout KIRI, Sesuai WA)
+                          // Admin Response (PUBLIC)
                           return (
                             <div key={response.id} className="flex gap-3 w-full flex-row">
                               <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-1
@@ -573,7 +558,6 @@ export default function ComplaintStatusPage() {
                               <div className="max-w-xl rounded-2xl p-4
                                             bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 
                                             border-2 border-blue-200 dark:border-blue-800 shadow-md">
-                                {/* Header: Badge Public + Admin + Nama + Tanggal */}
                                 <div className="flex items-center gap-2 mb-2">
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
                                     <ShieldCheckIcon className="h-3 w-3" />
@@ -592,20 +576,14 @@ export default function ComplaintStatusPage() {
                                     {formatDateShort(response.created_at)}
                                   </span>
                                 </div>
-                                {/* Isi Pesan */}
                                 <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                                   {response.message}
                                 </p>
-                                
-                                {/* === FOOTER DIPERBAIKI DI SINI === */}
                                 <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
                                   <span className="text-xs text-gray-600 dark:text-gray-400">
                                     {formatTime(response.created_at)}
                                   </span>
-                                  {/* Badge "Terkirim" sudah dihapus dari sini */}
                                 </div>
-                                {/* === AKHIR PERBAIKAN FOOTER === */}
-
                               </div>
                               <div className="flex-grow"></div>
                             </div>
@@ -614,7 +592,6 @@ export default function ComplaintStatusPage() {
                         })}
                     </div>
                   ) : (
-                    // Placeholder (Sesuai Admin UI)
                     <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl bg-gray-50/50 dark:bg-gray-700/20">
                       <ChatBubbleLeftRightIcon className="h-14 w-14 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
                       <h4 className="font-bold text-gray-700 dark:text-gray-300 text-lg mb-2">Belum Ada Riwayat</h4>
@@ -626,11 +603,8 @@ export default function ComplaintStatusPage() {
                 </div>
               </div>
             </div>
-            {/* === 🎨 PERUBAHAN UI SELESAI DI SINI 🎨 === */}
-            {/* ======================================================== */}
 
-
-            {/* Detail Info Premium (Tidak ada perubahan) */}
+            {/* Detail Info Premium */}
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-3xl blur opacity-10 group-hover:opacity-20 transition duration-500"></div>
               <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30">
@@ -666,13 +640,40 @@ export default function ComplaintStatusPage() {
                       <dd className="text-base font-semibold text-gray-900 dark:text-white">{formatDateTimeFull(complaint.updated_at)}</dd>
                     </div>
 
+                    {/* 🔥 BARU: Tampilan Lot Number & Quantity */}
+                    {(complaint.lot_number || complaint.problematic_quantity) && (
+                      <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2">
+                        {complaint.lot_number && (
+                          <div className="p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-800">
+                            <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-2">
+                              <QrCodeIcon className="h-4 w-4 text-emerald-500" />
+                              Nomor Lot/Kelompok
+                            </dt>
+                            <dd className="text-base font-mono font-bold text-emerald-900 dark:text-emerald-300">
+                              {complaint.lot_number}
+                            </dd>
+                          </div>
+                        )}
+                        {complaint.problematic_quantity && (
+                          <div className="p-4 bg-orange-50/50 dark:bg-orange-900/10 rounded-2xl border border-orange-100 dark:border-orange-800">
+                            <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-2">
+                              <ScaleIcon className="h-4 w-4 text-orange-500" />
+                              Jumlah Bermasalah
+                            </dt>
+                            <dd className="text-base font-bold text-orange-900 dark:text-orange-300">
+                              {complaint.problematic_quantity} kg
+                            </dd>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {(complaint.complaint_category_name || complaint.complaint_subcategory_name || (complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0)) && (
                     <div className="sm:col-span-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
                       <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
                         Kategori Komplain {complaint.related_product_name && `- Produk ${complaint.related_product_name}`}
                       </dt>
                       <dd className="space-y-3">
-                        {/* Path: Kategori → Sub-Kategori */}
                         <div className="flex items-center gap-2 flex-wrap">
                           {complaint.complaint_category_name && (
                             <>
@@ -699,7 +700,6 @@ export default function ComplaintStatusPage() {
                           )}
                         </div>
 
-                        {/* Multiple Case Types - BARU */}
                         {complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0 && (
                           <div>
                             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
@@ -742,14 +742,12 @@ export default function ComplaintStatusPage() {
               </div>
             </div>
 
-            {/* Rating Card Premium (Tidak ada perubahan) */}
-            {/* Feedback Card - Konsep 1 + 2 */}
+            {/* Feedback & Rating Section */}
             {complaint.status === 'resolved' && !complaint.customer_satisfaction_rating && (
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl blur opacity-30 group-hover:opacity-40 transition duration-500 animate-pulse"></div>
                 <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-yellow-400/50 dark:border-yellow-600/50 overflow-hidden">
                   
-                  {/* Gamification Banner */}
                   <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500 p-4 text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">
                       <StarIcon className="h-5 w-5 text-white" />
@@ -776,7 +774,6 @@ export default function ComplaintStatusPage() {
                       </p>
                     </div>
 
-                    {/* Rating Stars */}
                     <div className="mb-6">
                       <p className="text-center text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                         Seberapa puas Anda dengan penanganan komplain ini?
@@ -804,7 +801,6 @@ export default function ComplaintStatusPage() {
                         ))}
                       </div>
                       
-                      {/* Rating Label with Emoji */}
                       {tempRating > 0 && (
                         <div className="text-center mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-xl">
                           <p className="text-lg font-bold">
@@ -818,10 +814,8 @@ export default function ComplaintStatusPage() {
                       )}
                     </div>
 
-                    {/* Quick Questions (Conditional based on rating) */}
                     {showDetailFeedback && tempRating > 0 && (
                       <div className="space-y-6 animate-fadeIn">
-                        {/* For Low Ratings (1-2) */}
                         {tempRating <= 2 && (
                           <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800">
                             <p className="text-sm font-semibold text-red-900 dark:text-red-300 mb-3 flex items-center gap-2">
@@ -847,7 +841,6 @@ export default function ComplaintStatusPage() {
                           </div>
                         )}
 
-                        {/* For Medium Rating (3) */}
                         {tempRating === 3 && (
                           <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border-2 border-yellow-200 dark:border-yellow-800">
                             <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-300 mb-3 flex items-center gap-2">
@@ -873,7 +866,6 @@ export default function ComplaintStatusPage() {
                           </div>
                         )}
 
-                        {/* For High Ratings (4-5) */}
                         {tempRating >= 4 && (
                           <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border-2 border-green-200 dark:border-green-800">
                             <p className="text-sm font-semibold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
@@ -899,7 +891,6 @@ export default function ComplaintStatusPage() {
                           </div>
                         )}
 
-                        {/* Text Feedback */}
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             Ceritakan pengalaman Anda lebih detail (Opsional)
@@ -916,7 +907,6 @@ export default function ComplaintStatusPage() {
                           </p>
                         </div>
 
-                        {/* Submit Button */}
                         <button
                           onClick={handleSubmitFeedback}
                           disabled={isSubmittingFeedback}
@@ -937,7 +927,6 @@ export default function ComplaintStatusPage() {
                       </div>
                     )}
 
-                    {/* Initial CTA if not rated yet */}
                     {!showDetailFeedback && tempRating === 0 && (
                       <div className="text-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800/50">
                         <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -950,13 +939,11 @@ export default function ComplaintStatusPage() {
               </div>
             )}
 
-            {/* Feedback Already Submitted - Thank You Card */}
+            {/* Already Submitted Feedback */}
             {(complaint.status === 'resolved' || complaint.status === 'closed') && complaint.customer_satisfaction_rating && (
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-3xl blur opacity-20 group-hover:opacity-30 transition duration-500"></div>
                 <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30">
-                  
-                  {/* Success Banner */}
                   <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <CheckCircleIcon className="h-6 w-6 text-white" />
@@ -976,7 +963,6 @@ export default function ComplaintStatusPage() {
                       </h3>
                     </div>
                     
-                    {/* Rating Display */}
                     <div className="mb-6">
                       <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">Rating Kepuasan</dt>
                       <dd className="flex items-center gap-2">
@@ -996,7 +982,6 @@ export default function ComplaintStatusPage() {
                       </dd>
                     </div>
 
-                    {/* Feedback Text */}
                     {complaint.customer_feedback && (
                       <div className="p-5 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl border border-gray-200 dark:border-gray-600 mb-6">
                         <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Ulasan Anda</dt>
@@ -1006,9 +991,6 @@ export default function ComplaintStatusPage() {
                       </div>
                     )}
 
-
-
-                    {/* Submitted At */}
                     {complaint.feedback_submitted_at && (
                       <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-4">
                         Dikirim pada {formatDateTimeFull(complaint.feedback_submitted_at)}
@@ -1019,7 +1001,7 @@ export default function ComplaintStatusPage() {
               </div>
             )}
 
-            {/* Help Section Premium (Tidak ada perubahan) */}
+            {/* Help Section */}
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl blur opacity-20 group-hover:opacity-30 transition duration-500"></div>
               <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden">

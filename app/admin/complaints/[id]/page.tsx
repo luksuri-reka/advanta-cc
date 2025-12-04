@@ -28,9 +28,11 @@ import {
   PencilSquareIcon,
   UserIcon,
   InformationCircleIcon,
-  PencilIcon, // --- ICON BARU UNTUK UBAH STATUS ---
+  PencilIcon,
   DocumentMagnifyingGlassIcon,
-  BeakerIcon
+  BeakerIcon,
+  QrCodeIcon, // 🔥 BARU: Import Icon Lot
+  ScaleIcon   // 🔥 BARU: Import Icon Timbangan
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
@@ -173,12 +175,15 @@ interface Complaint {
 
   complaint_category_name?: string;
   complaint_subcategory_name?: string;
-  // UBAH DARI SINGLE KE ARRAY
   complaint_case_type_ids?: string[];
   complaint_case_type_names?: string[];
   
   related_product_serial?: string;
   related_product_name?: string;
+  
+  // 🔥 BARU: Definisi Field Baru
+  lot_number?: string;
+  problematic_quantity?: string;
 
   attachments?: string[]; 
   verification_data?: Record<string, any>;
@@ -231,12 +236,12 @@ interface Complaint {
 }
 
 interface AdminUser {
-  user_id: string;      // dari API
-  full_name: string;    // dari API
-  department: string;   // dari API
-  email: string;        // dari API
-  job_title?: string;   // dari API
-  is_active: boolean;   // dari API
+  user_id: string;      
+  full_name: string;    
+  department: string;   
+  email: string;        
+  job_title?: string;   
+  is_active: boolean;   
 }
 
 interface DisplayUser {
@@ -246,8 +251,6 @@ interface DisplayUser {
   id?: string;
 }
 
-// --- TIPE DATA BARU UNTUK STATUS DAN DEPARTEMEN ---
-// Sesuaikan dengan enum di database Anda
 const complaintDepartments = [
   'admin',
   'customer_service',
@@ -262,13 +265,13 @@ const complaintDepartments = [
 ];
 
 const complaintStatuses = [
-  'submitted',        // 1. Dikirim
-  'acknowledged',     // 2. Dikonfirmasi
-  'observation',      // 3. Proses Observasi (BARU)
-  'investigation',    // 4. Proses Investigasi & Lab Testing (BARU)
-  'decision',         // 5. Menunggu Keputusan (BARU)
-  'pending_response', // 6. Menunggu Respon Customer
-  'resolved',         // 7. Selesai
+  'submitted',        
+  'acknowledged',     
+  'observation',      
+  'investigation',    
+  'decision',         
+  'pending_response', 
+  'resolved',         
 ];
 
 export default function ComplaintDetailPage() {
@@ -292,19 +295,16 @@ export default function ComplaintDetailPage() {
   const [resolveMessage, setResolveMessage] = useState('');
   const [satisfactionRating, setSatisfactionRating] = useState(0);
   
-  // --- STATE PENUGASAN ---
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState(''); // STATE BARU
+  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [assignmentNotes, setAssignmentNotes] = useState('');
 
-  // --- STATE ESKALASI ---
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [isEscalating, setIsEscalating] = useState(false);
   const [escalationNotes, setEscalationNotes] = useState('');
 
-  // --- STATE BARU: UBAH STATUS ---
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -335,12 +335,8 @@ export default function ComplaintDetailPage() {
     }
   }, [user, id]);
 
-  // --- EFEK BARU: Set default value saat modal dibuka ---
   useEffect(() => {
   if (complaint) {
-    console.log('Complaint loaded:', complaint);
-    console.log('Admin users:', adminUsers);
-    
     setSelectedAssignee(complaint.assigned_to || '');
     setSelectedDepartment(complaint.department || 'customer_service');
     setSelectedStatus(complaint.status);
@@ -377,7 +373,6 @@ export default function ComplaintDetailPage() {
       const response = await fetch('/api/admin/complaint-users');
       if (response.ok) {
         const data = await response.json();
-        console.log('Admin users loaded:', data.data); // Debug log
         setAdminUsers(data.data || []);
       } else {
         console.error('Failed to load admin users');
@@ -397,7 +392,7 @@ export default function ComplaintDetailPage() {
   const handlePostResponse = async () => {
     if (!responseMessage.trim() || !user) return;
     
-    setIsSending(true); // 👈 Menggunakan 'isSending'
+    setIsSending(true);
     
     try {
       const response = await fetch(`/api/complaints/${id}/responses`, {
@@ -405,32 +400,30 @@ export default function ComplaintDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: responseMessage,
-          admin_id: user.id, // 👈 Menggunakan 'user.id'
-          admin_name: user.name, // 👈 Menggunakan 'user.name'
-          is_internal: isInternalResponse, // 👈 Menggunakan state 'isInternalResponse'
+          admin_id: user.id,
+          admin_name: user.name,
+          is_internal: isInternalResponse,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        console.error('API Error:', errorData);
         throw new Error(errorData?.error || 'Failed to post response');
       }
       
       setResponseMessage('');
-      setIsInternalResponse(false); // 👈 Reset toggle setelah kirim
+      setIsInternalResponse(false);
       loadComplaint(); 
-      toast.success('Balasan berhasil dikirim!'); // 👈 Menggunakan 'toast'
+      toast.success('Balasan berhasil dikirim!');
 
     } catch (error: any) {
       console.error('Error posting response:', error.message);
-      toast.error(error.message || 'Gagal mengirim balasan'); // 👈 Menggunakan 'toast'
+      toast.error(error.message || 'Gagal mengirim balasan');
     } finally {
-      setIsSending(false); // 👈 Menggunakan 'isSending'
+      setIsSending(false);
     }
   };
 
-  // --- FUNGSI DIPERBARUI: PENUGASAN ---
   const handleAssignComplaint = async () => {
     if (!selectedAssignee || !selectedDepartment) {
         alert('Harap pilih petugas dan departemen.');
@@ -439,13 +432,12 @@ export default function ComplaintDetailPage() {
     
     setIsAssigning(true);
     try {
-      // API ini perlu diperbarui untuk menerima 'department'
       const response = await fetch(`/api/complaints/${id}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           admin_id: selectedAssignee,
-          department: selectedDepartment, // KIRIM DEPARTEMEN BARU
+          department: selectedDepartment,
           notes: assignmentNotes,
           assigner_id: user?.id
         }),
@@ -456,8 +448,6 @@ export default function ComplaintDetailPage() {
       }
       
       setShowAssignmentModal(false);
-      // Reset notes, tapi biarkan selectedAssignee & department
-      // terisi default dari data complaint
       setAssignmentNotes('');
       loadComplaint();
     } catch (err) {
@@ -468,7 +458,6 @@ export default function ComplaintDetailPage() {
   };
 
   const handleResolveComplaint = async () => {
-    // ... (fungsi ini tetap sama)
     setIsResolving(true);
     try {
       const response = await fetch(`/api/complaints/${id}/resolve`, {
@@ -498,7 +487,6 @@ export default function ComplaintDetailPage() {
   };
 
   const handleEscalateComplaint = async () => {
-    // ... (fungsi ini tetap sama)
     if (!escalationNotes.trim()) {
       alert('Harap isi alasan eskalasi.');
       return;
@@ -528,7 +516,6 @@ export default function ComplaintDetailPage() {
     }
   };
 
-  // --- HANDLER BARU: UBAH STATUS ---
   const handleUpdateStatus = async () => {
     if (!selectedStatus || selectedStatus === complaint?.status) {
       setShowStatusModal(false);
@@ -537,13 +524,12 @@ export default function ComplaintDetailPage() {
 
     setIsUpdatingStatus(true);
     try {
-      // Anda perlu membuat API endpoint ini: /api/complaints/${id}/status
       const response = await fetch(`/api/complaints/${id}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: selectedStatus,
-          updated_by: user?.id, // Opsional, tapi bagus untuk logging
+          updated_by: user?.id,
         }),
       });
 
@@ -552,7 +538,7 @@ export default function ComplaintDetailPage() {
       }
       
       setShowStatusModal(false);
-      loadComplaint(); // Muat ulang untuk melihat status baru
+      loadComplaint();
     } catch (err) {
       console.error('Error updating status:', err);
     } finally {
@@ -573,28 +559,21 @@ export default function ComplaintDetailPage() {
 
   const getStatusClass = (status: string) => {
     switch (status) {
-      case 'submitted': // Dikirim
+      case 'submitted':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      
-      case 'acknowledged': // Dikonfirmasi
+      case 'acknowledged':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-      
-      case 'observation': // Observasi (Warna Cyan/Teal)
+      case 'observation':
         return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300';
-      
-      case 'investigation': // Investigasi (Warna Amber/Orange - Sedang diproses intens)
+      case 'investigation':
         return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300';
-      
-      case 'decision': // Menunggu Keputusan (Warna Indigo - Tahap akhir internal)
+      case 'decision':
         return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300';
-
-      case 'pending_response': // Menunggu Respon Customer (Warna Purple)
+      case 'pending_response':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
-      
-      case 'resolved': // Selesai
+      case 'resolved':
       case 'closed':
         return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300';
-      
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
@@ -614,27 +593,11 @@ export default function ComplaintDetailPage() {
     return labels[status] || status;
   };
 
-  const getStatusDescription = (status: string) => {
-    const descriptions: Record<string, string> = {
-      submitted: 'Komplain baru diterima, menunggu verifikasi tim.',
-      acknowledged: 'Komplain telah diterima admin dan sedang ditinjau awal.',
-      observation: 'Tim sedang melakukan observasi lapangan atau data terkait.',
-      investigation: 'Sedang dilakukan pengujian lab atau investigasi mendalam.',
-      decision: 'Investigasi selesai, menunggu keputusan final dari manajemen.',
-      pending_response: 'Menunggu informasi atau konfirmasi tambahan dari customer.',
-      resolved: 'Masalah telah diselesaikan dan ditutup.',
-      closed: 'Kasus ditutup.'
-    };
-    return descriptions[status] || 'Status tidak diketahui';
-  };
-
-  // Helper untuk format nama departemen
   const formatDepartment = (dept?: string) => {
     if (!dept) return '-';
     return dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  // FUNGSI BARU: Untuk Tanggal di Header Bubble (Contoh: 16 Nov)
   const formatDateShort = (dateString?: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('id-ID', {
@@ -643,7 +606,6 @@ export default function ComplaintDetailPage() {
     });
   };
 
-  // FUNGSI BARU: Untuk Jam di Kanan Bawah (Contoh: 14:30)
   const formatTime = (dateString?: string) => {
     if (!dateString) return '';
     return new Date(dateString).toLocaleString('id-ID', {
@@ -652,7 +614,6 @@ export default function ComplaintDetailPage() {
     });
   };
 
-  // (Opsional: Jika Anda masih butuh format lama, ganti namanya)
   const formatDateTimeFull = (dateString?: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('id-ID', {
@@ -665,7 +626,6 @@ export default function ComplaintDetailPage() {
   };
 
   if (!user) {
-    // ... (kode loading user tetap sama)
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -677,7 +637,6 @@ export default function ComplaintDetailPage() {
   }
 
   if (!hasPermission('canViewComplaints')) {
-    // ... (kode akses ditolak tetap sama)
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
         <div className="text-center p-8">
@@ -728,7 +687,6 @@ export default function ComplaintDetailPage() {
 
         {/* Content */}
         {loading && (
-          // ... (kode loading tetap sama)
           <div className="text-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
             <p className="text-gray-600 dark:text-gray-400">Memuat detail keluhan...</p>
@@ -736,7 +694,6 @@ export default function ComplaintDetailPage() {
         )}
 
         {error && (
-          // ... (kode error tetap sama)
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-xl flex items-center gap-3">
             <ExclamationTriangleIcon className="h-6 w-6" />
             <div>
@@ -748,7 +705,7 @@ export default function ComplaintDetailPage() {
 
         {complaint && !loading && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* === QUICK ACTIONS (TAMBAHKAN INI) === */}
+            {/* === QUICK ACTIONS === */}
             {complaint.assigned_to === user?.id && (complaint.status !== 'resolved' && complaint.status !== 'closed') && (
               <div className="lg:col-span-3">
                 <QuickActions 
@@ -781,7 +738,7 @@ export default function ComplaintDetailPage() {
                     </div>
                   </div>
 
-                  {/* === PERMINTAAN ALAMAT ANDA === */}
+                  {/* === LOKASI PELANGGAN === */}
                   {(complaint.customer_province || complaint.customer_city || complaint.customer_address) && (
                     <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                       <div className="flex items-start gap-3">
@@ -802,7 +759,6 @@ export default function ComplaintDetailPage() {
                       </div>
                     </div>
                   )}
-                  {/* ================================== */}
                 </div>
 
                 {/* Detail Keluhan */}
@@ -824,7 +780,44 @@ export default function ComplaintDetailPage() {
                     </div>
                   </div>
 
-                  {/* KATEGORISASI KOMPLAIN - DIPERBAIKI UNTUK MULTIPLE CASE TYPES */}
+                  {/* 🔥 BARU: BAGIAN LOT NUMBER DAN QUANTITY */}
+                  {(complaint.lot_number || complaint.problematic_quantity) && (
+                    <div className="mt-4 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {complaint.lot_number && (
+                        <div className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                          <div className="p-2 bg-white dark:bg-emerald-900 rounded-lg shadow-sm">
+                            <QrCodeIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <div>
+                            <dt className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">
+                              Nomor Lot
+                            </dt>
+                            <dd className="text-sm font-mono font-bold text-gray-900 dark:text-white mt-0.5">
+                              {complaint.lot_number}
+                            </dd>
+                          </div>
+                        </div>
+                      )}
+
+                      {complaint.problematic_quantity && (
+                        <div className="flex items-start gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-100 dark:border-orange-800">
+                          <div className="p-2 bg-white dark:bg-orange-900 rounded-lg shadow-sm">
+                            <ScaleIcon className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                          </div>
+                          <div>
+                            <dt className="text-xs font-semibold text-orange-800 dark:text-orange-300 uppercase tracking-wide">
+                              Jumlah Bermasalah
+                            </dt>
+                            <dd className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">
+                              {complaint.problematic_quantity} kg
+                            </dd>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* KATEGORISASI KOMPLAIN */}
                   {(complaint.complaint_category_name || complaint.complaint_subcategory_name || (complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0)) && (
                   <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
@@ -862,10 +855,9 @@ export default function ComplaintDetailPage() {
                       </div>
                     )}
 
-                    {/* MULTIPLE CASE TYPES - TAMPILAN PREMIUM */}
+                    {/* MULTIPLE CASE TYPES */}
                     {complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0 && (
                       <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 dark:from-purple-900/30 dark:via-pink-900/30 dark:to-purple-900/30 rounded-2xl p-5 border-2 border-purple-200 dark:border-purple-800 shadow-lg">
-                        {/* Header dengan counter */}
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-2">
                             <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-md">
@@ -886,7 +878,6 @@ export default function ComplaintDetailPage() {
                           </span>
                         </div>
                         
-                        {/* Grid Case Types */}
                         <dd className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {complaint.complaint_case_type_names.map((caseTypeName, index) => (
                             <div
@@ -914,22 +905,6 @@ export default function ComplaintDetailPage() {
                             </div>
                           ))}
                         </dd>
-                        
-                        {/* Info Footer */}
-                        <div className="mt-4 pt-4 border-t-2 border-purple-200 dark:border-purple-800">
-                          <div className="flex items-start gap-3 p-3 bg-white/60 dark:bg-black/20 rounded-lg">
-                            <InformationCircleIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-purple-900 dark:text-purple-200 mb-1">
-                                Perhatian untuk Tim Admin
-                              </p>
-                              <p className="text-xs text-purple-700 dark:text-purple-300 leading-relaxed">
-                                Customer melaporkan <span className="font-bold">{complaint.complaint_case_type_names.length} jenis masalah berbeda</span> dalam komplain ini. 
-                                Pastikan <span className="font-bold underline">semua masalah ditangani</span> sebelum menyelesaikan komplain.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -973,7 +948,7 @@ export default function ComplaintDetailPage() {
                   </div>
                 </div>
 
-                {/* Riwayat Pesan (DENGAN BADGE YANG BERBEDA) */}
+                {/* Riwayat Pesan */}
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">
                     Riwayat Komunikasi
@@ -989,16 +964,13 @@ export default function ComplaintDetailPage() {
                           if (response.is_internal) {
                             return (
                               <div key={response.id} className="relative py-4">
-                                {/* Garis pemisah khusus internal */}
                                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                                   <div className="w-full border-t-2 border-amber-400 dark:border-amber-600 border-dashed"></div>
                                 </div>
-                                {/* Konten Catatan Internal */}
                                 <div className="relative flex justify-center">
                                   <div className="px-5 py-4 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-amber-900/40 dark:via-yellow-900/40 dark:to-orange-900/40 rounded-xl shadow-lg border-2 border-amber-300 dark:border-amber-700 max-w-2xl">
                                     <div className="flex items-start gap-3 mb-3">
                                       <div className="flex-shrink-0 mt-0.5">
-                                        {/* Icon Gembok untuk Internal */}
                                         <div className="p-2 bg-amber-500 dark:bg-amber-600 rounded-lg">
                                           <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
@@ -1007,7 +979,6 @@ export default function ComplaintDetailPage() {
                                       </div>
                                       <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-2">
-                                          {/* Badge "PRIVATE - INTERNAL ONLY" */}
                                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white text-xs font-bold uppercase rounded-full shadow-md">
                                             <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
                                               <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -1028,14 +999,12 @@ export default function ComplaintDetailPage() {
                                       </div>
                                     </div>
                                     
-                                    {/* Pesan */}
                                     <div className="pl-14">
                                       <p className="text-sm text-amber-950 dark:text-amber-50 whitespace-pre-wrap leading-relaxed bg-white/60 dark:bg-black/20 rounded-lg p-3 border border-amber-200 dark:border-amber-800">
                                         {response.message}
                                       </p>
                                     </div>
                                     
-                                    {/* Info Footer dengan Icon */}
                                     <div className="mt-3 pl-14 pt-3 border-t border-amber-300 dark:border-amber-700">
                                       <div className="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200">
                                         <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
@@ -1050,7 +1019,7 @@ export default function ComplaintDetailPage() {
                             );
                           }
 
-                          // --- TAMPILAN 2: Balasan Pelanggan (admin_name = null, is_internal = FALSE) ---
+                          // --- TAMPILAN 2: Balasan Pelanggan ---
                           if (!response.admin_name) {
                             return (
                               <div key={response.id} className="flex gap-3 w-full flex-row">
@@ -1061,7 +1030,6 @@ export default function ComplaintDetailPage() {
                                 <div className="max-w-xl rounded-2xl p-4
                                               bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/40 dark:to-teal-900/40 
                                               border-2 border-emerald-200 dark:border-emerald-800 shadow-md">
-                                  {/* Header: Badge Customer + Nama + Tanggal */}
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
                                       <UserIcon className="h-3 w-3" />
@@ -1074,11 +1042,9 @@ export default function ComplaintDetailPage() {
                                       {formatDateShort(response.created_at)}
                                     </span>
                                   </div>
-                                  {/* Isi Pesan */}
                                   <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                                     {response.message}
                                   </p>
-                                  {/* Footer: Jam */}
                                   <div className="flex justify-end mt-2">
                                     <span className="text-xs text-gray-600 dark:text-gray-400">
                                       {formatTime(response.created_at)}
@@ -1090,7 +1056,7 @@ export default function ComplaintDetailPage() {
                             );
                           }
 
-                          // --- TAMPILAN 3: Balasan Admin PUBLIC (admin_name ada, is_internal = FALSE) ---
+                          // --- TAMPILAN 3: Balasan Admin PUBLIC ---
                           return (
                             <div key={response.id} className="flex gap-3 w-full flex-row-reverse">
                               <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-1
@@ -1100,7 +1066,6 @@ export default function ComplaintDetailPage() {
                               <div className="max-w-xl rounded-2xl p-4
                                             bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 
                                             border-2 border-blue-200 dark:border-blue-800 shadow-md">
-                                {/* Header: Badge Public + Admin + Nama + Tanggal */}
                                 <div className="flex items-center gap-2 mb-2">
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
                                     <ShieldCheckIcon className="h-3 w-3" />
@@ -1119,11 +1084,9 @@ export default function ComplaintDetailPage() {
                                     {formatDateShort(response.created_at)}
                                   </span>
                                 </div>
-                                {/* Isi Pesan */}
                                 <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                                   {response.message}
                                 </p>
-                                {/* Footer: Jam + Terkirim ke Customer */}
                                 <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
                                   <span className="text-xs text-gray-600 dark:text-gray-400">
                                     {formatTime(response.created_at)}
@@ -1153,14 +1116,13 @@ export default function ComplaintDetailPage() {
                   )}
                 </div>
 
-                {/* Kirim Balasan (DIPERBARUI - LEBIH RAPI) */}
+                {/* Kirim Balasan */}
                 {(complaint.status !== 'resolved' && complaint.status !== 'closed' && hasPermission('canRespondToComplaints')) && (
                   <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
                       Kirim Balasan
                     </h3>
                     
-                    {/* Kotak Textarea yang sudah diperbaiki */}
                     <div className="relative">
                       <textarea
                         value={responseMessage}
@@ -1173,17 +1135,15 @@ export default function ComplaintDetailPage() {
                           dark:placeholder-gray-400
                           focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
                           shadow-sm
-                          px-4 py-3 /* 👈 INI SOLUSINYA: Menambah padding internal */
+                          px-4 py-3
                         "
                         placeholder="Tulis balasan Anda di sini..."
                       />
-                      {/* Ikon di dalam textarea untuk membuatnya 'eye-catching' */}
                       <div className="absolute top-3 right-3 text-gray-400 dark:text-gray-500">
                         <PencilSquareIcon className="h-5 w-5" />
                       </div>
                     </div>
 
-                    {/* Checkbox Catatan Internal (Dengan Jarak) */}
                     <div className="mt-4">
                       <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                         <input
@@ -1200,7 +1160,6 @@ export default function ComplaintDetailPage() {
                         <span className="font-medium">Tandai sebagai catatan internal (tidak terlihat oleh pelanggan)</span>
                       </label>
                       
-                      {/* Info tambahan untuk checkbox internal */}
                       {isInternalResponse && (
                         <div className="mt-2 ml-8 text-xs text-yellow-700 dark:text-yellow-400 p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-700">
                           Catatan ini hanya akan terlihat oleh tim admin.
@@ -1208,12 +1167,10 @@ export default function ComplaintDetailPage() {
                       )}
                     </div>
 
-                    {/* Tombol Kirim (Dengan Jarak) */}
                     <div className="mt-4 flex justify-end">
                       <button
                         onClick={handlePostResponse}
                         disabled={isSending || !responseMessage.trim()}
-                        // Perubahan kecil: tombol jadi biru agar beda dengan 'emerald' pelanggan
                         className="
                           flex items-center gap-2 px-5 py-2.5 
                           bg-blue-600 text-white 
@@ -1235,11 +1192,10 @@ export default function ComplaintDetailPage() {
             {/* Right Column: Actions */}
             <div className="lg:col-span-1 space-y-6">
               
-              {/* Status Card (DENGAN TOMBOL UBAH STATUS) */}
+              {/* Status Card */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Status</h3>
-                    {/* --- TOMBOL BARU: UBAH STATUS --- */}
                     {hasPermission('canUpdateComplaintStatus') && (complaint.status !== 'resolved' && complaint.status !== 'closed') && (
                       <button
                         onClick={() => setShowStatusModal(true)}
@@ -1265,26 +1221,11 @@ export default function ComplaintDetailPage() {
                     <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(complaint.resolved_at)}</dd>
                   </div>
                 )}
-                
-                {complaint.customer_satisfaction_rating && (
-                  <div className="mt-4">
-                    {/* ... (kode rating tetap sama) ... */}
-                  </div>
-                )}
-                
-                {complaint.customer_feedback && (
-                  <div className="mt-4">
-                    {/* ... (kode feedback tetap sama) ... */}
-                  </div>
-                )}
               </div>
 
-              {/* ========================================== */}
-              {/* === 🆕 FEEDBACK CUSTOMER CARD (BARU) === */}
-              {/* ========================================== */}
+              {/* FEEDBACK CUSTOMER CARD */}
               {(complaint.status === 'resolved' || complaint.status === 'closed') && complaint.customer_satisfaction_rating && (
                 <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-2xl shadow-lg border-2 border-yellow-300 dark:border-yellow-700 overflow-hidden">
-                  {/* Header Banner */}
                   <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <StarIcon className="h-5 w-5 text-white" />
@@ -1295,7 +1236,6 @@ export default function ComplaintDetailPage() {
                   </div>
 
                   <div className="p-6 space-y-5">
-                    {/* Rating Display */}
                     <div>
                       <dt className="text-xs font-semibold uppercase text-gray-600 dark:text-gray-400 mb-3">
                         Rating Kepuasan
@@ -1318,7 +1258,6 @@ export default function ComplaintDetailPage() {
                         </span>
                       </dd>
 
-                      {/* Rating Label with Emoji */}
                       <div className="mt-2 text-center">
                         <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm text-sm font-semibold">
                           {complaint.customer_satisfaction_rating === 1 && '😞 Sangat Tidak Puas'}
@@ -1330,7 +1269,6 @@ export default function ComplaintDetailPage() {
                       </div>
                     </div>
 
-                    {/* Feedback Text */}
                     {complaint.customer_feedback && (
                       <div className="pt-4 border-t border-yellow-200 dark:border-yellow-800">
                         <dt className="text-xs font-semibold uppercase text-gray-600 dark:text-gray-400 mb-2">
@@ -1344,7 +1282,6 @@ export default function ComplaintDetailPage() {
                       </div>
                     )}
 
-                    {/* Feedback Submitted At */}
                     {complaint.feedback_submitted_at && (
                       <div className="pt-3 border-t border-yellow-200 dark:border-yellow-800">
                         <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
@@ -1354,7 +1291,6 @@ export default function ComplaintDetailPage() {
                       </div>
                     )}
 
-                    {/* Quick Answers (Jika ada) */}
                     {complaint.feedback_quick_answers && complaint.feedback_quick_answers.length > 0 && (
                       <div className="pt-4 border-t border-yellow-200 dark:border-yellow-800">
                         <dt className="text-xs font-semibold uppercase text-gray-600 dark:text-gray-400 mb-2">
@@ -1374,7 +1310,6 @@ export default function ComplaintDetailPage() {
                       </div>
                     )}
 
-                    {/* Empty State - No Feedback Yet */}
                     {!complaint.customer_feedback && (!complaint.feedback_quick_answers || complaint.feedback_quick_answers.length === 0) && (
                       <div className="pt-4 border-t border-yellow-200 dark:border-yellow-800">
                         <p className="text-xs text-gray-600 dark:text-gray-400 italic text-center">
@@ -1386,7 +1321,7 @@ export default function ComplaintDetailPage() {
                 </div>
               )}
 
-              {/* Placeholder - Belum Ada Feedback */}
+              {/* Placeholder Feedback */}
               {(complaint.status === 'resolved' || complaint.status === 'closed') && !complaint.customer_satisfaction_rating && (
                 <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl shadow-lg border-2 border-dashed border-gray-300 dark:border-gray-700 p-6">
                   <div className="text-center">
@@ -1402,17 +1337,13 @@ export default function ComplaintDetailPage() {
                   </div>
                 </div>
               )}
-              {/* ========================================== */}
-              {/* === END FEEDBACK CUSTOMER CARD === */}
-              {/* ========================================== */}
 
-              {/* Info Penugasan (JUDUL DIGANTI) */}
+              {/* Info Penugasan */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-5">
                   Penugasan & Departemen
                 </h3>
                 
-                {/* === INI ADALAH "STATUS HASIL PENUGASAN" === */}
                 {complaint.assigned_to_user ? (
                   <div className="flex items-center gap-3">
                     <UserIcon className="h-8 w-8 text-gray-500 dark:text-gray-400" />
@@ -1453,17 +1384,18 @@ export default function ComplaintDetailPage() {
                     </div>
                   )}
                 </div>
-                {/* ============================================== */}
 
                 {complaint.internal_notes && (
                   <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                    {/* ... (kode catatan internal tetap sama) ... */}
+                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Catatan Internal</dt>
+                     <dd className="text-sm text-gray-700 dark:text-gray-300 italic bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                       "{complaint.internal_notes}"
+                     </dd>
                   </div>
                 )}
 
                 {(complaint.status !== 'resolved' && complaint.status !== 'closed') && (
                   <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
-                    {/* --- TOMBOL DIGANTI: PENUGASAN --- */}
                     {hasPermission('canAssignComplaints') && (
                       <button
                         onClick={() => setShowAssignmentModal(true)}
@@ -1477,16 +1409,6 @@ export default function ComplaintDetailPage() {
                 )}
               </div>
 
-              {/* Kartu Eskalasi */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-                {/* ... (kode eskalasi tetap sama) ... */}
-              </div>
-              
-              {/* Kartu Detail & Riwayat */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-                {/* ... (kode detail & riwayat tetap sama) ... */}
-              </div>
-
             </div>
           </div>
         )}
@@ -1495,7 +1417,7 @@ export default function ComplaintDetailPage() {
       {/* Modal Resolusi */}
       {showResolveModal && (
         <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-            {/* ... (kode modal resolusi tetap sama) ... */}
+            {/* Isi Modal Resolusi (Sama seperti sebelumnya) */}
         </div>
       )}
 
@@ -1511,7 +1433,6 @@ export default function ComplaintDetailPage() {
             </div>
             
             <div className="p-6 space-y-4">
-              {/* DROPDOWN DEPARTEMEN */}
               <div>
                 <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Pilih Departemen (Tujuan Penugasan)
@@ -1531,7 +1452,6 @@ export default function ComplaintDetailPage() {
                 </select>
               </div>
 
-              {/* DROPDOWN PETUGAS - DIPERBAIKI */}
               <div>
                 <label htmlFor="assignee" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Pilih Petugas
@@ -1556,7 +1476,6 @@ export default function ComplaintDetailPage() {
                     ))}
                 </select>
                 
-                {/* Info jika tidak ada petugas */}
                 {selectedDepartment && adminUsers.filter(admin => admin.department === selectedDepartment).length === 0 && (
                   <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400 flex items-center gap-2">
                     <ExclamationTriangleIcon className="h-4 w-4" />
@@ -1564,7 +1483,6 @@ export default function ComplaintDetailPage() {
                   </p>
                 )}
                 
-                {/* Info total petugas */}
                 {selectedDepartment && adminUsers.filter(admin => admin.department === selectedDepartment).length > 0 && (
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                     {adminUsers.filter(admin => admin.department === selectedDepartment).length} petugas tersedia
@@ -1572,7 +1490,6 @@ export default function ComplaintDetailPage() {
                 )}
               </div>
 
-              {/* CATATAN PENUGASAN */}
               <div>
                 <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Catatan Penugasan (Internal)
@@ -1620,14 +1537,14 @@ export default function ComplaintDetailPage() {
       {/* Modal Eskalasi */}
       {showEscalateModal && (
         <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-          {/* ... (kode modal eskalasi tetap sama) ... */}
+             {/* Isi Modal Eskalasi (Sama seperti sebelumnya) */}
         </div>
       )}
 
-      {/* --- MODAL BARU: UBAH STATUS --- */}
-      {showStatusModal && complaint && ( // TAMBAHKAN && complaint
+      {/* Modal Ubah Status */}
+      {showStatusModal && complaint && (
         <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full z-50 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] z-50 border border-gray-200 dark:border-gray-700 flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Ubah Status Keluhan</h3>
               <button onClick={() => setShowStatusModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
@@ -1635,34 +1552,26 @@ export default function ComplaintDetailPage() {
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
-              {/* Current Status Display */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center gap-3 mb-2">
-                  <InformationCircleIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-blue-900 dark:text-blue-300">Status Saat Ini</span>
-                </div>
-                <div className="ml-8">
-                  <span className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-bold rounded-full ${getStatusClass(complaint.status)}`}>
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-blue-900 dark:text-blue-300">Status Saat Ini:</span>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full ${getStatusClass(complaint.status)}`}>
                     {getStatusLabel(complaint.status)}
                   </span>
-                  <p className="text-xs text-blue-700 dark:text-blue-400 mt-2">
-                    {getStatusDescription(complaint.status)}
-                  </p>
                 </div>
               </div>
 
-              {/* Status Selection with Descriptions */}
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Pilih Status Baru
                 </label>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {complaintStatuses.map((status) => (
                     <label
                       key={status}
                       className={`
-                        flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
+                        flex items-start gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all
                         ${selectedStatus === status 
                           ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
                           : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-gray-800'
@@ -1678,44 +1587,38 @@ export default function ComplaintDetailPage() {
                         className="mt-1 h-4 w-4 text-emerald-600 focus:ring-emerald-500"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2">
                           <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${getStatusClass(status)}`}>
                             {getStatusLabel(status)}
                           </span>
                           {status === complaint.status && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">(Aktif)</span>
+                            <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">(Aktif)</span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                          {getStatusDescription(status)}
-                        </p>
                       </div>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Warning untuk status tertentu */}
               {(selectedStatus === 'resolved' || selectedStatus === 'closed') && !complaint.resolved_at && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-4 border border-yellow-200 dark:border-yellow-800">
-                  <div className="flex items-start gap-3">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-yellow-800 dark:text-yellow-300">
-                      <p className="font-semibold mb-1">Perhatian!</p>
-                      <p>Status ini akan menandai komplain sebagai selesai dan mencatat waktu penyelesaian. Customer akan menerima notifikasi bahwa komplain mereka telah diselesaikan.</p>
-                    </div>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-start gap-2">
+                    <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-800 dark:text-yellow-300">
+                      Status ini akan menandai komplain sebagai selesai dan mengirim notifikasi ke customer.
+                    </p>
                   </div>
                 </div>
               )}
 
               {selectedStatus === 'pending_response' && (
-                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
-                  <div className="flex items-start gap-3">
-                    <InformationCircleIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-purple-800 dark:text-purple-300">
-                      <p className="font-semibold mb-1">Info</p>
-                      <p>Status ini menandakan tim menunggu respons atau informasi tambahan dari customer. Pastikan sudah mengirim pesan permintaan informasi sebelum mengubah status ini.</p>
-                    </div>
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
+                  <div className="flex items-start gap-2">
+                    <InformationCircleIcon className="h-4 w-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-purple-800 dark:text-purple-300">
+                      Pastikan sudah mengirim permintaan informasi sebelum mengubah status ini.
+                    </p>
                   </div>
                 </div>
               )}
