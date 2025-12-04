@@ -246,33 +246,30 @@ export default function AdminComplaintsPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Navbar user={user} onLogout={handleLogout} />
       
-      <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl py-4 px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-            <ArchiveBoxIcon className="h-8 w-8 text-emerald-600" />
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <ArchiveBoxIcon className="h-6 w-6 text-emerald-600" />
             Daftar Keluhan
           </h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Lihat dan kelola semua keluhan yang masuk.
-          </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {stats.map((stat) => (
-            <div key={stat.label} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+            <div key={stat.label} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stat.value}</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stat.value}</p>
                 </div>
-                <div className={`p-3 rounded-xl ${
+                <div className={`p-2 rounded-lg ${
                   stat.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900' :
                   stat.color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900' :
                   stat.color === 'green' ? 'bg-green-100 dark:bg-green-900' : 'bg-purple-100 dark:bg-purple-900'
                 }`}>
-                  <stat.icon className={`h-6 w-6 ${
+                  <stat.icon className={`h-5 w-5 ${
                     stat.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
                     stat.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' :
                     stat.color === 'green' ? 'text-green-600 dark:text-green-400' : 'text-purple-600 dark:text-purple-400'
@@ -286,8 +283,8 @@ export default function AdminComplaintsPage() {
         {/* Filters and Table */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           {/* Filter bar */}
-          <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex flex-col md:flex-row gap-4">
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col md:flex-row gap-3">
               {/* Search Input */}
               <div className="relative flex-grow">
                 <input
@@ -296,16 +293,16 @@ export default function AdminComplaintsPage() {
                   value={filters.search}
                   onChange={handleFilterChange}
                   placeholder="Cari (ID, Nama, Email, Subjek, Lokasi)..."
-                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
               </div>
               {/* Status Filter */}
               <select
                 name="status"
                 value={filters.status}
                 onChange={handleFilterChange}
-                className="rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500 py-2 px-3 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"
               >
                 <option value="">Semua Status</option>
                 <option value="submitted">Dikirim</option>
@@ -326,73 +323,77 @@ export default function AdminComplaintsPage() {
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">ID Keluhan</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Pelanggan</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Lokasi</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Tgl Masuk</th>
-                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Aksi</th>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">ID</th>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Pelanggan</th>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Lokasi</th>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Tgl Masuk</th>
+                  <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Aksi</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-16 px-6 text-gray-500 dark:text-gray-400">
+                    <td colSpan={6} className="text-center py-8 px-4 text-gray-500 dark:text-gray-400">
                       <div className="flex justify-center items-center gap-2">
-                        <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                        <span>Memuat data keluhan...</span>
+                        <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Memuat data...</span>
                       </div>
                     </td>
                   </tr>
                 ) : filteredComplaints.length > 0 ? (
                   filteredComplaints.map((complaint) => (
                     <tr key={complaint.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {complaint.complaint_number}
+                      <td className="px-4 py-2 text-xs font-medium text-gray-900 dark:text-white">
+                        <div className="max-w-[120px] truncate" title={complaint.complaint_number}>
+                          {complaint.complaint_number}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {complaint.customer_name}
+                      <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="max-w-[150px] truncate" title={complaint.customer_name}>
+                          {complaint.customer_name}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <MapPinIcon className="h-4 w-4 text-blue-500" />
-                          <span>
+                      <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-1 max-w-[180px]">
+                          <MapPinIcon className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                          <span className="truncate" title={`${complaint.customer_city || 'N/A'}, ${complaint.customer_province || 'N/A'}`}>
                             {complaint.customer_city || 'N/A'}, {complaint.customer_province || 'N/A'}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(complaint.status)}`}>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-0.5 inline-flex text-[10px] leading-4 font-semibold rounded-full ${getStatusClass(complaint.status)}`}>
                           {getStatusLabel(complaint.status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
                         {formatDate(complaint.created_at)}
                       </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-3">
+                      <td className="px-4 py-2 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <Link 
                             href={`/admin/complaints/${complaint.id}`} 
-                            className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-medium shadow-sm hover:shadow transition-all"
                           >
-                            <EyeIcon className="h-4 w-4" />
-                            <span className="text-sm">Detail</span>
+                            <EyeIcon className="h-3 w-3" />
+                            <span>Detail</span>
                           </Link>
                           {hasComplaintPermission('canDeleteComplaints') && (
                             <button
                               onClick={() => handleDelete(complaint.id, complaint.complaint_number)}
                               disabled={deletingId === complaint.id}
-                              className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-sm"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-xs font-medium shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {deletingId === complaint.id ? (
                                 <>
-                                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                                  <span className="text-sm">Hapus...</span>
+                                  <ArrowPathIcon className="h-3 w-3 animate-spin" />
+                                  <span>Hapus...</span>
                                 </>
                               ) : (
                                 <>
-                                  <TrashIcon className="h-4 w-4" />
-                                  <span className="text-sm">Hapus</span>
+                                  <TrashIcon className="h-3 w-3" />
+                                  <span>Hapus</span>
                                 </>
                               )}
                             </button>
@@ -403,9 +404,9 @@ export default function AdminComplaintsPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="text-center py-16 px-6">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tidak ada keluhan</h3>
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Tidak ada data keluhan yang cocok dengan filter Anda.</p>
+                    <td colSpan={6} className="text-center py-8 px-4">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Tidak ada keluhan</h3>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Tidak ada data yang cocok dengan filter.</p>
                     </td>
                   </tr>
                 )}
