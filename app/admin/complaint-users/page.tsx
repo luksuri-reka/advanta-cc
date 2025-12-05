@@ -47,7 +47,8 @@ interface ComplaintUser {
 interface AuthUser {
   id: string;
   email: string;
-  full_name: string;
+  name: string; // ← FIXED: ubah dari full_name
+  created_at?: string;
 }
 
 // Data yang dikirim ke form
@@ -212,65 +213,88 @@ export default function ComplaintUsersPage() {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    setIsSaving(true); // ← Set loading
+  // Ganti handleSubmit function
+// Ganti handleSubmit function
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  
+  setIsSaving(true);
+  
+  let apiData: any;
+  
+  if (editingUser) {
+    // UPDATE existing user
+    apiData = {
+      user_id: editingUser.user_id,
+      department: formData.department || 'customer_service',
+      job_title: formData.job_title || null,
+      max_assigned_complaints: formData.max_assigned_complaints || 5,
+      is_active: formData.is_active,
+      complaint_permissions: formData.complaint_permissions
+    };
+  } else {
+    // CREATE new user
+    console.log('Available users:', availableAuthUsers); // ← Debug
+    console.log('Selected user_id:', formData.user_id); // ← Debug
     
     const selectedAuthUser = availableAuthUsers.find(u => u.id === formData.user_id);
+    console.log('Found user:', selectedAuthUser); // ← Debug
     
-    let apiData: any;
-    
-    if (editingUser) {
-      apiData = {
-        department: formData.department || 'customer_service',
-        job_title: formData.job_title || null,
-        max_assigned_complaints: formData.max_assigned_complaints || 5,
-        is_active: formData.is_active,
-        complaint_permissions: formData.complaint_permissions
-      };
-    } else {
-      apiData = {
-        user_id: formData.user_id,
-        full_name: selectedAuthUser?.full_name || '',
-        department: formData.department || 'customer_service',
-        job_title: formData.job_title || null,
-        max_assigned_complaints: formData.max_assigned_complaints || 5,
-        is_active: formData.is_active,
-        complaint_permissions: formData.complaint_permissions
-      };
+    if (!selectedAuthUser) {
+      alert(`User tidak ditemukan!\nuser_id: ${formData.user_id}\nAvailable: ${availableAuthUsers.length} users`);
+      setIsSaving(false);
+      return;
     }
 
-    try {
-      const method = editingUser ? 'PATCH' : 'POST';
-      const url = editingUser 
-        ? `/api/admin/complaint-users/${editingUser.user_id}`
-        : '/api/admin/complaint-users';
-        
-      const response = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(apiData),
-      });
+    if (!selectedAuthUser.name || selectedAuthUser.name.trim() === '') {
+      alert('User tidak memiliki nama lengkap. Silakan update profil user di auth terlebih dahulu.');
+      setIsSaving(false);
+      return;
+    }
 
-      if (response.ok) {
-        alert(editingUser ? 'User berhasil diperbarui' : 'User berhasil ditambahkan');
-        setShowModal(false);
-        loadComplaintUsers();
-        if (!editingUser) {
-          loadAvailableAuthUsers();
-        }
-      } else {
-        const errorData = await response.json();
-        alert(`Error: ${errorData.error || errorData.message || 'Gagal menyimpan'}`);
+    apiData = {
+      user_id: formData.user_id,
+      full_name: selectedAuthUser.name.trim(), // ← Ubah dari full_name ke name
+      department: formData.department || 'customer_service',
+      job_title: formData.job_title?.trim() || null,
+      max_assigned_complaints: formData.max_assigned_complaints || 5,
+      is_active: formData.is_active,
+      complaint_permissions: formData.complaint_permissions
+    };
+  }
+
+  console.log('Sending data:', apiData); // ← Debug log
+
+  try {
+    const method = editingUser ? 'PATCH' : 'POST';
+    const url = '/api/admin/complaint-users'; // ← Simplified URL
+      
+    const response = await fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(apiData),
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      alert(editingUser ? 'User berhasil diperbarui' : 'User berhasil ditambahkan');
+      setShowModal(false);
+      loadComplaintUsers();
+      if (!editingUser) {
+        loadAvailableAuthUsers(); // Refresh available users
       }
-    } catch (error) {
-      console.error('Failed to save user:', error);
-      alert('Gagal menyimpan user');
-    } finally {
-      setIsSaving(false); // ← Reset loading
+    } else {
+      console.error('API Error:', result);
+      alert(`Error: ${result.error || result.message || 'Gagal menyimpan'}`);
     }
-  };
+  } catch (error) {
+    console.error('Failed to save user:', error);
+    alert('Gagal menyimpan user. Cek console untuk detail.');
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const formatInterval = (interval: string | null) => {
     if (!interval) return '-';
@@ -456,7 +480,7 @@ export default function ComplaintUsersPage() {
                       </option>
                       {availableAuthUsers.map(u => (
                         <option key={u.id} value={u.id}>
-                          {u.full_name} ({u.email})
+                          {u.name} ({u.email})  {/* ← Fixed: ubah dari u.full_name ke u.name */}
                         </option>
                       ))}
                       {editingUser && (

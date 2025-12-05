@@ -32,7 +32,8 @@ import {
   DocumentMagnifyingGlassIcon,
   BeakerIcon,
   QrCodeIcon, // 🔥 BARU: Import Icon Lot
-  ScaleIcon   // 🔥 BARU: Import Icon Timbangan
+  ScaleIcon,   // 🔥 BARU: Import Icon Timbangan
+  ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
@@ -94,7 +95,45 @@ function QuickActions({ complaint, userId, onStatusChange }: QuickActionsProps) 
         Quick Actions
       </h3>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* === KODE BARU MULAI DARI SINI === */}
+        {/* Tombol Link ke Halaman Form Observasi (Hanya muncul jika status = 'observation') */}
+        {/* LOGIKA BARU: Cek apakah sudah ada data observasi */}
+        {complaint.status === 'observation' && (
+          <Link
+            href={`/admin/complaints/${complaint.id}/observation`}
+            className={`col-span-1 sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
+              complaint.complaint_observations && complaint.complaint_observations.length > 0
+                ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700' // Jika sudah ada data (Hijau)
+                : 'bg-gradient-to-r from-cyan-600 to-teal-600 border-cyan-400 text-white hover:from-cyan-700 hover:to-teal-700' // Jika belum ada data (Cyan/Biru)
+            }`}
+          >
+            <ClipboardDocumentCheckIcon className="h-6 w-6" />
+            <span className="font-bold text-lg">
+              {complaint.complaint_observations && complaint.complaint_observations.length > 0
+                ? 'Lihat / Edit Hasil Observasi'  // Teks berubah jika data sudah ada
+                : 'Isi Laporan Observasi Lapangan' // Teks default
+              }
+            </span>
+          </Link>
+        )}
+        {/* === KODE BARU BERAKHIR DI SINI === */}
+
+
+        {/* === REVISI TOMBOL 'MULAI OBSERVASI' DI BAWAHNYA === */}
+        {/* Pastikan logika tombol ini seperti berikut agar muncul saat status 'submitted' atau 'acknowledged' */}
+        {['submitted', 'acknowledged'].includes(complaint.status) && (
+          <button
+            onClick={() => handleQuickStatus('observation', 'Tim kami telah memulai proses observasi lapangan.')}
+            disabled={updating}
+            className="flex flex-col items-center gap-2 p-4 bg-cyan-100 dark:bg-cyan-900/40 rounded-xl hover:bg-cyan-200 dark:hover:bg-cyan-800/60 transition-colors disabled:opacity-50 border border-cyan-200 dark:border-cyan-800"
+          >
+            <DocumentMagnifyingGlassIcon className="h-8 w-8 text-cyan-600 dark:text-cyan-400" />
+            <span className="text-sm font-bold text-cyan-900 dark:text-cyan-200">Mulai Observasi</span>
+            <span className="text-xs text-cyan-700 dark:text-cyan-300">Ubah status ke "Proses Observasi"</span>
+          </button>
+        )}
+        
         {/* Mulai Observasi */}
         {complaint.department === 'observasi' && complaint.status === 'acknowledged' && (
           <button
@@ -129,18 +168,6 @@ function QuickActions({ complaint, userId, onStatusChange }: QuickActionsProps) 
           >
             <CheckCircleIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
             <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Selesai Investigasi</span>
-          </button>
-        )}
-
-        {/* Butuh Info Customer */}
-        {!['resolved', 'closed', 'pending_response'].includes(complaint.status) && (
-          <button
-            onClick={() => handleQuickStatus('pending_response', 'Kami membutuhkan informasi tambahan dari Anda untuk melanjutkan proses penanganan.')}
-            disabled={updating}
-            className="flex flex-col items-center gap-2 p-4 bg-purple-100 dark:bg-purple-900/40 rounded-xl hover:bg-purple-200 dark:hover:bg-purple-800/60 transition-colors disabled:opacity-50"
-          >
-            <ChatBubbleLeftRightIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-            <span className="text-sm font-semibold text-purple-900 dark:text-purple-200">Butuh Info</span>
           </button>
         )}
       </div>
@@ -184,6 +211,7 @@ interface Complaint {
   // 🔥 BARU: Definisi Field Baru
   lot_number?: string;
   problematic_quantity?: string;
+  complaint_observations?: any[];
 
   attachments?: string[]; 
   verification_data?: Record<string, any>;
