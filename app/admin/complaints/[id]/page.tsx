@@ -37,6 +37,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
+import ObservationSummaryCard from '@/app/components/ObservationSummaryCard';
 
 interface QuickActionsProps {
   complaint: Complaint;
@@ -47,13 +48,17 @@ interface QuickActionsProps {
 
 function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsProps) {
   const [updating, setUpdating] = useState(false);
+  
+  // 🔥 TAMBAHKAN STATE UNTUK MODAL
+  const [showReplacementModal, setShowReplacementModal] = useState(false);
+  const [replacementQty, setReplacementQty] = useState('');
+  const [replacementHybrid, setReplacementHybrid] = useState('');
 
   const isAssignedToMe = complaint.assigned_to === userId;
 
   const handleQuickStatus = async (newStatus: string, message?: string) => {
     setUpdating(true);
     try {
-      // 1. Update status
       const statusResponse = await fetch(`/api/complaints/${complaint.id}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,16 +69,14 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
         throw new Error('Failed to update status');
       }
 
-      // 2. Tambah response otomatis jika ada message
       if (message) {
-        // 🔥 PERBAIKAN DI SINI: Tambahkan admin_name dari user yang sedang login
         await fetch(`/api/complaints/${complaint.id}/responses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: message,
             admin_id: userId,
-            admin_name: user?.name || 'Admin', // 🔥 TAMBAHKAN INI
+            admin_name: user?.name || 'Admin',
             is_internal: false,
           }),
         });
@@ -89,126 +92,266 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
     }
   };
 
+  // 🔥 HANDLER UNTUK KONFIRMASI DENGAN REPLACEMENT
+  const handleAcknowledgeWithReplacement = async () => {
+    if (!replacementQty || !replacementHybrid) {
+      toast.error('Mohon isi qty dan hybrid penggantian');
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      // 1. Update status dan simpan data replacement
+      const response = await fetch(`/api/complaints/${complaint.id}/acknowledge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          replacement_qty: parseInt(replacementQty),
+          replacement_hybrid: replacementHybrid,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to acknowledge complaint');
+      }
+
+      toast.success('Komplain dikonfirmasi dengan usulan penggantian!');
+      setShowReplacementModal(false);
+      setReplacementQty('');
+      setReplacementHybrid('');
+      onStatusChange();
+    } catch (error) {
+      console.error('Acknowledge failed:', error);
+      toast.error('Gagal konfirmasi komplain');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   if (!isAssignedToMe) return null;
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border-2 border-blue-200 dark:border-blue-800">
-      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <BoltIcon className="h-5 w-5 text-blue-600" />
-        Quick Actions
-      </h3>
+    <>
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border-2 border-blue-200 dark:border-blue-800">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <BoltIcon className="h-5 w-5 text-blue-600" />
+          Quick Actions
+        </h3>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        
-        {/* === TOMBOL OBSERVASI === */}
-        {complaint.status === 'observation' && (
-          <Link
-            href={`/admin/complaints/${complaint.id}/observation`}
-            className={`col-span-1 sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
-              complaint.complaint_observations && complaint.complaint_observations.length > 0
-                ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
-                : 'bg-gradient-to-r from-cyan-600 to-teal-600 border-cyan-400 text-white hover:from-cyan-700 hover:to-teal-700'
-            }`}
-          >
-            <ClipboardDocumentCheckIcon className="h-6 w-6" />
-            <span className="font-bold text-lg">
-              {complaint.complaint_observations && complaint.complaint_observations.length > 0
-                ? 'Lihat / Edit Hasil Observasi'
-                : 'Isi Laporan Observasi Lapangan'
-              }
-            </span>
-          </Link>
-        )}
-
-        {/* === TOMBOL INVESTIGASI & LAB TESTING (Side by Side) === */}
-        {complaint.status === 'investigation' && (
-          <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Tombol Investigasi */}
-            <Link
-              href={`/admin/complaints/${complaint.id}/investigation`}
-              className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
-                complaint.complaint_investigations && complaint.complaint_investigations.length > 0
-                  ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
-                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-400 text-white hover:from-indigo-700 hover:to-purple-700'
-              }`}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          
+          {/* === STATUS: SUBMITTED → ACKNOWLEDGED === */}
+          {complaint.status === 'submitted' && (
+            <button
+              onClick={() => handleQuickStatus('acknowledged', 'Komplain Anda telah kami terima dan dikonfirmasi. Tim kami akan segera memproses lebih lanjut.')}
+              disabled={updating}
+              className="col-span-1 sm:col-span-2 flex flex-col items-center gap-2 p-4 bg-blue-100 dark:bg-blue-900/40 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors disabled:opacity-50 border border-blue-200 dark:border-blue-800"
             >
-              <BeakerIcon className="h-6 w-6" />
-              <span className="font-bold text-base">
-                {complaint.complaint_investigations && complaint.complaint_investigations.length > 0
-                  ? 'Lihat / Edit Investigasi'
-                  : 'Isi Laporan Investigasi'
-                }
-              </span>
-            </Link>
+              <CheckCircleIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              <span className="text-sm font-bold text-blue-900 dark:text-blue-200">Konfirmasi Penerimaan Komplain</span>
+              <span className="text-xs text-blue-700 dark:text-blue-300 text-center">Konfirmasi bahwa komplain telah diterima</span>
+            </button>
+          )}
 
-            {/* Tombol Lab Testing */}
-            <Link
-              href={`/admin/complaints/${complaint.id}/lab-testing`}
-              className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
-                complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
-                  ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
-                  : 'bg-gradient-to-r from-teal-600 to-cyan-600 border-teal-400 text-white hover:from-teal-700 hover:to-cyan-700'
-              }`}
-            >
-              <ClipboardDocumentCheckIcon className="h-6 w-6" />
-              <span className="font-bold text-base">
-                {complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
-                  ? 'Lihat / Edit Lab Testing'
-                  : 'Isi Hasil Lab Testing'
-                }
-              </span>
-            </Link>
-          </div>
-        )}
+          {/* === STATUS: ACKNOWLEDGED → OBSERVATION atau DIRECT REPLACEMENT === */}
+          {complaint.status === 'acknowledged' && (
+            <>
+              <button
+                onClick={() => setShowReplacementModal(true)}
+                disabled={updating}
+                className="col-span-1 sm:col-span-2 flex flex-col items-center gap-2 p-4 bg-amber-100 dark:bg-amber-900/40 rounded-xl hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors disabled:opacity-50 border border-amber-200 dark:border-amber-800"
+              >
+                <CheckCircleIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-bold text-amber-900 dark:text-amber-200">Direct Replacement (Ganti Langsung)</span>
+                <span className="text-xs text-amber-700 dark:text-amber-300 text-center">Tentukan usulan penggantian benih tanpa observasi</span>
+              </button>
 
-        {/* === TOMBOL MULAI OBSERVASI === */}
-        {['submitted', 'acknowledged'].includes(complaint.status) && (
-          <button
-            onClick={() => handleQuickStatus('observation', 'Tim kami telah memulai proses observasi lapangan.')}
-            disabled={updating}
-            className="flex flex-col items-center gap-2 p-4 bg-cyan-100 dark:bg-cyan-900/40 rounded-xl hover:bg-cyan-200 dark:hover:bg-cyan-800/60 transition-colors disabled:opacity-50 border border-cyan-200 dark:border-cyan-800"
-          >
-            <DocumentMagnifyingGlassIcon className="h-8 w-8 text-cyan-600 dark:text-cyan-400" />
-            <span className="text-sm font-bold text-cyan-900 dark:text-cyan-200">Mulai Observasi</span>
-            <span className="text-xs text-cyan-700 dark:text-cyan-300">Ubah status ke "Proses Observasi"</span>
-          </button>
-        )}
+              <button
+                onClick={() => handleQuickStatus('observation', 'Tim kami telah memulai proses observasi lapangan untuk memverifikasi komplain Anda.')}
+                disabled={updating}
+                className="col-span-1 sm:col-span-2 flex flex-col items-center gap-2 p-4 bg-cyan-100 dark:bg-cyan-900/40 rounded-xl hover:bg-cyan-200 dark:hover:bg-cyan-800/60 transition-colors disabled:opacity-50 border border-cyan-200 dark:border-cyan-800"
+              >
+                <DocumentMagnifyingGlassIcon className="h-8 w-8 text-cyan-600 dark:text-cyan-400" />
+                <span className="text-sm font-bold text-cyan-900 dark:text-cyan-200">Mulai Observasi Lapangan</span>
+                <span className="text-xs text-cyan-700 dark:text-cyan-300 text-center">Lakukan verifikasi dan observasi terlebih dahulu</span>
+              </button>
+            </>
+          )}
 
-        {/* === TOMBOL MULAI INVESTIGASI === */}
-        {(complaint.department === 'investigasi_1' || 
-          complaint.department === 'investigasi_2' || 
-          complaint.department === 'lab_tasting' ||
-          complaint.status === 'observation'
-        ) && (complaint.status === 'acknowledged' || complaint.status === 'observation') && (
-          <button
-            onClick={() => handleQuickStatus('investigation', 'Tim investigasi telah memulai pengujian dan analisis mendalam.')}
-            disabled={updating}
-            className="flex flex-col items-center gap-2 p-4 bg-amber-100 dark:bg-amber-900/40 rounded-xl hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors disabled:opacity-50 border border-amber-200 dark:border-amber-800"
-          >
-            <BeakerIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
-            <span className="text-sm font-bold text-amber-900 dark:text-amber-200">Mulai Investigasi</span>
-            <span className="text-xs text-amber-700 dark:text-amber-300">Ubah status ke "Investigation"</span>
-          </button>
-        )}
+          {/* === STATUS: OBSERVATION - ISI FORM OBSERVASI === */}
+          {complaint.status === 'observation' && (
+            <>
+              <Link
+                href={`/admin/complaints/${complaint.id}/observation`}
+                className={`col-span-1 sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
+                  complaint.complaint_observations && complaint.complaint_observations.length > 0
+                    ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
+                    : 'bg-gradient-to-r from-cyan-600 to-teal-600 border-cyan-400 text-white hover:from-cyan-700 hover:to-teal-700'
+                }`}
+              >
+                <ClipboardDocumentCheckIcon className="h-6 w-6" />
+                <span className="font-bold text-lg">
+                  {complaint.complaint_observations && complaint.complaint_observations.length > 0
+                    ? 'Lihat / Edit Hasil Observasi'
+                    : 'Isi Laporan Observasi Lapangan'
+                  }
+                </span>
+              </Link>
 
-        {/* === SELESAI INVESTIGASI === */}
-        {complaint.status === 'investigation' && (
-          <button
-            onClick={() => handleQuickStatus('decision', 'Investigasi telah selesai dilakukan. Menunggu keputusan manajemen.')}
-            disabled={updating}
-            className="flex flex-col items-center gap-2 p-4 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transition-colors disabled:opacity-50 border border-indigo-200 dark:border-indigo-800"
-          >
-            <CheckCircleIcon className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
-            <span className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Selesai Investigasi & Lab Testing</span>
-            <span className="text-xs text-indigo-700 dark:text-indigo-300">Ubah status ke "Decision"</span>
-          </button>
-        )}
+              {/* Tombol Mulai Investigasi jika departemen investigasi/lab */}
+              {(complaint.department === 'investigasi_1' || 
+                complaint.department === 'investigasi_2' || 
+                complaint.department === 'lab_tasting') && (
+                <button
+                  onClick={() => handleQuickStatus('investigation', 'Tim investigasi telah memulai pengujian dan analisis mendalam.')}
+                  disabled={updating}
+                  className="col-span-1 sm:col-span-2 flex flex-col items-center gap-2 p-4 bg-amber-100 dark:bg-amber-900/40 rounded-xl hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors disabled:opacity-50 border border-amber-200 dark:border-amber-800"
+                >
+                  <BeakerIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                  <span className="text-sm font-bold text-amber-900 dark:text-amber-200">Mulai Investigasi & Lab Testing</span>
+                  <span className="text-xs text-amber-700 dark:text-amber-300 text-center">Ubah status ke "Investigasi"</span>
+                </button>
+              )}
+            </>
+          )}
+
+          {/* === STATUS: INVESTIGATION - ISI FORM INVESTIGASI & LAB === */}
+          {complaint.status === 'investigation' && (
+            <>
+              <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Link
+                  href={`/admin/complaints/${complaint.id}/investigation`}
+                  className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
+                    complaint.complaint_investigations && complaint.complaint_investigations.length > 0
+                      ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
+                      : 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-400 text-white hover:from-indigo-700 hover:to-purple-700'
+                  }`}
+                >
+                  <BeakerIcon className="h-6 w-6" />
+                  <span className="font-bold text-base">
+                    {complaint.complaint_investigations && complaint.complaint_investigations.length > 0
+                      ? 'Lihat / Edit Investigasi'
+                      : 'Isi Laporan Investigasi'
+                    }
+                  </span>
+                </Link>
+
+                <Link
+                  href={`/admin/complaints/${complaint.id}/lab-testing`}
+                  className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
+                    complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
+                      ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
+                      : 'bg-gradient-to-r from-teal-600 to-cyan-600 border-teal-400 text-white hover:from-teal-700 hover:to-cyan-700'
+                  }`}
+                >
+                  <ClipboardDocumentCheckIcon className="h-6 w-6" />
+                  <span className="font-bold text-base">
+                    {complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
+                      ? 'Lihat / Edit Lab Testing'
+                      : 'Isi Hasil Lab Testing'
+                    }
+                  </span>
+                </Link>
+              </div>
+
+              {/* Tombol Selesai Investigasi */}
+              <button
+                onClick={() => handleQuickStatus('decision', 'Investigasi dan lab testing telah selesai dilakukan. Menunggu keputusan manajemen.')}
+                disabled={updating}
+                className="col-span-1 sm:col-span-2 flex flex-col items-center gap-2 p-4 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transition-colors disabled:opacity-50 border border-indigo-200 dark:border-indigo-800"
+              >
+                <CheckCircleIcon className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                <span className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Selesai Investigasi</span>
+                <span className="text-xs text-indigo-700 dark:text-indigo-300 text-center">Ubah status ke "Menunggu Keputusan"</span>
+              </button>
+            </>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-4 text-center">
+          Gunakan tombol ini untuk update status dengan cepat
+        </p>
       </div>
 
-      <p className="text-xs text-gray-600 dark:text-gray-400 mt-4 text-center">
-        Gunakan tombol ini untuk update status dengan cepat
-      </p>
-    </div>
+      {/* 🔥 MODAL DIRECT REPLACEMENT */}
+      {showReplacementModal && (
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Direct Replacement Proposal</h3>
+              <button 
+                onClick={() => setShowReplacementModal(false)} 
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <InformationCircleIcon className="h-5 w-5 inline mr-2" />
+                  Tentukan usulan penggantian benih untuk komplain ini. Data ini akan ditampilkan ke customer.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Quantity <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={replacementQty}
+                  onChange={(e) => setReplacementQty(e.target.value)}
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
+                  placeholder="Jumlah unit"
+                  min="1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Hybrid / Varietas <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={replacementHybrid}
+                  onChange={(e) => setReplacementHybrid(e.target.value)}
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
+                  placeholder="Nama varietas hybrid"
+                />
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowReplacementModal(false)}
+                className="px-6 py-3 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleAcknowledgeWithReplacement}
+                disabled={updating || !replacementQty || !replacementHybrid}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {updating ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <CheckIcon className="h-5 w-5" />
+                    Konfirmasi & Simpan
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -243,6 +386,9 @@ interface Complaint {
   
   lot_number?: string;
   problematic_quantity?: string;
+
+  acknowledged_replacement_qty?: number | null;
+  acknowledged_replacement_hybrid?: string | null;
 
   complaint_observations?: any[];
   complaint_investigations?: any[];
@@ -769,13 +915,21 @@ export default function ComplaintDetailPage() {
         {complaint && !loading && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* === QUICK ACTIONS === */}
-            {complaint.assigned_to === user?.id && (complaint.status !== 'resolved' && complaint.status !== 'closed') && (
+            {complaint.status !== 'resolved' && complaint.status !== 'closed' && (
               <div className="lg:col-span-3">
                 <QuickActions 
                   complaint={complaint} 
                   userId={user.id!}
                   user={user} // 🔥 TAMBAHKAN INI
                   onStatusChange={loadComplaint}
+                />
+              </div>
+            )}
+            {/* Observation Summary Card */}
+            {complaint.complaint_observations && complaint.complaint_observations.length > 0 && (
+              <div className="lg:col-span-3">
+                <ObservationSummaryCard 
+                  data={complaint.complaint_observations[0]} 
                 />
               </div>
             )}
@@ -1291,6 +1445,35 @@ export default function ComplaintDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* 🔥 TAMBAHKAN DI SINI - DIRECT REPLACEMENT INFO */}
+              {(complaint.acknowledged_replacement_qty || complaint.acknowledged_replacement_hybrid) && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl shadow-lg border-2 border-amber-300 dark:border-amber-700 p-6">
+                  <h3 className="text-lg font-bold text-amber-900 dark:text-amber-200 mb-4 flex items-center gap-2">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Direct Replacement Proposal
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <dt className="text-sm font-medium text-amber-700 dark:text-amber-400">Quantity</dt>
+                      <dd className="text-2xl font-bold text-amber-900 dark:text-amber-100">
+                        {complaint.acknowledged_replacement_qty} unit
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-amber-700 dark:text-amber-400">Hybrid</dt>
+                      <dd className="text-lg font-bold text-amber-900 dark:text-amber-100">
+                        {complaint.acknowledged_replacement_hybrid}
+                      </dd>
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-3 italic">
+                    Usulan penggantian ini sudah dikirimkan ke customer saat konfirmasi penerimaan komplain.
+                  </p>
+                </div>
+              )}
 
               {/* FEEDBACK CUSTOMER CARD */}
               {(complaint.status === 'resolved' || complaint.status === 'closed') && complaint.customer_satisfaction_rating && (

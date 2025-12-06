@@ -347,36 +347,77 @@ export default function ObservationFormPage() {
             </div>
           </div>
 
-          {/* SECTION 5: PROPOSE REPLACEMENT */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="px-6 py-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
-              <h2 className="font-bold text-amber-900 dark:text-amber-200">5. Propose Direct Replacement</h2>
-            </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Qty</label>
-                <input
-                  type="number"
-                  name="replacement_qty"
-                  value={formData.replacement_qty}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
-                  placeholder="Jumlah unit"
-                />
+          {/* SECTION 5: PROPOSE REPLACEMENT - HANYA jika Valid */}
+          {formData.observation_result === 'Valid' && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-6 py-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
+                <h2 className="font-bold text-amber-900 dark:text-amber-200">5. Propose Direct Replacement</h2>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  Karena komplain diterima, tentukan usulan penggantian benih
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hybrid</label>
-                <input
-                  type="text"
-                  name="replacement_hybrid"
-                  value={formData.replacement_hybrid}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
-                  placeholder="Nama varietas hybrid"
-                />
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Qty <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="replacement_qty"
+                    value={formData.replacement_qty}
+                    onChange={handleChange}
+                    required={formData.observation_result === 'Valid'}
+                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                    placeholder="Jumlah unit"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Hybrid <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="replacement_hybrid"
+                    value={formData.replacement_hybrid}
+                    onChange={handleChange}
+                    required={formData.observation_result === 'Valid'}
+                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                    placeholder="Nama varietas hybrid"
+                  />
+                </div>
+              </div>
+              {!formData.replacement_qty && !formData.replacement_hybrid && (
+                <div className="px-6 pb-6">
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                    <p className="text-xs text-yellow-800 dark:text-yellow-300">
+                      ⚠️ Wajib diisi jika komplain diterima
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Pesan jika ditolak */}
+          {formData.observation_result === 'Invalid' && (
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800 p-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-red-900 dark:text-red-200 mb-1">
+                    Komplain Ditolak
+                  </h3>
+                  <p className="text-sm text-red-700 dark:text-red-300">
+                    Tidak ada penggantian benih karena masalah disebabkan faktor eksternal atau budidaya.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* SECTION 6: CATATAN TAMBAHAN */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">

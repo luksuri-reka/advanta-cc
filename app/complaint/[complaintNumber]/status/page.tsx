@@ -23,6 +23,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
+import ObservationSummaryCard from '@/app/components/ObservationSummaryCard';
 
 interface Complaint {
   id: number;
@@ -46,6 +47,8 @@ interface Complaint {
   // 🔥 BARU: Definisi Field Baru di Interface
   lot_number?: string;
   problematic_quantity?: string;
+
+  complaint_observations?: any[];
 
   status: string;
   created_at: string;
@@ -409,6 +412,13 @@ export default function ComplaintStatusPage() {
                 </div>
               </div>
             </div>
+
+            {/* Observation Summary Card */}
+            {complaint.complaint_observations && complaint.complaint_observations.length > 0 && (
+              <ObservationSummaryCard 
+                data={complaint.complaint_observations[0]} 
+              />
+            )}
 
             {/* Response Box */}
             {complaint.status === 'pending_response' && (

@@ -219,9 +219,10 @@ export async function GET(request: Request) {
     const complaintNumber = searchParams.get('complaint_number');
     
     if (complaintNumber) {
-      const { data, error } = await supabase
+      // 🔥 UPDATE: Tambahkan observations di sini
+      const { data: complaint, error } = await supabase
         .from('complaints')
-        .select('*, complaint_responses(*)')
+        .select('*')
         .eq('complaint_number', complaintNumber)
         .single();
 
@@ -229,9 +230,30 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      return NextResponse.json({ success: true, data: [data] });
+      // Ambil responses
+      const { data: responses } = await supabase
+        .from('complaint_responses')
+        .select('*')
+        .eq('complaint_id', complaint.id)
+        .order('created_at', { ascending: true });
+
+      // 🔥 TAMBAHKAN: Ambil observations
+      const { data: observations } = await supabase
+        .from('complaint_observations')
+        .select('*')
+        .eq('complaint_id', complaint.id);
+
+      // Gabungkan data
+      const enrichedData = {
+        ...complaint,
+        complaint_responses: responses || [],
+        complaint_observations: observations || []
+      };
+
+      return NextResponse.json({ success: true, data: [enrichedData] });
     }
 
+    // List all complaints (tidak perlu observations di sini)
     const { data, error } = await supabase
       .from('complaints')
       .select('*')
