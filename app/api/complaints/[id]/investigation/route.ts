@@ -39,36 +39,26 @@ export async function POST(
     const investigationData = {
       complaint_id: id,
       investigator_id: user?.id,
-      
-      // Data Investigator
       investigator_name: body.investigator_name,
       investigator_position: body.investigator_position,
       investigation_date: body.investigation_date,
-      
-      // Data Complaint
       initiator_complaint: body.initiator_complaint,
       complaint_location: body.complaint_location,
       farmer_name: body.farmer_name,
       complaint_type: body.complaint_type,
       seed_variety: body.seed_variety,
-      lot_number: body.lot_number,
+      lot_number_check: body.lot_number, // ← KEY CHANGE
       problematic_quantity_kg: body.problematic_quantity_kg,
       planting_date: body.planting_date,
       label_expired_date: body.label_expired_date,
       purchase_date: body.purchase_date,
       purchase_place: body.purchase_place,
       purchase_address: body.purchase_address,
-      
-      // Hasil Investigasi
       cause_category: body.cause_category,
-      
-      // Delivery/Packaging
       packaging_damage: body.packaging_damage,
       product_error: body.product_error,
       delivery_issue: body.delivery_issue,
       delivery_condition: body.delivery_condition,
-      
-      // Quality Product
       growth_issue: body.growth_issue,
       seed_treatment_issue: body.seed_treatment_issue,
       product_appearance: body.product_appearance,
@@ -79,20 +69,15 @@ export async function POST(
       herbicide_damage: body.herbicide_damage,
       product_performance: body.product_performance,
       product_expired: body.product_expired,
-      
-      // Informasi Tambahan
       problem_description: body.problem_description,
       action_taken: body.action_taken,
       pest_info: body.pest_info,
       agronomic_aspect: body.agronomic_aspect,
       environment_info: body.environment_info,
       plant_performance_phase: body.plant_performance_phase,
-      
-      // Kesimpulan
       investigation_conclusion: body.investigation_conclusion,
       root_cause_determination: body.root_cause_determination,
       long_term_corrective_action: body.long_term_corrective_action,
-      
       updated_at: new Date().toISOString()
     };
 

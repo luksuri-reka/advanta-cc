@@ -120,24 +120,45 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
           </Link>
         )}
 
-        {/* === TOMBOL INVESTIGASI === */}
+        {/* === TOMBOL INVESTIGASI & LAB TESTING (Side by Side) === */}
         {complaint.status === 'investigation' && (
-          <Link
-            href={`/admin/complaints/${complaint.id}/investigation`}
-            className={`col-span-1 sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
-              complaint.complaint_investigations && complaint.complaint_investigations.length > 0
-                ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
-                : 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-400 text-white hover:from-indigo-700 hover:to-purple-700'
-            }`}
-          >
-            <BeakerIcon className="h-6 w-6" />
-            <span className="font-bold text-lg">
-              {complaint.complaint_investigations && complaint.complaint_investigations.length > 0
-                ? 'Lihat / Edit Hasil Investigasi'
-                : 'Isi Laporan Investigasi & Lab Testing'
-              }
-            </span>
-          </Link>
+          <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Tombol Investigasi */}
+            <Link
+              href={`/admin/complaints/${complaint.id}/investigation`}
+              className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
+                complaint.complaint_investigations && complaint.complaint_investigations.length > 0
+                  ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
+                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-400 text-white hover:from-indigo-700 hover:to-purple-700'
+              }`}
+            >
+              <BeakerIcon className="h-6 w-6" />
+              <span className="font-bold text-base">
+                {complaint.complaint_investigations && complaint.complaint_investigations.length > 0
+                  ? 'Lihat / Edit Investigasi'
+                  : 'Isi Laporan Investigasi'
+                }
+              </span>
+            </Link>
+
+            {/* Tombol Lab Testing */}
+            <Link
+              href={`/admin/complaints/${complaint.id}/lab-testing`}
+              className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
+                complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
+                  ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
+                  : 'bg-gradient-to-r from-teal-600 to-cyan-600 border-teal-400 text-white hover:from-teal-700 hover:to-cyan-700'
+              }`}
+            >
+              <ClipboardDocumentCheckIcon className="h-6 w-6" />
+              <span className="font-bold text-base">
+                {complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
+                  ? 'Lihat / Edit Lab Testing'
+                  : 'Isi Hasil Lab Testing'
+                }
+              </span>
+            </Link>
+          </div>
         )}
 
         {/* === TOMBOL MULAI OBSERVASI === */}
@@ -178,7 +199,7 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
             className="flex flex-col items-center gap-2 p-4 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transition-colors disabled:opacity-50 border border-indigo-200 dark:border-indigo-800"
           >
             <CheckCircleIcon className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
-            <span className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Selesai Investigasi</span>
+            <span className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Selesai Investigasi & Lab Testing</span>
             <span className="text-xs text-indigo-700 dark:text-indigo-300">Ubah status ke "Decision"</span>
           </button>
         )}
@@ -222,12 +243,10 @@ interface Complaint {
   
   lot_number?: string;
   problematic_quantity?: string;
-  
-  // 🔥 TAMBAHKAN INI - Array untuk data observasi
+
   complaint_observations?: any[];
-  
-  // 🔥 TAMBAHKAN INI - Array untuk data investigasi
   complaint_investigations?: any[];
+  complaint_lab_testing?: any[];
 
   attachments?: string[]; 
   verification_data?: Record<string, any>;

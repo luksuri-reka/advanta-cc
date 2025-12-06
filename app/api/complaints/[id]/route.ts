@@ -66,7 +66,13 @@ export async function GET(
       .select('*')
       .eq('complaint_id', id);
 
-    // 5. Ambil Data Profil User Terkait
+    // 5. 🔥 TAMBAHKAN: Ambil Lab Testing
+    const { data: labTesting } = await supabase
+      .from('complaint_lab_testing')
+      .select('*')
+      .eq('complaint_id', id);
+
+    // 6. Ambil Data Profil User Terkait
     const [assignedTo, assignedBy, resolvedBy, escalatedBy, createdBy] = await Promise.all([
       getUserProfile(supabase, complaint.assigned_to),
       getUserProfile(supabase, complaint.assigned_by),
@@ -75,12 +81,13 @@ export async function GET(
       getUserProfile(supabase, complaint.created_by)
     ]);
 
-    // 6. Gabungkan Semua Data
+    // 7. Gabungkan Semua Data
     const enrichedData = {
       ...complaint,
       complaint_responses: responses || [],
       complaint_observations: observations || [],
       complaint_investigations: investigations || [],
+      complaint_lab_testing: labTesting || [], // 🔥 TAMBAHKAN INI
       assigned_to_user: assignedTo,
       assigned_by_user: assignedBy,
       resolved_by_user: resolvedBy,
