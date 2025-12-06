@@ -298,7 +298,7 @@ export default function HomePage() {
                   <QrCodeIcon className="h-8 w-8 text-white" />
                 </div>
                 <div className="text-center">
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Verifikasi</h3>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Verifikasi Produk</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-400">Cek keaslian produk</p>
                 </div>
               </button>
@@ -311,7 +311,7 @@ export default function HomePage() {
                   <FaceSmileIcon className="h-8 w-8 text-white" />
                 </div>
                 <div className="text-center">
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Survey</h3>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Survei Pelanggan</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-400">Beri rating produk</p>
                 </div>
               </button>
@@ -324,8 +324,8 @@ export default function HomePage() {
                   <ExclamationTriangleIcon className="h-8 w-8 text-white" />
                 </div>
                 <div className="text-center">
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Komplain</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Laporkan masalah</p>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Layanan Pelanggan</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Feedback dari pelanggan</p>
                 </div>
               </button>
             </div>
