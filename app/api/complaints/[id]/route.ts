@@ -4,14 +4,10 @@ import { NextResponse } from 'next/server';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // --- HELPER: Mengambil Profil User ---
-// Kita gunakan ini karena tabel 'complaints' mereferensi 'auth.users' 
-// yang tidak bisa di-join langsung dengan mudah di semua setup Supabase.
 async function getUserProfile(supabase: SupabaseClient, userId: string | null) {
   if (!userId) return null;
   
   try {
-    // Mengambil dari tabel profil (sesuaikan dengan tabel profil user Anda)
-    // Bisa 'user_complaint_profiles' atau 'users' (public)
     const { data, error } = await supabase
       .from('user_complaint_profiles') 
       .select('user_id, full_name, department')
@@ -39,25 +35,38 @@ export async function GET(
     const { id } = await params;
     const supabase = await createClient();
 
-    // 1. Ambil Data Komplain Utama + Relasi
-    const { data: complaint, error } = await supabase
+    // 1. Ambil Data Komplain Utama
+    const { data: complaint, error: complaintError } = await supabase
       .from('complaints')
-      .select(`
-        *,
-        complaint_responses(*),
-        complaint_observations(*)  
-      `) 
-      // ^^^ DI SINI PERUBAHAN PENTINGNYA: 
-      // Kita menambahkan 'complaint_observations(*)' agar data observasi ikut terambil.
+      .select('*')
       .eq('id', id)
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (complaintError) {
+      console.error('Error fetching complaint:', complaintError);
+      return NextResponse.json({ error: complaintError.message }, { status: 500 });
     }
 
-    // 2. Ambil Data Profil User Terkait (Manual Join)
-    // Kita ambil data nama petugas, pembuat, dll agar bisa ditampilkan di frontend
+    // 2. Ambil Responses
+    const { data: responses } = await supabase
+      .from('complaint_responses')
+      .select('*')
+      .eq('complaint_id', id)
+      .order('created_at', { ascending: true });
+
+    // 3. Ambil Observations
+    const { data: observations } = await supabase
+      .from('complaint_observations')
+      .select('*')
+      .eq('complaint_id', id);
+
+    // 4. Ambil Investigations
+    const { data: investigations } = await supabase
+      .from('complaint_investigations')
+      .select('*')
+      .eq('complaint_id', id);
+
+    // 5. Ambil Data Profil User Terkait
     const [assignedTo, assignedBy, resolvedBy, escalatedBy, createdBy] = await Promise.all([
       getUserProfile(supabase, complaint.assigned_to),
       getUserProfile(supabase, complaint.assigned_by),
@@ -66,9 +75,12 @@ export async function GET(
       getUserProfile(supabase, complaint.created_by)
     ]);
 
-    // 3. Gabungkan Data Komplain dengan Data User
+    // 6. Gabungkan Semua Data
     const enrichedData = {
       ...complaint,
+      complaint_responses: responses || [],
+      complaint_observations: observations || [],
+      complaint_investigations: investigations || [],
       assigned_to_user: assignedTo,
       assigned_by_user: assignedBy,
       resolved_by_user: resolvedBy,
@@ -96,7 +108,6 @@ export async function DELETE(
     const { id } = await params;
     const supabase = await createClient();
 
-    // Cek Auth
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

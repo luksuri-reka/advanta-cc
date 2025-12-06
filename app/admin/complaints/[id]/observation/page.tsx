@@ -19,6 +19,11 @@ export default function ObservationFormPage() {
   const [submitting, setSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
+    planting_date: '',
+    label_expired_date: '',
+    purchase_date: '',
+    purchase_place: '',
+    purchase_address: '',
     observer_name: '',
     observer_position: '',
     observation_date: new Date().toISOString().split('T')[0],
@@ -37,7 +42,8 @@ export default function ObservationFormPage() {
     has_packaging_evidence: '',
     replacement_qty: '',
     replacement_hybrid: '',
-    general_notes: ''
+    general_notes: '',
+    observation_result: ''
   });
 
   useEffect(() => {
@@ -156,11 +162,97 @@ export default function ObservationFormPage() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* SECTION 1: DATA PENANAMAN & PEMBELIAN (BARU) */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-6 py-4 bg-teal-50 dark:bg-teal-900/20 border-b border-teal-100 dark:border-teal-800">
+              <h2 className="font-bold text-teal-900 dark:text-teal-200">1. Data Penanaman & Pembelian</h2>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Tanggal Penanaman */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tanggal Penanaman (jika sudah ditanam) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="planting_date"
+                  value={formData.planting_date}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                />
+              </div>
+
+              {/* Masa Berlaku Label */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Masa Berlaku Label (Expired Date) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="label_expired_date"
+                  value={formData.label_expired_date}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                />
+              </div>
+
+              {/* Tanggal Pembelian */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tanggal Pembelian Benih <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="purchase_date"
+                  value={formData.purchase_date}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                />
+              </div>
+
+               {/* Tempat Pembelian */}
+               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tempat Pembelian Benih (Nama Toko) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="purchase_place"
+                  value={formData.purchase_place}
+                  onChange={handleChange}
+                  required
+                  placeholder="Nama Toko / Kios / Dealer"
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                />
+              </div>
+
+               {/* Alamat Pembelian */}
+               <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Alamat Pembelian Benih <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  name="purchase_address"
+                  rows={2}
+                  value={formData.purchase_address}
+                  onChange={handleChange}
+                  required
+                  placeholder="Alamat lengkap tempat pembelian..."
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                />
+              </div>
+
+            </div>
+          </div>
           
-          {/* SECTION 1: DATA OBSERVER */}
+          {/* SECTION 2: DATA OBSERVER */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="px-6 py-4 bg-cyan-50 dark:bg-cyan-900/20 border-b border-cyan-100 dark:border-cyan-800">
-              <h2 className="font-bold text-cyan-900 dark:text-cyan-200">1. Data Pelaksana Observasi</h2>
+              <h2 className="font-bold text-cyan-900 dark:text-cyan-200">2. Data Pelaksana Observasi</h2>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -207,10 +299,10 @@ export default function ObservationFormPage() {
             </div>
           </div>
 
-          {/* SECTION 2: MASALAH GERMINASI */}
+          {/* SECTION 3: MASALAH GERMINASI */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="px-6 py-4 bg-green-50 dark:bg-green-900/20 border-b border-green-100 dark:border-green-800">
-              <h2 className="font-bold text-green-900 dark:text-green-200">2. Masalah Germinasi & Daya Tumbuh</h2>
+              <h2 className="font-bold text-green-900 dark:text-green-200">3. Masalah Germinasi & Daya Tumbuh</h2>
             </div>
             <div className="p-6 space-y-6">
               <RadioField name="is_germination_issue" label="Apakah keluhan terkait dengan masalah germinasi/daya tumbuh?" required />
@@ -227,10 +319,10 @@ export default function ObservationFormPage() {
             </div>
           </div>
 
-          {/* SECTION 3: BUKTI & DOKUMENTASI */}
+          {/* SECTION 4: BUKTI & DOKUMENTASI */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="px-6 py-4 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800">
-              <h2 className="font-bold text-purple-900 dark:text-purple-200">3. Bukti & Dokumentasi</h2>
+              <h2 className="font-bold text-purple-900 dark:text-purple-200">4. Bukti & Dokumentasi</h2>
             </div>
             <div className="p-6 space-y-6">
               <RadioField name="has_purchase_proof" label="Apakah ada bukti pembelian? (nota pembelian)" />
@@ -255,10 +347,10 @@ export default function ObservationFormPage() {
             </div>
           </div>
 
-          {/* SECTION 4: PROPOSE REPLACEMENT */}
+          {/* SECTION 5: PROPOSE REPLACEMENT */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="px-6 py-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
-              <h2 className="font-bold text-amber-900 dark:text-amber-200">4. Propose Direct Replacement</h2>
+              <h2 className="font-bold text-amber-900 dark:text-amber-200">5. Propose Direct Replacement</h2>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -286,10 +378,10 @@ export default function ObservationFormPage() {
             </div>
           </div>
 
-          {/* SECTION 5: CATATAN TAMBAHAN */}
+          {/* SECTION 6: CATATAN TAMBAHAN */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="px-6 py-4 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800">
-              <h2 className="font-bold text-red-900 dark:text-red-200">5. Catatan Tambahan</h2>
+              <h2 className="font-bold text-red-900 dark:text-red-200">6. Catatan Tambahan</h2>
             </div>
             <div className="p-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan Umum</label>
@@ -301,6 +393,70 @@ export default function ObservationFormPage() {
                 className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
                 placeholder="Tambahkan informasi penting lainnya..."
               />
+            </div>
+          </div>
+
+          {/* SECTION 7: KEPUTUSAN / HASIL OBSERVASI (BARU) */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-6 py-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
+              <h2 className="font-bold text-blue-900 dark:text-blue-200">7. Keputusan Hasil Observasi</h2>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Apakah komplain ini valid dan dapat diterima? <span className="text-red-500">*</span>
+              </label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pilihan Diterima */}
+                <label className={`relative flex items-center p-4 border rounded-xl cursor-pointer transition-all ${
+                  formData.observation_result === 'Valid' 
+                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20 ring-1 ring-green-500' 
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}>
+                  <input
+                    type="radio"
+                    name="observation_result"
+                    value="Valid"
+                    checked={formData.observation_result === 'Valid'}
+                    onChange={handleChange}
+                    required
+                    className="w-4 h-4 text-green-600 focus:ring-green-500"
+                  />
+                  <div className="ml-3">
+                    <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                      Komplain memenuhi syarat (Diterima)
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Masalah terbukti dari benih/produk, lanjut ke proses penggantian.
+                    </span>
+                  </div>
+                </label>
+
+                {/* Pilihan Ditolak */}
+                <label className={`relative flex items-center p-4 border rounded-xl cursor-pointer transition-all ${
+                  formData.observation_result === 'Invalid' 
+                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20 ring-1 ring-red-500' 
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}>
+                  <input
+                    type="radio"
+                    name="observation_result"
+                    value="Invalid"
+                    checked={formData.observation_result === 'Invalid'}
+                    onChange={handleChange}
+                    required
+                    className="w-4 h-4 text-red-600 focus:ring-red-500"
+                  />
+                  <div className="ml-3">
+                    <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                      Komplain tidak memenuhi syarat (Ditolak)
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Masalah akibat faktor eksternal/budidaya, komplain ditutup.
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
 

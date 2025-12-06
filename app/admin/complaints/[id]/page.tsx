@@ -41,10 +41,11 @@ import { Toaster, toast } from 'react-hot-toast';
 interface QuickActionsProps {
   complaint: Complaint;
   userId: string;
+  user: DisplayUser; // 🔥 TAMBAHKAN INI
   onStatusChange: () => void;
 }
 
-function QuickActions({ complaint, userId, onStatusChange }: QuickActionsProps) {
+function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsProps) {
   const [updating, setUpdating] = useState(false);
 
   const isAssignedToMe = complaint.assigned_to === userId;
@@ -52,7 +53,7 @@ function QuickActions({ complaint, userId, onStatusChange }: QuickActionsProps) 
   const handleQuickStatus = async (newStatus: string, message?: string) => {
     setUpdating(true);
     try {
-      // Update status
+      // 1. Update status
       const statusResponse = await fetch(`/api/complaints/${complaint.id}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,14 +64,16 @@ function QuickActions({ complaint, userId, onStatusChange }: QuickActionsProps) 
         throw new Error('Failed to update status');
       }
 
-      // Tambah response otomatis jika ada message
+      // 2. Tambah response otomatis jika ada message
       if (message) {
+        // 🔥 PERBAIKAN DI SINI: Tambahkan admin_name dari user yang sedang login
         await fetch(`/api/complaints/${complaint.id}/responses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: message,
             admin_id: userId,
+            admin_name: user?.name || 'Admin', // 🔥 TAMBAHKAN INI
             is_internal: false,
           }),
         });
@@ -96,32 +99,48 @@ function QuickActions({ complaint, userId, onStatusChange }: QuickActionsProps) 
       </h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* === KODE BARU MULAI DARI SINI === */}
-        {/* Tombol Link ke Halaman Form Observasi (Hanya muncul jika status = 'observation') */}
-        {/* LOGIKA BARU: Cek apakah sudah ada data observasi */}
+        
+        {/* === TOMBOL OBSERVASI === */}
         {complaint.status === 'observation' && (
           <Link
             href={`/admin/complaints/${complaint.id}/observation`}
             className={`col-span-1 sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
               complaint.complaint_observations && complaint.complaint_observations.length > 0
-                ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700' // Jika sudah ada data (Hijau)
-                : 'bg-gradient-to-r from-cyan-600 to-teal-600 border-cyan-400 text-white hover:from-cyan-700 hover:to-teal-700' // Jika belum ada data (Cyan/Biru)
+                ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
+                : 'bg-gradient-to-r from-cyan-600 to-teal-600 border-cyan-400 text-white hover:from-cyan-700 hover:to-teal-700'
             }`}
           >
             <ClipboardDocumentCheckIcon className="h-6 w-6" />
             <span className="font-bold text-lg">
               {complaint.complaint_observations && complaint.complaint_observations.length > 0
-                ? 'Lihat / Edit Hasil Observasi'  // Teks berubah jika data sudah ada
-                : 'Isi Laporan Observasi Lapangan' // Teks default
+                ? 'Lihat / Edit Hasil Observasi'
+                : 'Isi Laporan Observasi Lapangan'
               }
             </span>
           </Link>
         )}
-        {/* === KODE BARU BERAKHIR DI SINI === */}
 
+        {/* === TOMBOL INVESTIGASI === */}
+        {complaint.status === 'investigation' && (
+          <Link
+            href={`/admin/complaints/${complaint.id}/investigation`}
+            className={`col-span-1 sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
+              complaint.complaint_investigations && complaint.complaint_investigations.length > 0
+                ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
+                : 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-400 text-white hover:from-indigo-700 hover:to-purple-700'
+            }`}
+          >
+            <BeakerIcon className="h-6 w-6" />
+            <span className="font-bold text-lg">
+              {complaint.complaint_investigations && complaint.complaint_investigations.length > 0
+                ? 'Lihat / Edit Hasil Investigasi'
+                : 'Isi Laporan Investigasi & Lab Testing'
+              }
+            </span>
+          </Link>
+        )}
 
-        {/* === REVISI TOMBOL 'MULAI OBSERVASI' DI BAWAHNYA === */}
-        {/* Pastikan logika tombol ini seperti berikut agar muncul saat status 'submitted' atau 'acknowledged' */}
+        {/* === TOMBOL MULAI OBSERVASI === */}
         {['submitted', 'acknowledged'].includes(complaint.status) && (
           <button
             onClick={() => handleQuickStatus('observation', 'Tim kami telah memulai proses observasi lapangan.')}
@@ -133,41 +152,34 @@ function QuickActions({ complaint, userId, onStatusChange }: QuickActionsProps) 
             <span className="text-xs text-cyan-700 dark:text-cyan-300">Ubah status ke "Proses Observasi"</span>
           </button>
         )}
-        
-        {/* Mulai Observasi */}
-        {complaint.department === 'observasi' && complaint.status === 'acknowledged' && (
-          <button
-            onClick={() => handleQuickStatus('observation', 'Tim observasi telah memulai pemeriksaan lapangan.')}
-            disabled={updating}
-            className="flex flex-col items-center gap-2 p-4 bg-cyan-100 dark:bg-cyan-900/40 rounded-xl hover:bg-cyan-200 dark:hover:bg-cyan-800/60 transition-colors disabled:opacity-50"
-          >
-            <DocumentMagnifyingGlassIcon className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
-            <span className="text-sm font-semibold text-cyan-900 dark:text-cyan-200">Mulai Observasi</span>
-          </button>
-        )}
 
-        {/* Mulai Investigasi */}
-        {(complaint.department === 'investigasi_1' || complaint.department === 'investigasi_2' || complaint.department === 'lab_tasting') 
-         && (complaint.status === 'acknowledged' || complaint.status === 'observation') && (
+        {/* === TOMBOL MULAI INVESTIGASI === */}
+        {(complaint.department === 'investigasi_1' || 
+          complaint.department === 'investigasi_2' || 
+          complaint.department === 'lab_tasting' ||
+          complaint.status === 'observation'
+        ) && (complaint.status === 'acknowledged' || complaint.status === 'observation') && (
           <button
             onClick={() => handleQuickStatus('investigation', 'Tim investigasi telah memulai pengujian dan analisis mendalam.')}
             disabled={updating}
-            className="flex flex-col items-center gap-2 p-4 bg-amber-100 dark:bg-amber-900/40 rounded-xl hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors disabled:opacity-50"
+            className="flex flex-col items-center gap-2 p-4 bg-amber-100 dark:bg-amber-900/40 rounded-xl hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors disabled:opacity-50 border border-amber-200 dark:border-amber-800"
           >
-            <BeakerIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-            <span className="text-sm font-semibold text-amber-900 dark:text-amber-200">Mulai Investigasi</span>
+            <BeakerIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            <span className="text-sm font-bold text-amber-900 dark:text-amber-200">Mulai Investigasi</span>
+            <span className="text-xs text-amber-700 dark:text-amber-300">Ubah status ke "Investigation"</span>
           </button>
         )}
 
-        {/* Selesai Investigasi */}
+        {/* === SELESAI INVESTIGASI === */}
         {complaint.status === 'investigation' && (
           <button
             onClick={() => handleQuickStatus('decision', 'Investigasi telah selesai dilakukan. Menunggu keputusan manajemen.')}
             disabled={updating}
-            className="flex flex-col items-center gap-2 p-4 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transition-colors disabled:opacity-50"
+            className="flex flex-col items-center gap-2 p-4 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transition-colors disabled:opacity-50 border border-indigo-200 dark:border-indigo-800"
           >
-            <CheckCircleIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-            <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Selesai Investigasi</span>
+            <CheckCircleIcon className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+            <span className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Selesai Investigasi</span>
+            <span className="text-xs text-indigo-700 dark:text-indigo-300">Ubah status ke "Decision"</span>
           </button>
         )}
       </div>
@@ -208,10 +220,14 @@ interface Complaint {
   related_product_serial?: string;
   related_product_name?: string;
   
-  // 🔥 BARU: Definisi Field Baru
   lot_number?: string;
   problematic_quantity?: string;
+  
+  // 🔥 TAMBAHKAN INI - Array untuk data observasi
   complaint_observations?: any[];
+  
+  // 🔥 TAMBAHKAN INI - Array untuk data investigasi
+  complaint_investigations?: any[];
 
   attachments?: string[]; 
   verification_data?: Record<string, any>;
@@ -738,7 +754,8 @@ export default function ComplaintDetailPage() {
               <div className="lg:col-span-3">
                 <QuickActions 
                   complaint={complaint} 
-                  userId={user.id!} 
+                  userId={user.id!}
+                  user={user} // 🔥 TAMBAHKAN INI
                   onStatusChange={loadComplaint}
                 />
               </div>
@@ -1047,8 +1064,13 @@ export default function ComplaintDetailPage() {
                             );
                           }
 
-                          // --- TAMPILAN 2: Balasan Pelanggan ---
-                          if (!response.admin_name) {
+                          // 🔥 PERBAIKAN DI SINI: Cek apakah ada admin_name DAN admin_name tidak kosong
+                          // Jika admin_name ada dan tidak kosong = Balasan Admin
+                          // Jika admin_name null/undefined/kosong = Balasan Customer
+                          const isAdminResponse = response.admin_name && response.admin_name.trim() !== '';
+
+                          // --- TAMPILAN 2: Balasan Customer ---
+                          if (!isAdminResponse) {
                             return (
                               <div key={response.id} className="flex gap-3 w-full flex-row">
                                 <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-1
