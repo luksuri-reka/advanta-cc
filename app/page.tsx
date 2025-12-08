@@ -55,6 +55,7 @@ export default function HomePage() {
   const [quickName, setQuickName] = useState('');
   const [quickEmail, setQuickEmail] = useState('');
   const [quickPhone, setQuickPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   // ++ TAMBAHKAN State untuk Daftar Produk ++
   const [allProducts, setAllProducts] = useState<{ id: number; name: string }[]>([]);
@@ -108,6 +109,7 @@ export default function HomePage() {
     setQuickName('');
     setQuickEmail('');
     setQuickPhone('');
+    setPhoneError('');
     setSelectedProductId(''); // ++ TAMBAHKAN: Reset product ID
   };
 
@@ -123,6 +125,7 @@ export default function HomePage() {
     setQuickName('');
     setQuickEmail('');
     setQuickPhone('');
+    setPhoneError('');
     setSelectedProductId(''); // ++ TAMBAHKAN: Reset product ID
   };
 
@@ -163,11 +166,34 @@ export default function HomePage() {
     }
   };
 
-  // ++ UBAH: Gunakan selectedProductId, bukan serialNumber ++
+  // ++ FUNGSI VALIDASI BARU ++
+  const validatePhoneNumber = (phone: string) => {
+    // 1. Cek karakter yang tidak valid (hanya boleh angka dan +)
+    if (!/^[0-9+]+$/.test(phone)) return "Hanya boleh berisi angka";
+
+    // 2. Cek Awalan (0, 62, atau +62)
+    const validPrefix = /^(\+62|62|0)/.test(phone);
+    if (!validPrefix) return "Nomor harus diawali 0, 62, atau +62";
+
+    // 3. Cek Jumlah Digit (ambil hanya angkanya)
+    const digitCount = phone.replace(/\D/g, '').length;
+    if (digitCount < 11) return "Nomor minimal 11 angka";
+
+    return ""; // Valid
+  };
+
   const handleQuickSurvey = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // ++ VALIDASI PHONE ++
+    const pError = validatePhoneNumber(quickPhone);
+    if (pError) {
+      setPhoneError(pError);
+      return;
+    }
+
     const params = new URLSearchParams();
-    if (selectedProductId) params.append('product_id', selectedProductId); // ++ UBAH
+    if (selectedProductId) params.append('product_id', selectedProductId);
     if (quickName) params.append('name', quickName);
     if (quickEmail) params.append('email', quickEmail);
     if (quickPhone) params.append('phone', quickPhone);
@@ -177,8 +203,16 @@ export default function HomePage() {
   // ++ UBAH: Gunakan selectedProductId, bukan serialNumber ++
   const handleQuickComplaint = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ++ VALIDASI PHONE ++
+    const pError = validatePhoneNumber(quickPhone);
+    if (pError) {
+      setPhoneError(pError);
+      return;
+    }
+
     const params = new URLSearchParams();
-    if (selectedProductId) params.append('product_id', selectedProductId); // ++ UBAH
+    if (selectedProductId) params.append('product_id', selectedProductId);
     if (quickName) params.append('name', quickName);
     if (quickEmail) params.append('email', quickEmail);
     if (quickPhone) params.append('phone', quickPhone);
@@ -186,7 +220,6 @@ export default function HomePage() {
   };
 
   const features = [
-    // ... (Tidak berubah)
     {
       icon: QrCodeIcon,
       title: 'Scan & Verifikasi',
@@ -205,7 +238,6 @@ export default function HomePage() {
   ];
 
   const stats = [
-    // ... (Tidak berubah)
     { label: 'Produk Terverifikasi', value: '50K+', icon: CheckBadgeIcon },
     { label: 'Pengguna Aktif', value: '10K+', icon: UsersIcon },
     { label: 'Batch Produksi', value: '1K+', icon: BeakerIcon },
@@ -215,7 +247,7 @@ export default function HomePage() {
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
       
-      {/* ... (Background, Header, Hero, Stats Section tidak berubah) ... */}
+      {/* ... (Background, Header, Hero, Stats Section) ... */}
       
       <div className="fixed inset-0 -z-10 bg-gradient-to-br from-emerald-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-blue-950"></div>
       
@@ -706,21 +738,39 @@ export default function HomePage() {
 
                   <div>
                     <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-                      Nomor WhatsApp <span className="text-slate-400">*</span>
+                      Nomor WhatsApp <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-                        <PhoneIcon className="h-4 w-4 text-slate-400" />
+                        <PhoneIcon className={`h-4 w-4 ${phoneError ? 'text-red-500' : 'text-slate-400'}`} />
                       </div>
                       <input
                         type="tel"
                         value={quickPhone}
-                        onChange={(e) => setQuickPhone(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // Hanya izinkan angka dan + di awal
+                          if (/^[0-9+]*$/.test(val)) {
+                            setQuickPhone(val);
+                            if (phoneError) setPhoneError(''); // Hapus error saat mengetik
+                          }
+                        }}
                         required
-                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                        placeholder="08xxxxxxxxxx"
+                        className={`w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
+                          phoneError 
+                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                            : 'border-slate-200 dark:border-slate-600 focus:ring-emerald-500 dark:focus:ring-emerald-400'
+                        }`}
+                        placeholder="Contoh: 081234567890"
                       />
                     </div>
+                    {/* Pesan Error */}
+                    {phoneError && (
+                      <p className="mt-1 text-[10px] text-red-500 font-medium flex items-center gap-1 animate-pulse">
+                        <ExclamationTriangleIcon className="h-3 w-3" />
+                        {phoneError}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
