@@ -93,7 +93,7 @@ export function useComplaintNotifications(hasPermission: boolean) {
 
     } catch (error) {
       console.error('Failed to load complaint stats:', error);
-      // Opsional: Reset stats jika error, atau biarkan nilai terakhir
+      // Opsional: Reset stats jika error/biarkan nilai terakhir
     } finally {
       setIsLoading(false);
     }
