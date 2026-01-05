@@ -109,6 +109,7 @@ export default function ComplaintForm() {
   
   const [productPhoto, setProductPhoto] = useState<string>('');
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
   
   // 🔥 TAMBAHKAN: State untuk daftar produk & dropdown
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -338,8 +339,46 @@ export default function ComplaintForm() {
     setSelectedProductId(newProductId);
   };
 
+  // ++ FUNGSI VALIDASI NO HP ++
+  const validatePhoneNumber = (phone: string) => {
+    if (!/^[0-9+]+$/.test(phone)) return "Hanya boleh berisi angka";
+    
+    // Cek Awalan (0, 62, atau +62)
+    const validPrefix = /^(\+62|62|0)/.test(phone);
+    if (!validPrefix) return "Nomor harus diawali 0, 62, atau +62";
+
+    // Cek Jumlah Digit (minimal 11)
+    const digitCount = phone.replace(/\D/g, '').length;
+    if (digitCount < 11) return "Nomor minimal 11 angka";
+
+    return "";
+  };
+
+  // ++ HANDLER KHUSUS INPUT HP ++
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    // Regex: Hanya izinkan angka dan tanda +
+    if (/^[0-9+]*$/.test(val)) {
+      setFormData(prev => ({ ...prev, customer_phone: val }));
+      if (phoneError) setPhoneError(''); // Hapus error saat user mengetik
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // ++ VALIDASI PHONE SEBELUM SUBMIT ++
+    const pError = validatePhoneNumber(formData.customer_phone);
+    if (pError) {
+      setPhoneError(pError);
+      // Scroll ke input telepon agar user sadar ada error
+      const phoneInput = document.querySelector('input[name="customer_phone"]');
+      if (phoneInput) {
+        phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (phoneInput as HTMLInputElement).focus();
+      }
+      return;
+    }
     
     if (!formData.complaint_category_id || !formData.complaint_subcategory_id) {
       setCategoryError('Silakan pilih kategori dan sub-kategori');
@@ -601,17 +640,28 @@ export default function ComplaintForm() {
                     Nomor WhatsApp *
                   </label>
                   <div className="relative">
-                    <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
+                    <PhoneIcon className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${phoneError ? 'text-red-500' : 'text-gray-400 dark:text-slate-500'}`} />
                     <input
                       type="tel"
                       name="customer_phone"
                       value={formData.customer_phone}
-                      onChange={handleChange}
+                      onChange={handlePhoneChange} 
                       required
-                      className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
-                      placeholder="08xxxxxxxxxx"
+                      className={`w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
+                        phoneError 
+                          ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                          : 'border-gray-300 dark:border-slate-600 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400'
+                      }`}
+                      placeholder="Contoh: 081234567890"
                     />
                   </div>
+                  {/* Pesan Error */}
+                  {phoneError && (
+                    <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1 animate-pulse">
+                      <ExclamationTriangleIcon className="h-3 w-3" />
+                      {phoneError}
+                    </p>
+                  )}
                 </div>
 
                 {/* Location Section */}
@@ -1058,9 +1108,16 @@ export default function ComplaintForm() {
                       <ScaleIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
                       <input
                         type="text"
+                        inputMode="decimal" // Memunculkan keyboard angka di HP
                         name="problematic_quantity"
                         value={formData.problematic_quantity}
-                        onChange={handleChange}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // Regex: Hanya boleh angka (0-9) dan maksimal satu titik (.)
+                          if (/^\d*\.?\d*$/.test(val)) {
+                            setFormData(prev => ({ ...prev, problematic_quantity: val }));
+                          }
+                        }}
                         className="w-full pl-12 pr-12 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                         placeholder="0"
                       />

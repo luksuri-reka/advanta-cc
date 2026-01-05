@@ -89,7 +89,7 @@ export default function ComplaintUsersPage() {
       observasi: 'Observasi',
       investigasi_1: 'Investigasi 1',
       investigasi_2: 'Investigasi 2',
-      lab_tasting: 'Lab Tasting',
+      lab_testing: 'Lab Testing',
       sales: 'Sales'
     };
     return departments[dept] || dept;
@@ -514,7 +514,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       <option value="observasi">Observasi</option>
                       <option value="investigasi_1">Investigasi 1</option>
                       <option value="investigasi_2">Investigasi 2</option>
-                      <option value="lab_tasting">Lab Tasting</option>
+                      <option value="lab_testing">Lab Testing</option>
                       <option value="sales">Sales</option>
                     </select>
                   </div>

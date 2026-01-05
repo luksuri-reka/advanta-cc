@@ -201,7 +201,7 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
               {/* Tombol Mulai Investigasi jika departemen investigasi/lab */}
               {(complaint.department === 'investigasi_1' || 
                 complaint.department === 'investigasi_2' || 
-                complaint.department === 'lab_tasting') && (
+                complaint.department === 'lab_testing') && (
                 <button
                   onClick={() => handleQuickStatus('investigation', 'Tim investigasi telah memulai pengujian dan analisis mendalam.')}
                   disabled={updating}
@@ -469,7 +469,7 @@ const complaintDepartments = [
   'observasi',
   'investigasi_1',
   'investigasi_2',
-  'lab_tasting',
+  'lab_testing',
   'sales'
 ];
 

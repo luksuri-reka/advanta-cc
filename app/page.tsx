@@ -1,7 +1,6 @@
-// app/page.tsx - Versi Modifikasi dengan Dropdown Produk
+// app/page.tsx
 'use client';
 
-// ++ TAMBAHKAN import ini ++
 import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -19,16 +18,8 @@ import {
   UsersIcon,
   BeakerIcon,
   GlobeAltIcon,
-  XMarkIcon,
-  ShieldExclamationIcon,
   FaceSmileIcon,
-  ExclamationTriangleIcon,
-  ChatBubbleLeftRightIcon,
-  StarIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  CubeIcon, // ++ TAMBAHKAN
-  ChevronDownIcon, // ++ TAMBAHKAN
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { searchProduct, verifyProduct } from './utils/api';
 import Image from 'next/image';
@@ -57,13 +48,14 @@ export default function HomePage() {
   const [quickName, setQuickName] = useState('');
   const [quickEmail, setQuickEmail] = useState('');
   const [quickPhone, setQuickPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
-  // ++ TAMBAHKAN State untuk Daftar Produk ++
+  // State untuk Daftar Produk
   const [allProducts, setAllProducts] = useState<{ id: number; name: string }[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(''); // Untuk dropdown
 
-  // ++ TAMBAHKAN Instance Supabase Client (memoized) ++
+  // Instance Supabase Client (memoized)
   const [supabase] = useState(() =>
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -78,7 +70,7 @@ export default function HomePage() {
       setActiveFeature((prev) => (prev + 1) % 3);
     }, 3000);
     
-    // ++ TAMBAHKAN: Fetch data produk saat komponen dimuat ++
+    // Fetch data produk saat komponen dimuat
     const fetchProducts = async () => {
       setProductsLoading(true);
       const { data, error } = await supabase
@@ -96,10 +88,9 @@ export default function HomePage() {
     };
     
     fetchProducts();
-    // ++ AKHIR TAMBAHAN ++
     
     return () => clearInterval(interval);
-  }, [supabase]); // ++ UBAH: Tambahkan dependency
+  }, [supabase]);
 
   const openActionModal = (action: ActionType) => {
     setSelectedAction(action);
@@ -110,7 +101,8 @@ export default function HomePage() {
     setQuickName('');
     setQuickEmail('');
     setQuickPhone('');
-    setSelectedProductId(''); // ++ TAMBAHKAN: Reset product ID
+    setPhoneError('');
+    setSelectedProductId('');
   };
 
   const closeModal = () => {
@@ -125,11 +117,11 @@ export default function HomePage() {
     setQuickName('');
     setQuickEmail('');
     setQuickPhone('');
-    setSelectedProductId(''); // ++ TAMBAHKAN: Reset product ID
+    setPhoneError('');
+    setSelectedProductId('');
   };
 
   const handleVerify = async (e: React.FormEvent) => {
-    // ... (Fungsi ini tidak berubah)
     e.preventDefault();
     if (!serialNumber.trim()) {
       setError({ 
@@ -145,6 +137,8 @@ export default function HomePage() {
     
     try {
       const verificationType = productType === 'hybrid' ? 'serial' : 'lot';
+      // Pastikan fungsi verifyProduct dan searchProduct ada dan benar
+      // eslint-disable-next-line no-unused-vars
       const response = productType === 'hybrid' 
         ? await searchProduct(serialNumber)
         : await verifyProduct(serialNumber, 'lot');
@@ -165,22 +159,44 @@ export default function HomePage() {
     }
   };
 
-  // ++ UBAH: Gunakan selectedProductId, bukan serialNumber ++
+  // FUNGSI VALIDASI BARU
+  const validatePhoneNumber = (phone: string) => {
+    if (!/^[0-9+]+$/.test(phone)) return "Hanya boleh berisi angka";
+    const validPrefix = /^(\+62|62|0)/.test(phone);
+    if (!validPrefix) return "Nomor harus diawali 0, 62, atau +62";
+    const digitCount = phone.replace(/\D/g, '').length;
+    if (digitCount < 11) return "Nomor minimal 11 angka";
+    return "";
+  };
+
   const handleQuickSurvey = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const pError = validatePhoneNumber(quickPhone);
+    if (pError) {
+      setPhoneError(pError);
+      return;
+    }
+
     const params = new URLSearchParams();
-    if (selectedProductId) params.append('product_id', selectedProductId); // ++ UBAH
+    if (selectedProductId) params.append('product_id', selectedProductId);
     if (quickName) params.append('name', quickName);
     if (quickEmail) params.append('email', quickEmail);
     if (quickPhone) params.append('phone', quickPhone);
     router.push(`/survey?${params.toString()}`);
   };
 
-  // ++ UBAH: Gunakan selectedProductId, bukan serialNumber ++
   const handleQuickComplaint = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const pError = validatePhoneNumber(quickPhone);
+    if (pError) {
+      setPhoneError(pError);
+      return;
+    }
+
     const params = new URLSearchParams();
-    if (selectedProductId) params.append('product_id', selectedProductId); // ++ UBAH
+    if (selectedProductId) params.append('product_id', selectedProductId);
     if (quickName) params.append('name', quickName);
     if (quickEmail) params.append('email', quickEmail);
     if (quickPhone) params.append('phone', quickPhone);
@@ -188,7 +204,6 @@ export default function HomePage() {
   };
 
   const features = [
-    // ... (Tidak berubah)
     {
       icon: QrCodeIcon,
       title: 'Scan & Verifikasi',
@@ -207,7 +222,6 @@ export default function HomePage() {
   ];
 
   const stats = [
-    // ... (Tidak berubah)
     { label: 'Produk Terverifikasi', value: '50K+', icon: CheckBadgeIcon },
     { label: 'Pengguna Aktif', value: '10K+', icon: UsersIcon },
     { label: 'Batch Produksi', value: '1K+', icon: BeakerIcon },
@@ -240,8 +254,7 @@ export default function HomePage() {
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
       
-      {/* ... (Background, Header, Hero, Stats Section tidak berubah) ... */}
-      
+      {/* Background Effects */}
       <div className="fixed inset-0 -z-10 bg-gradient-to-br from-emerald-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-blue-950"></div>
       
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
@@ -250,6 +263,7 @@ export default function HomePage() {
         <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-emerald-200/10 to-blue-200/10 dark:from-emerald-800/5 dark:to-blue-800/5 rounded-full blur-3xl"></div>
       </div>
 
+      {/* Navbar */}
       <nav className={`relative z-20 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between gap-3">
@@ -258,10 +272,10 @@ export default function HomePage() {
                 <Image 
                   src="/advanta-logo.png" 
                   alt="Advanta Seeds"
-                  height={48} // Sesuaikan dengan h-12 (48px)
-                  width={150} // Estimasi aspect ratio
+                  height={48} 
+                  width={150} 
                   className="object-contain h-full w-auto"
-                  priority // Karena ini di header (LCP), kita load prioritas
+                  priority 
                 />
               </div>
               <div className="hidden sm:block">
@@ -293,6 +307,7 @@ export default function HomePage() {
         </div>
       </nav>
 
+      {/* Hero Section */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-20 lg:py-32">
         <div className="grid lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 items-center">
           
@@ -438,6 +453,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Stats Section */}
       <section className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 transition-all duration-1000 delay-600 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {stats.map((stat, index) => (
@@ -458,7 +474,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ACTION MODAL */}
+      {/* ACTION MODAL - USING COMPONENT */}
       {showActionModal && (
         <ActionModal 
           selectedAction={selectedAction}
@@ -528,49 +544,6 @@ export default function HomePage() {
         
         .animate-bounce-slow {
           animation: bounce-slow 3s ease-in-out infinite;
-        }
-
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-
-        @keyframes scale-in {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        .animate-scale-in {
-          animation: scale-in 0.3s ease-out;
-        }
-
-        @keyframes slide-in-bottom {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-slide-in-bottom {
-          animation: slide-in-bottom 0.3s ease-out;
         }
       `}</style>
     </main>

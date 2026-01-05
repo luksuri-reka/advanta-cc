@@ -38,6 +38,11 @@ interface Complaint {
   subject: string;
   description: string;
 
+  first_response_at?: string;
+  first_response_sla?: string; // Interval dari DB, tampilkan sebagai string
+  resolution_sla?: string;     // Interval dari DB, tampilkan sebagai string
+  resolution_summary?: string; // Tampilkan Ringkasan Solusi
+
   complaint_category_name?: string;
   complaint_subcategory_name?: string;
   complaint_case_type_ids?: string[];
@@ -136,6 +141,30 @@ const formatDateTimeFull = (dateString?: string) => {
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+const formatSla = (intervalString?: string) => {
+  if (!intervalString) return 'Tidak Ditentukan';
+  
+  // Format interval PostgreSQL 'HH:MM:SS' menjadi jam dan menit
+  const parts = intervalString.split(':');
+  if (parts.length < 3) return intervalString;
+  
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  
+  let result = '';
+  if (hours > 0) {
+    result += `${hours} Jam`;
+    if (minutes > 0) {
+      result += ` ${minutes} Menit`;
+    }
+  } else if (minutes > 0) {
+    result += `${minutes} Menit`;
+  } else {
+    return 'Segera';
+  }
+  return result;
 };
 // --- AKHIR FUNGSI FORMAT WAKTU ---
 
@@ -645,10 +674,85 @@ export default function ComplaintStatusPage() {
                       <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">Tanggal Lapor</dt>
                       <dd className="text-base font-semibold text-gray-900 dark:text-white">{formatDateTimeFull(complaint.created_at)}</dd>
                     </div>
+
+                    {/* 🔥 BARU: Provinsi & Kota/Kabupaten */}
+                    {(complaint.customer_province || complaint.customer_city) && (
+                      <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-800">
+                        <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-2">
+                          <MapPinIcon className="h-4 w-4 text-blue-500" />
+                          Kota/Provinsi
+                        </dt>
+                        <dd className="text-base font-semibold text-blue-900 dark:text-blue-300">
+                          {complaint.customer_city}{complaint.customer_city && complaint.customer_province ? ', ' : ''}{complaint.customer_province}
+                        </dd>
+                      </div>
+                    )}
+                    
+                    {/* 🔥 BARU: Alamat Detail */}
+                    {complaint.customer_address && (
+                      <div className="sm:col-span-2 p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-800">
+                        <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-2">
+                          <MapPinIcon className="h-4 w-4 text-blue-500" />
+                          Alamat Lengkap
+                        </dt>
+                        <dd className="text-base text-blue-900 dark:text-blue-300 whitespace-pre-wrap leading-relaxed">
+                          {complaint.customer_address}
+                        </dd>
+                      </div>
+                    )}
+
                     <div className="p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
                       <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">Terakhir Diperbarui</dt>
                       <dd className="text-base font-semibold text-gray-900 dark:text-white">{formatDateTimeFull(complaint.updated_at)}</dd>
                     </div>
+
+                    {/* 🔥 BARU: SLA Respons Awal */}
+                    {complaint.first_response_sla && (
+                      <div className="p-4 bg-yellow-50/50 dark:bg-yellow-900/10 rounded-2xl border border-yellow-100 dark:border-yellow-800">
+                        <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-2">
+                          <ClockIcon className="h-4 w-4 text-yellow-500" />
+                          SLA Respons Awal
+                        </dt>
+                        <dd className="text-base font-bold text-yellow-900 dark:text-yellow-300">
+                          {complaint.first_response_at 
+                            ? `Sudah direspons (${formatDateTimeFull(complaint.first_response_at)})`
+                            : `Maks. ${formatSla(complaint.first_response_sla)}`}
+                        </dd>
+                      </div>
+                    )}
+
+                    {/* 🔥 BARU: SLA Resolusi */}
+                    {complaint.resolution_sla && (
+                      <div className="p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-2xl border border-purple-100 dark:border-purple-800">
+                        <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-2">
+                          <ClockIcon className="h-4 w-4 text-purple-500" />
+                          SLA Resolusi
+                        </dt>
+                        <dd className="text-base font-bold text-purple-900 dark:text-purple-300">
+                          Maks. {formatSla(complaint.resolution_sla)}
+                        </dd>
+                      </div>
+                    )}
+
+                    {/* 🔥 BARU: Ringkasan Solusi (Tampilkan jika resolved/closed) */}
+                    {(complaint.status === 'resolved' || complaint.status === 'closed') && complaint.resolution_summary && (
+                      <div className="sm:col-span-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                        <div className="p-5 bg-green-50/50 dark:bg-green-900/20 rounded-2xl border-2 border-green-200 dark:border-green-800">
+                          <dt className="text-lg font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                            <CheckCircleIcon className="h-5 w-5" />
+                            Ringkasan Keputusan & Solusi
+                          </dt>
+                          <dd className="text-base text-green-800 dark:text-green-200 whitespace-pre-wrap leading-relaxed">
+                            {complaint.resolution_summary}
+                          </dd>
+                          {complaint.resolved_at && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-3 border-t border-green-200 dark:border-green-800 pt-2">
+                              Diselesaikan pada: {formatDateTimeFull(complaint.resolved_at)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* 🔥 BARU: Tampilan Lot Number & Quantity */}
                     {(complaint.lot_number || complaint.problematic_quantity) && (
