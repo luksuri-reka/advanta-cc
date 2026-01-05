@@ -12,8 +12,7 @@ import {
   ArchiveBoxIcon,
   CircleStackIcon,
   BuildingOfficeIcon,
-  QrCodeIcon,
-  ClockIcon,
+  ClockIcon, 
   DocumentChartBarIcon,
   ArrowRightIcon,
   CogIcon,
@@ -28,9 +27,9 @@ import {
   UsersIcon as UsersSolid,
   ArchiveBoxIcon as ArchiveSolid,
   CircleStackIcon as CircleSolid,
-  BuildingOfficeIcon as BuildingSolid,
   ExclamationTriangleIcon as ComplaintSolid,
-  ChatBubbleLeftRightIcon as SurveySolid
+  ChatBubbleLeftRightIcon as SurveySolid,
+  ClockIcon as ClockSolid
 } from '@heroicons/react/24/solid';
 import Link from 'next/link';
 
@@ -44,16 +43,14 @@ interface DashboardStats {
   totalUsers: number;
   totalProducts: number;
   totalProductions: number;
-  totalCompanies: number;
-  totalBags: number;
-  totalQrCodes: number;
+  expiringProducts: number; // Pengganti statistik perusahaan/QR
   totalComplaints: number;
   pendingComplaints: number;
   resolvedComplaints: number;
   avgResolutionTime: number;
   satisfactionScore: number;
   totalSurveys: number;
-  thisMonthSurveys: number;
+  thisMonthSurveys: number; // Pastikan ini ada
   avgSurveyRating: number;
 }
 
@@ -63,13 +60,12 @@ export default function AdminDashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
+  
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     totalProducts: 0,
     totalProductions: 0,
-    totalCompanies: 0,
-    totalBags: 0,
-    totalQrCodes: 0,
+    expiringProducts: 0,
     totalComplaints: 0,
     pendingComplaints: 0,
     resolvedComplaints: 0,
@@ -89,20 +85,27 @@ export default function AdminDashboardPage() {
     try {
       setIsLoading(true);
 
+      const today = new Date();
+      const nextMonth = new Date(today);
+      nextMonth.setDate(today.getDate() + 30);
+      
+      const todayStr = today.toISOString().split('T')[0];
+      const nextMonthStr = nextMonth.toISOString().split('T')[0];
+
       const [
         productsResult,
         productionsResult,
-        companiesResult,
-        bagsResult,
-        qrCodesResult,
+        // Query Expired: Ambil produksi yang expirednya diantara hari ini dan 30 hari lagi
+        expiringResult, 
         complaintsResult,
         surveysResult
       ] = await Promise.all([
         supabase.from('products').select('id', { count: 'exact', head: true }),
         supabase.from('productions').select('id', { count: 'exact', head: true }),
-        supabase.from('companies').select('id', { count: 'exact', head: true }),
-        supabase.from('bags').select('id', { count: 'exact', head: true }),
-        supabase.from('qr_bags').select('id', { count: 'exact', head: true }),
+        supabase.from('productions')
+          .select('id', { count: 'exact', head: true })
+          .gte('lab_result_expired_date', todayStr)
+          .lte('lab_result_expired_date', nextMonthStr),
         supabase.from('complaints').select(`
           id, status, created_at, resolved_at, customer_satisfaction_rating
         `),
@@ -143,6 +146,7 @@ export default function AdminDashboardPage() {
         : 0;
 
       const surveys = surveysResult.data || [];
+      // Hitung Survey Bulan Ini
       const thisMonthStart = new Date();
       thisMonthStart.setDate(1);
       thisMonthStart.setHours(0, 0, 0, 0);
@@ -158,36 +162,18 @@ export default function AdminDashboardPage() {
         totalUsers: userCount,
         totalProducts: productsResult.count || 0,
         totalProductions: productionsResult.count || 0,
-        totalCompanies: companiesResult.count || 0,
-        totalBags: bagsResult.count || 0,
-        totalQrCodes: qrCodesResult.count || 0,
+        expiringProducts: expiringResult.count || 0,
         totalComplaints: complaints.length,
         pendingComplaints,
         resolvedComplaints,
         avgResolutionTime: Math.round(avgResolutionTime * 10) / 10,
         satisfactionScore: Math.round(avgSatisfactionScore * 10) / 10,
         totalSurveys: surveys.length,
-        thisMonthSurveys,
+        thisMonthSurveys, // Masukkan ke state
         avgSurveyRating: Math.round(avgSurveyRating * 10) / 10
       });
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
-      setStats({
-        totalUsers: 4,
-        totalProducts: 0,
-        totalProductions: 0,
-        totalCompanies: 0,
-        totalBags: 0,
-        totalQrCodes: 0,
-        totalComplaints: 0,
-        pendingComplaints: 0,
-        resolvedComplaints: 0,
-        avgResolutionTime: 0,
-        satisfactionScore: 0,
-        totalSurveys: 0,
-        thisMonthSurveys: 0,
-        avgSurveyRating: 0
-      });
     } finally {
       setIsLoading(false);
     }
@@ -248,6 +234,7 @@ export default function AdminDashboardPage() {
     );
   }
 
+  // --- KONFIGURASI KARTU STATISTIK ---
   const statCards = [
     { 
       icon: UsersSolid, 
@@ -267,12 +254,14 @@ export default function AdminDashboardPage() {
       value: stats.totalProductions,
       color: 'from-purple-600 to-purple-700 dark:from-purple-500 dark:to-purple-600' 
     },
+    // KARTU KE-4: EXPIRED WARNING
     { 
-      icon: BuildingSolid, 
-      title: 'Perusahaan', 
-      value: stats.totalCompanies,
-      color: 'from-orange-600 to-orange-700 dark:from-orange-500 dark:to-orange-600' 
+      icon: ClockSolid, 
+      title: 'Expired < 1 Bulan', 
+      value: stats.expiringProducts,
+      color: 'from-rose-600 to-red-700 dark:from-rose-500 dark:to-red-600' 
     },
+    // KARTU COMPLAINT & SURVEY (Jika ada izin)
     ...(hasComplaintPermission('canViewComplaints') ? [
       { 
         icon: ComplaintSolid, 
@@ -280,6 +269,7 @@ export default function AdminDashboardPage() {
         value: stats.totalComplaints,
         color: 'from-red-600 to-red-700 dark:from-red-500 dark:to-red-600'
       },
+      // ++ KARTU SURVEY BULAN INI DIKEMBALIKAN ++
       { 
         icon: SurveySolid, 
         title: 'Survey Bulan Ini', 
@@ -289,6 +279,7 @@ export default function AdminDashboardPage() {
     ] : [])
   ];
 
+  // --- KONFIGURASI MENU MANAJEMEN ---
   const managementItems = [
     { 
       icon: UsersIcon, 
@@ -319,8 +310,17 @@ export default function AdminDashboardPage() {
       title: 'Data Perusahaan', 
       description: 'Kelola informasi perusahaan dan partner.', 
       link: '/admin/companies',
-      count: stats.totalCompanies,
-      countLabel: 'perusahaan'
+      // Count Statistik Perusahaan dihapus agar tidak muncul angka
+      countLabel: 'Manajemen partner'
+    },
+    { 
+      icon: ClockIcon, 
+      title: 'Monitoring Expired', 
+      description: 'Cek produk yang akan segera kadaluarsa.', 
+      link: '/admin/productions?sort=expired_asc',
+      count: stats.expiringProducts,
+      countLabel: 'batch akan expired',
+      badge: stats.expiringProducts > 0 ? `${stats.expiringProducts}` : undefined
     },
     ...(hasComplaintPermission('canViewComplaints') ? [
       { 
@@ -342,14 +342,6 @@ export default function AdminDashboardPage() {
       }
     ] : []),
     { 
-      icon: QrCodeIcon, 
-      title: 'Manajemen QR & Bags', 
-      description: 'Kelola QR code dan packaging untuk produk.', 
-      link: '/admin/bags',
-      count: stats.totalBags,
-      countLabel: 'bags aktif'
-    },
-    { 
       icon: CogIcon, 
       title: 'Master Data', 
       description: 'Konfigurasi jenis tanaman, varietas, dan kelas benih.', 
@@ -362,7 +354,6 @@ export default function AdminDashboardPage() {
       <Navbar user={user} onLogout={handleLogout} />
       
       <main className="relative">
-        {/* Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-400/5 dark:bg-emerald-500/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-400/5 dark:bg-blue-500/10 rounded-full blur-3xl"></div>
@@ -396,7 +387,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
             {statCards.map((stat, index) => (
               <div key={stat.title} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
                 <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${stat.color} p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105`}>
@@ -441,7 +432,7 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
               </div>
-
+              
               <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200/50 dark:border-slate-700/50 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 text-white">
@@ -536,7 +527,9 @@ export default function AdminDashboardPage() {
                               <div className="h-6 w-16 bg-gray-200 dark:bg-slate-700 rounded animate-pulse"></div>
                             ) : (
                               <>
-                                <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{item.count.toLocaleString()}</span>
+                                <span className={`text-2xl font-bold ${item.title.includes('Expired') ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                  {item.count.toLocaleString()}
+                                </span>
                                 <span className="ml-2 text-sm text-gray-500 dark:text-slate-400">{item.countLabel}</span>
                               </>
                             )}
@@ -593,11 +586,11 @@ export default function AdminDashboardPage() {
                   <span className="text-sm font-semibold text-gray-700 dark:text-slate-300 group-hover:text-red-600 dark:group-hover:text-red-400 text-center">Komplain</span>
                 </Link>
               ) : (
-                <Link href="/admin/bags" className="flex flex-col items-center p-4 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors group">
+                <Link href="/admin/productions" className="flex flex-col items-center p-4 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors group">
                   <div className="h-10 w-10 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mb-2 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 transition-colors">
-                    <QrCodeIcon className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                    <ClockIcon className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                   </div>
-                  <span className="text-sm font-semibold text-gray-700 dark:text-slate-300 group-hover:text-orange-600 dark:group-hover:text-orange-400 text-center">QR & Bags</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-slate-300 group-hover:text-orange-600 dark:group-hover:text-orange-400 text-center">Cek Expired</span>
                 </Link>
               )}
             </div>

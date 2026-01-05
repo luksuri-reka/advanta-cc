@@ -1,11 +1,10 @@
-// app/admin/productions/page.tsx (Batch Fetching Solution)
+// app/admin/productions/page.tsx
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import ProductionClient from './ProductionClient';
 
 export const dynamic = "force-dynamic";
 
-// Fungsi untuk mengambil SEMUA data dengan batch fetching
 async function fetchAllDataInBatches() {
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -19,16 +18,14 @@ async function fetchAllDataInBatches() {
   );
 
   try {
-    // Batch fetching untuk productions data
     const allProductions = [];
     let from = 0;
-    const batchSize = 1000; // Supabase default limit
+    const batchSize = 1000;
     
     console.log('Starting batch fetching...');
     
     while (true) {
-      console.log(`Fetching batch: ${from} to ${from + batchSize - 1}`);
-      
+      // TAMBAHKAN 'lab_result_expired_date' DI SINI
       const { data: batchData, error } = await supabase
         .from('productions')
         .select(`
@@ -42,6 +39,7 @@ async function fetchAllDataInBatches() {
           lot_varietas_id,
           lot_volume, 
           cert_realization_tanggal_panen, 
+          lab_result_expired_date, 
           import_qr_at, 
           code_1, 
           code_2, 
@@ -51,31 +49,15 @@ async function fetchAllDataInBatches() {
         .order('cert_realization_tanggal_panen', { ascending: false })
         .range(from, from + batchSize - 1);
 
-      if (error) {
-        console.error('Batch fetching error:', error);
-        throw new Error(`Gagal memuat produksi batch ${from}: ${error.message}`);
-      }
-
-      if (!batchData || batchData.length === 0) {
-        console.log('No more data, stopping batch fetching');
-        break;
-      }
+      if (error) throw new Error(`Gagal memuat produksi: ${error.message}`);
+      if (!batchData || batchData.length === 0) break;
 
       allProductions.push(...batchData);
-      console.log(`Fetched ${batchData.length} records. Total so far: ${allProductions.length}`);
-
-      // Jika batch terakhir kurang dari batchSize, berarti sudah habis
-      if (batchData.length < batchSize) {
-        console.log('Last batch detected, stopping');
-        break;
-      }
-
+      if (batchData.length < batchSize) break;
       from += batchSize;
     }
 
-    console.log(`Total productions fetched: ${allProductions.length}`);
-
-    // Fetch reference data secara parallel
+    // Fetch reference data
     const [productsRes, companiesRes, varietasRes, kelasBenihRes] = await Promise.all([
       supabase.from('products').select('id, name').order('name'),
       supabase.from('companies').select('id, name').order('name'),
@@ -83,18 +65,12 @@ async function fetchAllDataInBatches() {
       supabase.from('kelas_benih').select('id, name').order('name')
     ]);
 
-    if (productsRes.error) throw new Error(`Gagal memuat produk: ${productsRes.error.message}`);
-    if (companiesRes.error) throw new Error(`Gagal memuat perusahaan: ${companiesRes.error.message}`);
-    if (varietasRes.error) throw new Error(`Gagal memuat varietas: ${varietasRes.error.message}`);
-    if (kelasBenihRes.error) throw new Error(`Gagal memuat kelas benih: ${kelasBenihRes.error.message}`);
-
-    // Buat lookup maps untuk efisiensi
+    // Mapping maps (unchanged)
     const productMap = new Map(productsRes.data?.map(p => [p.id, p]) || []);
     const companyMap = new Map(companiesRes.data?.map(c => [c.id, c]) || []);
     const varietasMap = new Map(varietasRes.data?.map(v => [v.id, v]) || []);
     const kelasBenihMap = new Map(kelasBenihRes.data?.map(kb => [kb.id, kb]) || []);
 
-    // Transform data dengan lookup yang efisien
     const transformedProductions = allProductions.map(prod => ({
       id: prod.id,
       group_number: prod.group_number,
@@ -106,6 +82,7 @@ async function fetchAllDataInBatches() {
       lot_varietas: varietasMap.get(prod.lot_varietas_id) || null,
       lot_volume: prod.lot_volume,
       cert_realization_tanggal_panen: prod.cert_realization_tanggal_panen,
+      lab_result_expired_date: prod.lab_result_expired_date, // Tambahkan ini
       import_qr_at: prod.import_qr_at,
       code_1: prod.code_1,
       code_2: prod.code_2,
@@ -133,9 +110,6 @@ async function fetchAllDataInBatches() {
 export default async function ProductionsPage() {
   try {
     const data = await fetchAllDataInBatches();
-    
-    console.log(`Successfully loaded ${data.totalCount} productions from database`);
-    
     return (
       <ProductionClient 
         initialProductions={data.productions} 
@@ -151,21 +125,6 @@ export default async function ProductionsPage() {
       />
     );
   } catch (error: any) {
-    console.error('Page error:', error);
-    return (
-      <div className="p-8">
-        <h1 className="text-xl font-bold text-red-700">Terjadi Kesalahan</h1>
-        <p className="mt-2 text-gray-600">{error.message}</p>
-        <p className="mt-2 text-sm text-gray-500">
-          Silakan periksa console untuk detail error lebih lanjut.
-        </p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Coba Lagi
-        </button>
-      </div>
-    );
+    return <div className="p-8 text-red-600">Error: {error.message}</div>;
   }
 }
