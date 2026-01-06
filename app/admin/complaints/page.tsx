@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getProfile, logout } from '../../utils/auth';
 import type { User } from '@supabase/supabase-js';
 import Navbar from '../Navbar';
+import * as XLSX from 'xlsx'; // Import Library Excel
 import {
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
@@ -16,24 +17,36 @@ import {
   MapPinIcon,
   ChevronUpIcon,
   ChevronDownIcon,
-  BarsArrowUpIcon
+  BarsArrowUpIcon,
+  ArrowDownTrayIcon // Icon Download
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
+// UPDATE: Interface disesuaikan dengan SQL Database Anda agar lengkap
 interface Complaint {
   id: number;
   complaint_number: string;
   customer_name: string;
   customer_email: string;
+  customer_phone?: string; // Tambahan
   customer_province?: string;
   customer_city?: string;
-  complaint_type: string;
+  customer_address?: string; // Tambahan
+  complaint_type: string; // Enum di DB, string di sini
+  priority?: string; // Tambahan
+  department?: string; // Tambahan
   subject: string;
+  description?: string; // Tambahan
   status: string;
   created_at: string;
   resolved_at?: string;
   related_product_name?: string;
+  related_product_serial?: string; // Tambahan
+  lot_number?: string; // Tambahan
+  problematic_quantity?: string; // Tambahan
   complaint_case_type_names?: string[];
+  resolution_summary?: string; // Tambahan
+  customer_satisfaction_rating?: number; // Tambahan
 }
 
 interface DisplayUser {
@@ -42,10 +55,9 @@ interface DisplayUser {
   complaint_permissions?: Record<string, boolean>;
 }
 
-// TIPE UNTUK SORT CONFIG
 type SortDirection = 'asc' | 'desc';
 interface SortConfig {
-  key: keyof Complaint | 'location' | null; // 'location' adalah custom key karena gabungan city & province
+  key: keyof Complaint | 'location' | null;
   direction: SortDirection;
 }
 
@@ -56,6 +68,7 @@ export default function AdminComplaintsPage() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false); // State untuk loading export
   
   // STATE FILTER
   const [filters, setFilters] = useState({
@@ -63,13 +76,11 @@ export default function AdminComplaintsPage() {
     search: ''
   });
 
-  // STATE BARU UNTUK SORTING
+  // STATE SORTING
   const [sortConfig, setSortConfig] = useState<SortConfig>({ 
-    key: 'created_at', // Default sort by Tanggal Masuk
-    direction: 'desc'  // Paling baru di atas
+    key: 'created_at',
+    direction: 'desc'
   });
-
-  // --- Initial Data Loading ---
 
   useEffect(() => {
     (async () => {
@@ -123,8 +134,6 @@ export default function AdminComplaintsPage() {
     }
   };
 
-  // --- Permissions & Actions ---
-
   const hasComplaintPermission = (permission: string) => {
     if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
       return true;
@@ -139,10 +148,7 @@ export default function AdminComplaintsPage() {
 
     setDeletingId(id);
     try {
-      const response = await fetch(`/api/complaints/${id}`, {
-        method: 'DELETE'
-      });
-
+      const response = await fetch(`/api/complaints/${id}`, { method: 'DELETE' });
       if (response.ok) {
         setComplaints(prev => prev.filter(c => c.id !== id));
         alert('Keluhan berhasil dihapus');
@@ -171,33 +177,100 @@ export default function AdminComplaintsPage() {
     }));
   };
 
-  // --- FUNCTION UNTUK HANDLING SORT CLICK ---
+  // --- FUNGSI EXPORT KE EXCEL (BARU) ---
+  const handleExport = () => {
+    setIsExporting(true);
+    try {
+      // 1. Siapkan Data (Mapping kolom sesuai kebutuhan laporan)
+      // Kita export 'complaints' (semua data yang di-load), bukan yang terfilter
+      // Jika ingin export yang terfilter saja, ganti 'complaints' dengan 'sortedAndFilteredComplaints'
+      const dataToExport = complaints.map(item => ({
+        'No. Tiket': item.complaint_number,
+        'Tanggal Masuk': formatDate(item.created_at),
+        'Status': getStatusLabel(item.status),
+        'Prioritas': item.priority || '-',
+        'Departemen': item.department || '-',
+        
+        // Data Pelanggan
+        'Nama Pelanggan': item.customer_name,
+        'Email': item.customer_email,
+        'No. Telepon': item.customer_phone || '-',
+        'Provinsi': item.customer_province || '-',
+        'Kota': item.customer_city || '-',
+        'Alamat Lengkap': item.customer_address || '-',
+
+        // Detail Masalah
+        'Subjek': item.subject,
+        'Deskripsi': item.description || '-',
+        'Kategori': item.complaint_type || '-',
+        'Jenis Kasus (Tags)': item.complaint_case_type_names?.join(', ') || '-',
+        
+        // Data Produk
+        'Nama Produk': item.related_product_name || '-',
+        'Nomor Lot': item.lot_number || '-',
+        'Quantity Bermasalah': item.problematic_quantity || '-',
+        'Serial Number': item.related_product_serial || '-',
+
+        // Penyelesaian
+        'Tanggal Selesai': item.resolved_at ? formatDate(item.resolved_at) : '-',
+        'Ringkasan Solusi': item.resolution_summary || '-',
+        'Rating Kepuasan': item.customer_satisfaction_rating || '-'
+      }));
+
+      // 2. Buat Worksheet
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+      // Atur lebar kolom otomatis (opsional, agar rapi)
+      const wscols = [
+        { wch: 15 }, // Tiket
+        { wch: 20 }, // Tgl
+        { wch: 15 }, // Status
+        { wch: 10 }, // Prio
+        { wch: 15 }, // Dept
+        { wch: 20 }, // Nama
+        { wch: 25 }, // Email
+        { wch: 15 }, // Telp
+        { wch: 15 }, // Prov
+        { wch: 15 }, // Kota
+        { wch: 30 }, // Alamat
+        { wch: 25 }, // Subjek
+        { wch: 40 }, // Deskripsi
+      ];
+      worksheet['!cols'] = wscols;
+
+      // 3. Buat Workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Keluhan");
+
+      // 4. Download File
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      XLSX.writeFile(workbook, `Rekap_Complaint_${timestamp}.xlsx`);
+
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Gagal mengekspor data.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleSort = (key: keyof Complaint | 'location') => {
     let direction: SortDirection = 'asc';
-    
-    // PERBAIKAN: Menggunakan sortConfig.direction (sebelumnya typo sortDirection)
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     } else if (sortConfig.key === key && sortConfig.direction === 'desc') {
       direction = 'asc';
     } else {
-      // Jika kolom baru, default ke desc untuk tanggal, asc untuk text
       direction = key === 'created_at' ? 'desc' : 'asc';
     }
-
     setSortConfig({ key, direction });
   };
-
-  // --- Helpers & Formatters ---
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     });
   };
 
@@ -231,122 +304,79 @@ export default function AdminComplaintsPage() {
     return labels[status] || status;
   };
 
-  // --- Dynamic Statistics Calculations (Memoized) ---
-
-  // 1. Calculate Average Times (in Hours)
+  // --- STATS LOGIC (Memoized) ---
   const timeStats = useMemo(() => {
     const resolvedComplaints = complaints.filter(c => c.resolved_at);
-    
-    // Average Resolution Time (Created -> Resolved)
     const totalResolutionHours = resolvedComplaints.reduce((acc, c) => {
       const start = new Date(c.created_at).getTime();
       const end = new Date(c.resolved_at!).getTime();
       return acc + (end - start);
     }, 0);
     const avgResolution = resolvedComplaints.length > 0 
-      ? Math.round((totalResolutionHours / resolvedComplaints.length) / (1000 * 60 * 60)) 
-      : 0;
+      ? Math.round((totalResolutionHours / resolvedComplaints.length) / (1000 * 60 * 60)) : 0;
 
-    // Average Age of Active Complaints by Status (Snapshot of current load)
     const calculateAvgAge = (statusList: string[]) => {
       const active = complaints.filter(c => statusList.includes(c.status));
       if (active.length === 0) return 0;
       const totalAge = active.reduce((acc, c) => {
         return acc + (new Date().getTime() - new Date(c.created_at).getTime());
       }, 0);
-      return Math.round((totalAge / active.length) / (1000 * 60 * 60)); // In Hours
+      return Math.round((totalAge / active.length) / (1000 * 60 * 60));
     };
 
     return {
       avgResolution,
       avgObservationAge: calculateAvgAge(['observation']),
       avgInvestigationAge: calculateAvgAge(['investigation', 'investigating']),
-      avgLabAge: calculateAvgAge(['decision']) // Assuming decision implies waiting for results/approval
+      avgLabAge: calculateAvgAge(['decision'])
     };
   }, [complaints]);
 
-
-  // 2. Product Statistics (Group by actual product name)
   const productStats = useMemo(() => {
     const stats: Record<string, { observation: number; investigation: number; lab_test: number; closed: number; total: number }> = {};
-    
     complaints.forEach(c => {
       const product = c.related_product_name || 'Tanpa Produk';
-      if (!stats[product]) {
-        stats[product] = { observation: 0, investigation: 0, lab_test: 0, closed: 0, total: 0 };
-      }
-      
+      if (!stats[product]) stats[product] = { observation: 0, investigation: 0, lab_test: 0, closed: 0, total: 0 };
       stats[product].total++;
-
       if (c.status === 'observation') stats[product].observation++;
       else if (['investigation', 'investigating'].includes(c.status)) stats[product].investigation++;
       else if (c.status === 'decision') stats[product].lab_test++;
       else if (['resolved', 'closed'].includes(c.status)) stats[product].closed++;
     });
-    
     return stats;
   }, [complaints]);
 
-
-  // 3. Case Type Statistics (Dynamic Counting from Arrays)
   const caseTypeStats = useMemo(() => {
     const stats: Record<string, number> = {};
-    
     complaints.forEach(c => {
       const types = c.complaint_case_type_names || [];
-      if (types.length === 0) {
-        stats['Lainnya'] = (stats['Lainnya'] || 0) + 1;
-      } else {
-        types.forEach(t => {
-          // Normalize string to Title Case or limit length if needed
-          const key = t.trim(); 
-          stats[key] = (stats[key] || 0) + 1;
-        });
-      }
+      if (types.length === 0) stats['Lainnya'] = (stats['Lainnya'] || 0) + 1;
+      else types.forEach(t => { const key = t.trim(); stats[key] = (stats[key] || 0) + 1; });
     });
-
-    // Get top 5 case types
-    const sortedStats = Object.entries(stats)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5);
-    
-    return sortedStats;
+    return Object.entries(stats).sort(([, a], [, b]) => b - a).slice(0, 5);
   }, [complaints]);
 
-
-  // 4. Location Statistics (Region Mapping)
   const locationStats = useMemo(() => {
     const getRegion = (province: string | undefined) => {
       if (!province) return 'Unknown';
       const p = province.toLowerCase();
-      
       if (p.includes('nusa tenggara barat')) return 'NTB';
       if (p.includes('jawa timur')) return 'EJ';
       if (p.includes('jawa tengah')) return 'CJ';
       if (p.includes('jawa barat') || p.includes('banten') || p.includes('jakarta')) return 'WJ';
       if (p.includes('sulawesi') || p.includes('gorontalo')) return 'Sulawesi';
       if (p.includes('sumatera') || p.includes('aceh') || p.includes('riau') || p.includes('jambi') || p.includes('bengkulu') || p.includes('lampung')) return 'Sumatera';
-      
       return 'Other';
     };
-
-    const stats: Record<string, number> = {
-      'NTB': 0, 'EJ': 0, 'CJ': 0, 'WJ': 0, 'Sulawesi': 0, 'Sumatera': 0
-    };
-
+    const stats: Record<string, number> = { 'NTB': 0, 'EJ': 0, 'CJ': 0, 'WJ': 0, 'Sulawesi': 0, 'Sumatera': 0 };
     complaints.forEach(c => {
       const region = getRegion(c.customer_province);
-      if (stats[region] !== undefined) {
-        stats[region]++;
-      }
+      if (stats[region] !== undefined) stats[region]++;
     });
-
     return stats;
   }, [complaints]);
 
-  // --- LOGIKA FILTER + SORTING ---
   const sortedAndFilteredComplaints = useMemo(() => {
-    // 1. Filter dulu
     let data = complaints.filter(c => {
       return (
         (filters.status === '' || c.status === filters.status) &&
@@ -361,28 +391,20 @@ export default function AdminComplaintsPage() {
       );
     });
 
-    // 2. Kemudian Sort
     if (sortConfig.key) {
       data.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-
-        // Handling special cases
+        let aValue: any, bValue: any;
         if (sortConfig.key === 'location') {
-          // Gabungkan Kota + Provinsi untuk sorting
           aValue = `${a.customer_city || ''} ${a.customer_province || ''}`.toLowerCase();
           bValue = `${b.customer_city || ''} ${b.customer_province || ''}`.toLowerCase();
         } else {
-          // Normal fields
           // @ts-ignore
           aValue = a[sortConfig.key] || '';
           // @ts-ignore
           bValue = b[sortConfig.key] || '';
         }
 
-        // Logic Comparison
         if (sortConfig.key === 'created_at' || sortConfig.key === 'id') {
-           // Sort Tanggal / Angka
            if (sortConfig.key === 'created_at') {
              aValue = new Date(aValue).getTime();
              bValue = new Date(bValue).getTime();
@@ -391,7 +413,6 @@ export default function AdminComplaintsPage() {
            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
            return 0;
         } else {
-          // Sort String
           const strA = String(aValue).toLowerCase();
           const strB = String(bValue).toLowerCase();
           if (strA < strB) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -400,11 +421,9 @@ export default function AdminComplaintsPage() {
         }
       });
     }
-
     return data;
   }, [complaints, filters, sortConfig]);
 
-  // --- Render Helpers ---
   const SortIcon = ({ colKey }: { colKey: string }) => {
     if (sortConfig.key !== colKey) return <BarsArrowUpIcon className="h-3 w-3 text-gray-400 opacity-50" />;
     return sortConfig.direction === 'asc' 
@@ -424,7 +443,6 @@ export default function AdminComplaintsPage() {
     </th>
   );
 
-  // --- Render Utama ---
   if (!mounted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
@@ -460,9 +478,9 @@ export default function AdminComplaintsPage() {
           </h1>
         </div>
 
-        {/* --- STATISTIK --- */}
+        {/* --- STATISTIK (SAMA SEPERTI SEBELUMNYA) --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          {/* Status Keluhan Hari Ini (Real Data) */}
+          {/* Status Keluhan Hari Ini */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Status Keluhan (Aktif)</h3>
             <div className="overflow-x-auto">
@@ -497,7 +515,7 @@ export default function AdminComplaintsPage() {
             </div>
           </div>
 
-          {/* Road Map (SLA Targets - Static Reference) */}
+          {/* Road Map (SLA Targets) */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Target SLA (Hari)</h3>
             <div className="overflow-x-auto">
@@ -525,41 +543,32 @@ export default function AdminComplaintsPage() {
             </div>
           </div>
 
-          {/* Waktu Penanganan (Real Data) */}
+          {/* Waktu Penanganan */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Rata-rata Waktu (Jam)</h3>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center p-2 bg-pink-50 dark:bg-pink-900/20 rounded">
                 <span className="font-medium">Waktu Penyelesaian (Selesai)</span>
-                <span className="font-bold text-pink-700 dark:text-pink-400">
-                  {timeStats.avgResolution} Jam
-                </span>
+                <span className="font-bold text-pink-700 dark:text-pink-400">{timeStats.avgResolution} Jam</span>
               </div>
               <div className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
                 <span className="font-medium">Umur Tiket "Observasi" Saat Ini</span>
-                <span className="font-bold text-blue-700 dark:text-blue-400">
-                  {timeStats.avgObservationAge} Jam
-                </span>
+                <span className="font-bold text-blue-700 dark:text-blue-400">{timeStats.avgObservationAge} Jam</span>
               </div>
               <div className="flex justify-between items-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded">
                 <span className="font-medium">Umur Tiket "Investigasi" Saat Ini</span>
-                <span className="font-bold text-purple-700 dark:text-purple-400">
-                  {timeStats.avgInvestigationAge} Jam
-                </span>
+                <span className="font-bold text-purple-700 dark:text-purple-400">{timeStats.avgInvestigationAge} Jam</span>
               </div>
               <div className="flex justify-between items-center p-2 bg-cyan-50 dark:bg-cyan-900/20 rounded">
                 <span className="font-medium">Umur Tiket "Keputusan" Saat Ini</span>
-                <span className="font-bold text-cyan-700 dark:text-cyan-400">
-                  {timeStats.avgLabAge} Jam
-                </span>
+                <span className="font-bold text-cyan-700 dark:text-cyan-400">{timeStats.avgLabAge} Jam</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Detail Statistics Grid */}
+        {/* Detail Statistics Grid (SAMA SEPERTI SEBELUMNYA) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          {/* Detail by Variety (Real Data) */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Detail Per Varietas</h3>
             <div className="overflow-x-auto max-h-[300px]">
@@ -587,65 +596,42 @@ export default function AdminComplaintsPage() {
                       </tr>
                     ))
                   ) : (
-                    <tr>
-                      <td colSpan={6} className="text-center py-4 text-gray-500">Belum ada data varietas.</td>
-                    </tr>
+                    <tr><td colSpan={6} className="text-center py-4 text-gray-500">Belum ada data varietas.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
-
-          {/* Kind of Complaint & Location (Real Data) */}
           <div className="space-y-4">
-            {/* Kind of Complaint */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Top 5 Jenis Kasus (Tags)</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
-                      {caseTypeStats.length > 0 ? (
-                        caseTypeStats.map(([name]) => (
-                          <th key={name} className="text-center py-1 px-2 font-semibold truncate max-w-[80px]" title={name}>
-                            {name}
-                          </th>
-                        ))
-                      ) : (
-                        <th className="text-center py-1 px-2">Data Kosong</th>
-                      )}
+                      {caseTypeStats.length > 0 ? caseTypeStats.map(([name]) => <th key={name} className="text-center py-1 px-2 font-semibold truncate max-w-[80px]" title={name}>{name}</th>) : <th className="text-center py-1 px-2">Data Kosong</th>}
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      {caseTypeStats.length > 0 ? (
-                        caseTypeStats.map(([name, count]) => (
-                          <td key={name} className="text-center py-2 px-2 text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-                            {count}
-                          </td>
-                        ))
-                      ) : (
-                        <td className="text-center py-2">-</td>
-                      )}
+                      {caseTypeStats.length > 0 ? caseTypeStats.map(([name, count]) => <td key={name} className="text-center py-2 px-2 text-lg font-semibold text-emerald-600 dark:text-emerald-400">{count}</td>) : <td className="text-center py-2">-</td>}
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
-
-            {/* Complaint Location */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Sebaran Wilayah (Semua Produk)</h3>
               <div>
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-center py-1 px-1 font-semibold text-[10px]" title="Nusa Tenggara Barat">NTB</th>
-                      <th className="text-center py-1 px-1 font-semibold text-[10px]" title="Jawa Timur">EJ</th>
-                      <th className="text-center py-1 px-1 font-semibold text-[10px]" title="Jawa Tengah">CJ</th>
-                      <th className="text-center py-1 px-1 font-semibold text-[10px]" title="Jawa Barat">WJ</th>
-                      <th className="text-center py-1 px-1 font-semibold text-[10px]" title="Sulawesi">Sulawesi</th>
-                      <th className="text-center py-1 px-1 font-semibold text-[10px]" title="Sumatera">Sumatera</th>
+                      <th className="text-center py-1 px-1 font-semibold text-[10px]">NTB</th>
+                      <th className="text-center py-1 px-1 font-semibold text-[10px]">EJ</th>
+                      <th className="text-center py-1 px-1 font-semibold text-[10px]">CJ</th>
+                      <th className="text-center py-1 px-1 font-semibold text-[10px]">WJ</th>
+                      <th className="text-center py-1 px-1 font-semibold text-[10px]">Sulawesi</th>
+                      <th className="text-center py-1 px-1 font-semibold text-[10px]">Sumatera</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -664,9 +650,9 @@ export default function AdminComplaintsPage() {
           </div>
         </div>
 
-        {/* --- FILTERS & TABLE --- */}
+        {/* --- FILTERS & TABLE & EXPORT --- */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          {/* Filter Bar */}
+          {/* Filter Bar with Export Button */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-grow">
@@ -694,6 +680,26 @@ export default function AdminComplaintsPage() {
                 <option value="resolved">Selesai</option>
                 <option value="closed">Ditutup</option>
               </select>
+
+              {/* TOMBOL EXPORT */}
+              <button
+                onClick={handleExport}
+                disabled={isExporting || complaints.length === 0}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Exporting...</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    <span>Excel</span>
+                  </>
+                )}
+              </button>
+
             </div>
           </div>
           
@@ -702,7 +708,6 @@ export default function AdminComplaintsPage() {
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  {/* HEADER MENJADI KOMPONEN YANG BISA DI-KLIK */}
                   <TableHeader label="ID" sortKey="complaint_number" />
                   <TableHeader label="Pelanggan" sortKey="customer_name" />
                   <TableHeader label="Lokasi" sortKey="location" />
@@ -715,7 +720,6 @@ export default function AdminComplaintsPage() {
                 {loading ? (
                   <tr><td colSpan={6} className="text-center py-8"><ArrowPathIcon className="h-5 w-5 animate-spin mx-auto"/></td></tr>
                 ) : sortedAndFilteredComplaints.length > 0 ? (
-                  // MENGGUNAKAN DATA YANG SUDAH DI-SORT (sortedAndFilteredComplaints)
                   sortedAndFilteredComplaints.map((complaint) => (
                     <tr key={complaint.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <td className="px-4 py-2 text-xs font-medium text-gray-900 dark:text-white">
