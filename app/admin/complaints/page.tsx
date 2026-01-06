@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getProfile, logout } from '../../utils/auth';
 import type { User } from '@supabase/supabase-js';
 import Navbar from '../Navbar';
-import * as XLSX from 'xlsx'; // Import Library Excel
+import * as XLSX from 'xlsx';
 import {
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
@@ -18,35 +18,36 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   BarsArrowUpIcon,
-  ArrowDownTrayIcon // Icon Download
+  ArrowDownTrayIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
-// UPDATE: Interface disesuaikan dengan SQL Database Anda agar lengkap
+// Interface sesuai Database
 interface Complaint {
   id: number;
   complaint_number: string;
   customer_name: string;
   customer_email: string;
-  customer_phone?: string; // Tambahan
+  customer_phone?: string;
   customer_province?: string;
   customer_city?: string;
-  customer_address?: string; // Tambahan
-  complaint_type: string; // Enum di DB, string di sini
-  priority?: string; // Tambahan
-  department?: string; // Tambahan
+  customer_address?: string;
+  complaint_type: string;
+  priority?: string;
+  department?: string;
   subject: string;
-  description?: string; // Tambahan
+  description?: string;
   status: string;
   created_at: string;
   resolved_at?: string;
   related_product_name?: string;
-  related_product_serial?: string; // Tambahan
-  lot_number?: string; // Tambahan
-  problematic_quantity?: string; // Tambahan
+  related_product_serial?: string;
+  lot_number?: string;
+  problematic_quantity?: string;
   complaint_case_type_names?: string[];
-  resolution_summary?: string; // Tambahan
-  customer_satisfaction_rating?: number; // Tambahan
+  resolution_summary?: string;
+  customer_satisfaction_rating?: number;
 }
 
 interface DisplayUser {
@@ -68,7 +69,7 @@ export default function AdminComplaintsPage() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [isExporting, setIsExporting] = useState(false); // State untuk loading export
+  const [isExporting, setIsExporting] = useState(false);
   
   // STATE FILTER
   const [filters, setFilters] = useState({
@@ -177,72 +178,46 @@ export default function AdminComplaintsPage() {
     }));
   };
 
-  // --- FUNGSI EXPORT KE EXCEL (BARU) ---
+  // --- FUNGSI EXPORT KE EXCEL ---
   const handleExport = () => {
     setIsExporting(true);
     try {
-      // 1. Siapkan Data (Mapping kolom sesuai kebutuhan laporan)
-      // Kita export 'complaints' (semua data yang di-load), bukan yang terfilter
-      // Jika ingin export yang terfilter saja, ganti 'complaints' dengan 'sortedAndFilteredComplaints'
       const dataToExport = complaints.map(item => ({
         'No. Tiket': item.complaint_number,
         'Tanggal Masuk': formatDate(item.created_at),
         'Status': getStatusLabel(item.status),
         'Prioritas': item.priority || '-',
         'Departemen': item.department || '-',
-        
-        // Data Pelanggan
         'Nama Pelanggan': item.customer_name,
         'Email': item.customer_email,
         'No. Telepon': item.customer_phone || '-',
         'Provinsi': item.customer_province || '-',
         'Kota': item.customer_city || '-',
         'Alamat Lengkap': item.customer_address || '-',
-
-        // Detail Masalah
         'Subjek': item.subject,
         'Deskripsi': item.description || '-',
         'Kategori': item.complaint_type || '-',
         'Jenis Kasus (Tags)': item.complaint_case_type_names?.join(', ') || '-',
-        
-        // Data Produk
         'Nama Produk': item.related_product_name || '-',
         'Nomor Lot': item.lot_number || '-',
         'Quantity Bermasalah': item.problematic_quantity || '-',
         'Serial Number': item.related_product_serial || '-',
-
-        // Penyelesaian
         'Tanggal Selesai': item.resolved_at ? formatDate(item.resolved_at) : '-',
         'Ringkasan Solusi': item.resolution_summary || '-',
         'Rating Kepuasan': item.customer_satisfaction_rating || '-'
       }));
 
-      // 2. Buat Worksheet
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-
-      // Atur lebar kolom otomatis (opsional, agar rapi)
       const wscols = [
-        { wch: 15 }, // Tiket
-        { wch: 20 }, // Tgl
-        { wch: 15 }, // Status
-        { wch: 10 }, // Prio
-        { wch: 15 }, // Dept
-        { wch: 20 }, // Nama
-        { wch: 25 }, // Email
-        { wch: 15 }, // Telp
-        { wch: 15 }, // Prov
-        { wch: 15 }, // Kota
-        { wch: 30 }, // Alamat
-        { wch: 25 }, // Subjek
-        { wch: 40 }, // Deskripsi
+        { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 15 },
+        { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+        { wch: 30 }, { wch: 25 }, { wch: 40 },
       ];
       worksheet['!cols'] = wscols;
 
-      // 3. Buat Workbook
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data Keluhan");
 
-      // 4. Download File
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       XLSX.writeFile(workbook, `Rekap_Complaint_${timestamp}.xlsx`);
 
@@ -304,7 +279,7 @@ export default function AdminComplaintsPage() {
     return labels[status] || status;
   };
 
-  // --- STATS LOGIC (Memoized) ---
+  // --- STATS LOGIC ---
   const timeStats = useMemo(() => {
     const resolvedComplaints = complaints.filter(c => c.resolved_at);
     const totalResolutionHours = resolvedComplaints.reduce((acc, c) => {
@@ -346,14 +321,21 @@ export default function AdminComplaintsPage() {
     return stats;
   }, [complaints]);
 
+  // UPDATE: Logic untuk Case Types sekarang mengambil SEMUA, tidak hanya top 5
   const caseTypeStats = useMemo(() => {
     const stats: Record<string, number> = {};
     complaints.forEach(c => {
       const types = c.complaint_case_type_names || [];
-      if (types.length === 0) stats['Lainnya'] = (stats['Lainnya'] || 0) + 1;
-      else types.forEach(t => { const key = t.trim(); stats[key] = (stats[key] || 0) + 1; });
+      // Jika kosong, abaikan atau masukkan ke Lainnya jika perlu
+      if (types.length > 0) {
+        types.forEach(t => { 
+          const key = t.trim(); 
+          if(key) stats[key] = (stats[key] || 0) + 1; 
+        });
+      }
     });
-    return Object.entries(stats).sort(([, a], [, b]) => b - a).slice(0, 5);
+    // Sort terbanyak ke terendah, tanpa slice (tampilkan semua)
+    return Object.entries(stats).sort(([, a], [, b]) => b - a);
   }, [complaints]);
 
   const locationStats = useMemo(() => {
@@ -478,7 +460,7 @@ export default function AdminComplaintsPage() {
           </h1>
         </div>
 
-        {/* --- STATISTIK (SAMA SEPERTI SEBELUMNYA) --- */}
+        {/* --- STATISTIK --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Status Keluhan Hari Ini */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
@@ -567,8 +549,10 @@ export default function AdminComplaintsPage() {
           </div>
         </div>
 
-        {/* Detail Statistics Grid (SAMA SEPERTI SEBELUMNYA) */}
+        {/* Detail Statistics Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          
+          {/* Detail by Variety */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Detail Per Varietas</h3>
             <div className="overflow-x-auto max-h-[300px]">
@@ -602,24 +586,50 @@ export default function AdminComplaintsPage() {
               </table>
             </div>
           </div>
+          
           <div className="space-y-4">
+            
+            {/* Kind of Complaint - UPDATED UI */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Top 5 Jenis Kasus (Tags)</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      {caseTypeStats.length > 0 ? caseTypeStats.map(([name]) => <th key={name} className="text-center py-1 px-2 font-semibold truncate max-w-[80px]" title={name}>{name}</th>) : <th className="text-center py-1 px-2">Data Kosong</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      {caseTypeStats.length > 0 ? caseTypeStats.map(([name, count]) => <td key={name} className="text-center py-2 px-2 text-lg font-semibold text-emerald-600 dark:text-emerald-400">{count}</td>) : <td className="text-center py-2">-</td>}
-                    </tr>
-                  </tbody>
-                </table>
+              <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2 flex items-center gap-2">
+                <TagIcon className="h-4 w-4" />
+                Statistik Jenis Kasus (Tags)
+              </h3>
+              <div className="overflow-y-auto max-h-[200px] pr-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+                {caseTypeStats.length > 0 ? (
+                  <div className="space-y-3">
+                    {caseTypeStats.map(([name, count], index) => {
+                       // Hitung persentase bar relatif terhadap nilai tertinggi
+                       const maxCount = caseTypeStats[0][1];
+                       const percentage = Math.round((count / maxCount) * 100);
+                       
+                       return (
+                        <div key={name} className="group">
+                          <div className="flex justify-between items-center text-xs mb-1">
+                            <span className="font-medium text-gray-700 dark:text-gray-300 group-hover:text-emerald-600 transition-colors">
+                              {index + 1}. {name}
+                            </span>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
+                              {count}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500" 
+                              style={{ width: `${percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                       );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-xs">Belum ada data kasus.</div>
+                )}
               </div>
             </div>
+
+            {/* Complaint Location */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Sebaran Wilayah (Semua Produk)</h3>
               <div>
