@@ -70,7 +70,7 @@ export default function AdminComplaintsPage() {
   const [mounted, setMounted] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  
+
   // STATE FILTER
   const [filters, setFilters] = useState({
     status: '',
@@ -78,7 +78,7 @@ export default function AdminComplaintsPage() {
   });
 
   // STATE SORTING
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ 
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: 'created_at',
     direction: 'desc'
   });
@@ -287,8 +287,8 @@ export default function AdminComplaintsPage() {
       const end = new Date(c.resolved_at!).getTime();
       return acc + (end - start);
     }, 0);
-    const avgResolution = resolvedComplaints.length > 0 
-      ? Math.round((totalResolutionHours / resolvedComplaints.length) / (1000 * 60 * 60)) : 0;
+    const avgResolution = resolvedComplaints.length > 0
+      ? Math.round((totalResolutionHours / resolvedComplaints.length) / (1000 * 60 * 60 * 24)) : 0;
 
     const calculateAvgAge = (statusList: string[]) => {
       const active = complaints.filter(c => statusList.includes(c.status));
@@ -296,7 +296,7 @@ export default function AdminComplaintsPage() {
       const totalAge = active.reduce((acc, c) => {
         return acc + (new Date().getTime() - new Date(c.created_at).getTime());
       }, 0);
-      return Math.round((totalAge / active.length) / (1000 * 60 * 60));
+      return Math.round((totalAge / active.length) / (1000 * 60 * 60 * 24));
     };
 
     return {
@@ -328,9 +328,9 @@ export default function AdminComplaintsPage() {
       const types = c.complaint_case_type_names || [];
       // Jika kosong, abaikan atau masukkan ke Lainnya jika perlu
       if (types.length > 0) {
-        types.forEach(t => { 
-          const key = t.trim(); 
-          if(key) stats[key] = (stats[key] || 0) + 1; 
+        types.forEach(t => {
+          const key = t.trim();
+          if (key) stats[key] = (stats[key] || 0) + 1;
         });
       }
     });
@@ -387,13 +387,13 @@ export default function AdminComplaintsPage() {
         }
 
         if (sortConfig.key === 'created_at' || sortConfig.key === 'id') {
-           if (sortConfig.key === 'created_at') {
-             aValue = new Date(aValue).getTime();
-             bValue = new Date(bValue).getTime();
-           }
-           if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-           if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-           return 0;
+          if (sortConfig.key === 'created_at') {
+            aValue = new Date(aValue).getTime();
+            bValue = new Date(bValue).getTime();
+          }
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
         } else {
           const strA = String(aValue).toLowerCase();
           const strB = String(bValue).toLowerCase();
@@ -408,13 +408,13 @@ export default function AdminComplaintsPage() {
 
   const SortIcon = ({ colKey }: { colKey: string }) => {
     if (sortConfig.key !== colKey) return <BarsArrowUpIcon className="h-3 w-3 text-gray-400 opacity-50" />;
-    return sortConfig.direction === 'asc' 
-      ? <ChevronUpIcon className="h-3 w-3 text-emerald-600 font-bold" /> 
+    return sortConfig.direction === 'asc'
+      ? <ChevronUpIcon className="h-3 w-3 text-emerald-600 font-bold" />
       : <ChevronDownIcon className="h-3 w-3 text-emerald-600 font-bold" />;
   };
 
-  const TableHeader = ({ label, sortKey, align = 'left' }: { label: string, sortKey?: keyof Complaint | 'location', align?: 'left'|'right' }) => (
-    <th 
+  const TableHeader = ({ label, sortKey, align = 'left' }: { label: string, sortKey?: keyof Complaint | 'location', align?: 'left' | 'right' }) => (
+    <th
       className={`px-4 py-3 text-${align} text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group select-none`}
       onClick={() => sortKey && handleSort(sortKey)}
     >
@@ -451,7 +451,7 @@ export default function AdminComplaintsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Navbar user={user} onLogout={handleLogout} />
-      
+
       <main className="mx-auto max-w-7xl py-4 px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -505,8 +505,8 @@ export default function AdminComplaintsPage() {
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
                     <th className="text-center py-1 px-2 font-semibold">Submit</th>
-                    <th className="text-center py-1 px-2 font-semibold">Observation</th>
-                    <th className="text-center py-1 px-2 font-semibold">Investigation</th>
+                    <th className="text-center py-1 px-2 font-semibold">Observasi</th>
+                    <th className="text-center py-1 px-2 font-semibold">Investigasi</th>
                     <th className="text-center py-1 px-2 font-semibold">Lab Test</th>
                     <th className="text-center py-1 px-2 font-semibold">Close</th>
                   </tr>
@@ -514,10 +514,10 @@ export default function AdminComplaintsPage() {
                 <tbody>
                   <tr>
                     <td className="text-center py-1 px-2 text-gray-500">1-5</td>
-                    <td className="text-center py-1 px-2 text-gray-500">1-5</td>
-                    <td className="text-center py-1 px-2 text-gray-500">1-5</td>
-                    <td className="text-center py-1 px-2 text-gray-500">10</td>
-                    <td className="text-center py-1 px-2 text-gray-500">30</td>
+                    <td className="text-center py-1 px-2 text-gray-500">6-10</td>
+                    <td className="text-center py-1 px-2 text-gray-500">11-15</td>
+                    <td className="text-center py-1 px-2 text-gray-500">16-26</td>
+                    <td className="text-center py-1 px-2 text-gray-500">27-30</td>
                   </tr>
                 </tbody>
               </table>
@@ -527,23 +527,23 @@ export default function AdminComplaintsPage() {
 
           {/* Waktu Penanganan */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Rata-rata Waktu (Jam)</h3>
+            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Rata-rata Waktu (Hari)</h3>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center p-2 bg-pink-50 dark:bg-pink-900/20 rounded">
                 <span className="font-medium">Waktu Penyelesaian (Selesai)</span>
-                <span className="font-bold text-pink-700 dark:text-pink-400">{timeStats.avgResolution} Jam</span>
+                <span className="font-bold text-pink-700 dark:text-pink-400">{timeStats.avgResolution} Hari</span>
               </div>
               <div className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
                 <span className="font-medium">Umur Tiket "Observasi" Saat Ini</span>
-                <span className="font-bold text-blue-700 dark:text-blue-400">{timeStats.avgObservationAge} Jam</span>
+                <span className="font-bold text-blue-700 dark:text-blue-400">{timeStats.avgObservationAge} Hari</span>
               </div>
               <div className="flex justify-between items-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded">
                 <span className="font-medium">Umur Tiket "Investigasi" Saat Ini</span>
-                <span className="font-bold text-purple-700 dark:text-purple-400">{timeStats.avgInvestigationAge} Jam</span>
+                <span className="font-bold text-purple-700 dark:text-purple-400">{timeStats.avgInvestigationAge} Hari</span>
               </div>
               <div className="flex justify-between items-center p-2 bg-cyan-50 dark:bg-cyan-900/20 rounded">
                 <span className="font-medium">Umur Tiket "Keputusan" Saat Ini</span>
-                <span className="font-bold text-cyan-700 dark:text-cyan-400">{timeStats.avgLabAge} Jam</span>
+                <span className="font-bold text-cyan-700 dark:text-cyan-400">{timeStats.avgLabAge} Hari</span>
               </div>
             </div>
           </div>
@@ -551,7 +551,7 @@ export default function AdminComplaintsPage() {
 
         {/* Detail Statistics Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          
+
           {/* Detail by Variety */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2">Detail Per Varietas</h3>
@@ -586,9 +586,9 @@ export default function AdminComplaintsPage() {
               </table>
             </div>
           </div>
-          
+
           <div className="space-y-4">
-            
+
             {/* Kind of Complaint - UPDATED UI */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-2 flex items-center gap-2">
@@ -599,11 +599,11 @@ export default function AdminComplaintsPage() {
                 {caseTypeStats.length > 0 ? (
                   <div className="space-y-3">
                     {caseTypeStats.map(([name, count], index) => {
-                       // Hitung persentase bar relatif terhadap nilai tertinggi
-                       const maxCount = caseTypeStats[0][1];
-                       const percentage = Math.round((count / maxCount) * 100);
-                       
-                       return (
+                      // Hitung persentase bar relatif terhadap nilai tertinggi
+                      const maxCount = caseTypeStats[0][1];
+                      const percentage = Math.round((count / maxCount) * 100);
+
+                      return (
                         <div key={name} className="group">
                           <div className="flex justify-between items-center text-xs mb-1">
                             <span className="font-medium text-gray-700 dark:text-gray-300 group-hover:text-emerald-600 transition-colors">
@@ -614,13 +614,13 @@ export default function AdminComplaintsPage() {
                             </span>
                           </div>
                           <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                            <div 
-                              className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500" 
+                            <div
+                              className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500"
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
                         </div>
-                       );
+                      );
                     })}
                   </div>
                 ) : (
@@ -712,7 +712,7 @@ export default function AdminComplaintsPage() {
 
             </div>
           </div>
-          
+
           {/* --- TABLE DENGAN SORTING --- */}
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -728,7 +728,7 @@ export default function AdminComplaintsPage() {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
-                  <tr><td colSpan={6} className="text-center py-8"><ArrowPathIcon className="h-5 w-5 animate-spin mx-auto"/></td></tr>
+                  <tr><td colSpan={6} className="text-center py-8"><ArrowPathIcon className="h-5 w-5 animate-spin mx-auto" /></td></tr>
                 ) : sortedAndFilteredComplaints.length > 0 ? (
                   sortedAndFilteredComplaints.map((complaint) => (
                     <tr key={complaint.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
