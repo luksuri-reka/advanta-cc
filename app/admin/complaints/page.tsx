@@ -507,17 +507,19 @@ export default function AdminComplaintsPage() {
                     <th className="text-center py-1 px-2 font-semibold">Submit</th>
                     <th className="text-center py-1 px-2 font-semibold">Observasi</th>
                     <th className="text-center py-1 px-2 font-semibold">Investigasi</th>
-                    <th className="text-center py-1 px-2 font-semibold">Lab Test</th>
+                    <th className="text-center py-1 px-2 font-semibold">Lab Testing</th>
+                    <th className="text-center py-1 px-2 font-semibold">Result</th>
                     <th className="text-center py-1 px-2 font-semibold">Close</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="text-center py-1 px-2 text-gray-500">1-5</td>
-                    <td className="text-center py-1 px-2 text-gray-500">6-10</td>
-                    <td className="text-center py-1 px-2 text-gray-500">11-15</td>
-                    <td className="text-center py-1 px-2 text-gray-500">16-26</td>
-                    <td className="text-center py-1 px-2 text-gray-500">27-30</td>
+                    <td className="text-center py-1 px-2 text-gray-500">1-2</td>
+                    <td className="text-center py-1 px-2 text-gray-500">3-10</td>
+                    <td className="text-center py-1 px-2 text-gray-500">3-15</td>
+                    <td className="text-center py-1 px-2 text-gray-500">10-20</td>
+                    <td className="text-center py-1 px-2 text-gray-500">21-29</td>
+                    <td className="text-center py-1 px-2 text-gray-500">30</td>
                   </tr>
                 </tbody>
               </table>
