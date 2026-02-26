@@ -33,7 +33,9 @@ import {
   BeakerIcon,
   QrCodeIcon, // 🔥 BARU: Import Icon Lot
   ScaleIcon,   // 🔥 BARU: Import Icon Timbangan
-  ClipboardDocumentCheckIcon
+  ClipboardDocumentCheckIcon,
+  DocumentTextIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
@@ -48,13 +50,21 @@ interface QuickActionsProps {
 
 function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsProps) {
   const [updating, setUpdating] = useState(false);
-  
+
   // 🔥 TAMBAHKAN STATE UNTUK MODAL
   const [showReplacementModal, setShowReplacementModal] = useState(false);
   const [replacementQty, setReplacementQty] = useState('');
   const [replacementHybrid, setReplacementHybrid] = useState('');
 
-  const isAssignedToMe = complaint.assigned_to === userId;
+  const activeAssignees = [
+    complaint.assignee_observasi,
+    complaint.assignee_investigasi_1,
+    complaint.assignee_investigasi_2,
+    complaint.assignee_lab_testing,
+    complaint.assigned_to // Fallback legacy
+  ].filter(Boolean);
+
+  const isAssignedToMe = activeAssignees.includes(userId);
 
   const handleQuickStatus = async (newStatus: string, message?: string) => {
     setUpdating(true);
@@ -139,7 +149,7 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          
+
           {/* === STATUS: SUBMITTED → ACKNOWLEDGED === */}
           {complaint.status === 'submitted' && (
             <button
@@ -183,11 +193,10 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
             <>
               <Link
                 href={`/admin/complaints/${complaint.id}/observation`}
-                className={`col-span-1 sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
-                  complaint.complaint_observations && complaint.complaint_observations.length > 0
-                    ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
-                    : 'bg-gradient-to-r from-cyan-600 to-teal-600 border-cyan-400 text-white hover:from-cyan-700 hover:to-teal-700'
-                }`}
+                className={`col-span-1 sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${complaint.complaint_observations && complaint.complaint_observations.length > 0
+                  ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
+                  : 'bg-gradient-to-r from-cyan-600 to-teal-600 border-cyan-400 text-white hover:from-cyan-700 hover:to-teal-700'
+                  }`}
               >
                 <ClipboardDocumentCheckIcon className="h-6 w-6" />
                 <span className="font-bold text-lg">
@@ -198,20 +207,23 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
                 </span>
               </Link>
 
-              {/* Tombol Mulai Investigasi jika departemen investigasi/lab */}
-              {(complaint.department === 'investigasi_1' || 
-                complaint.department === 'investigasi_2' || 
+              {/* Tombol Mulai Investigasi jika user adalah petugas investigasi/lab */}
+              {(userId === complaint.assignee_investigasi_1 ||
+                userId === complaint.assignee_investigasi_2 ||
+                userId === complaint.assignee_lab_testing ||
+                complaint.department === 'investigasi_1' ||
+                complaint.department === 'investigasi_2' ||
                 complaint.department === 'lab_testing') && (
-                <button
-                  onClick={() => handleQuickStatus('investigation', 'Tim investigasi telah memulai pengujian dan analisis mendalam.')}
-                  disabled={updating}
-                  className="col-span-1 sm:col-span-2 flex flex-col items-center gap-2 p-4 bg-amber-100 dark:bg-amber-900/40 rounded-xl hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors disabled:opacity-50 border border-amber-200 dark:border-amber-800"
-                >
-                  <BeakerIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
-                  <span className="text-sm font-bold text-amber-900 dark:text-amber-200">Mulai Investigasi & Lab Testing</span>
-                  <span className="text-xs text-amber-700 dark:text-amber-300 text-center">Ubah status ke "Investigasi"</span>
-                </button>
-              )}
+                  <button
+                    onClick={() => handleQuickStatus('investigation', 'Tim investigasi telah memulai pengujian dan analisis mendalam.')}
+                    disabled={updating}
+                    className="col-span-1 sm:col-span-2 flex flex-col items-center gap-2 p-4 bg-amber-100 dark:bg-amber-900/40 rounded-xl hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors disabled:opacity-50 border border-amber-200 dark:border-amber-800"
+                  >
+                    <BeakerIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                    <span className="text-sm font-bold text-amber-900 dark:text-amber-200">Mulai Investigasi & Lab Testing</span>
+                    <span className="text-xs text-amber-700 dark:text-amber-300 text-center">Ubah status ke "Investigasi"</span>
+                  </button>
+                )}
             </>
           )}
 
@@ -219,39 +231,41 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
           {complaint.status === 'investigation' && (
             <>
               <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Link
-                  href={`/admin/complaints/${complaint.id}/investigation`}
-                  className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
-                    complaint.complaint_investigations && complaint.complaint_investigations.length > 0
+                {(userId === complaint.assignee_investigasi_1 || userId === complaint.assignee_investigasi_2 || complaint.department?.startsWith('investigasi')) && (
+                  <Link
+                    href={`/admin/complaints/${complaint.id}/investigation`}
+                    className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${complaint.complaint_investigations && complaint.complaint_investigations.length > 0
                       ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
                       : 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-400 text-white hover:from-indigo-700 hover:to-purple-700'
-                  }`}
-                >
-                  <BeakerIcon className="h-6 w-6" />
-                  <span className="font-bold text-base">
-                    {complaint.complaint_investigations && complaint.complaint_investigations.length > 0
-                      ? 'Lihat / Edit Investigasi'
-                      : 'Isi Laporan Investigasi'
-                    }
-                  </span>
-                </Link>
+                      }`}
+                  >
+                    <BeakerIcon className="h-6 w-6" />
+                    <span className="font-bold text-base">
+                      {complaint.complaint_investigations && complaint.complaint_investigations.length > 0
+                        ? 'Lihat / Edit Investigasi'
+                        : 'Isi Laporan Investigasi'
+                      }
+                    </span>
+                  </Link>
+                )}
 
-                <Link
-                  href={`/admin/complaints/${complaint.id}/lab-testing`}
-                  className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${
-                    complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
+                {(userId === complaint.assignee_lab_testing || complaint.department === 'lab_testing') && (
+                  <Link
+                    href={`/admin/complaints/${complaint.id}/lab-testing`}
+                    className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
                       ? 'bg-gradient-to-r from-emerald-600 to-green-600 border-emerald-400 text-white hover:from-emerald-700 hover:to-green-700'
                       : 'bg-gradient-to-r from-teal-600 to-cyan-600 border-teal-400 text-white hover:from-teal-700 hover:to-cyan-700'
-                  }`}
-                >
-                  <ClipboardDocumentCheckIcon className="h-6 w-6" />
-                  <span className="font-bold text-base">
-                    {complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
-                      ? 'Lihat / Edit Lab Testing'
-                      : 'Isi Hasil Lab Testing'
-                    }
-                  </span>
-                </Link>
+                      }`}
+                  >
+                    <ClipboardDocumentCheckIcon className="h-6 w-6" />
+                    <span className="font-bold text-base">
+                      {complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
+                        ? 'Lihat / Edit Lab Testing'
+                        : 'Isi Hasil Lab Testing'
+                      }
+                    </span>
+                  </Link>
+                )}
               </div>
 
               {/* Tombol Selesai Investigasi */}
@@ -279,14 +293,14 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Direct Replacement Proposal</h3>
-              <button 
-                onClick={() => setShowReplacementModal(false)} 
+              <button
+                onClick={() => setShowReplacementModal(false)}
                 className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-4">
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
@@ -380,10 +394,10 @@ interface Complaint {
   complaint_subcategory_name?: string;
   complaint_case_type_ids?: string[];
   complaint_case_type_names?: string[];
-  
+
   related_product_serial?: string;
   related_product_name?: string;
-  
+
   lot_number?: string;
   problematic_quantity?: string;
 
@@ -394,43 +408,54 @@ interface Complaint {
   complaint_investigations?: any[];
   complaint_lab_testing?: any[];
 
-  attachments?: string[]; 
+  attachments?: string[];
   verification_data?: Record<string, any>;
   status: string;
-  
-  assigned_to?: string; 
+
+  assigned_to?: string;
   assigned_at?: string;
-  assigned_by?: string; 
-  
-  department?: string; 
-  
+  assigned_by?: string;
+
+  assignee_observasi?: string;
+  assignee_investigasi_1?: string;
+  assignee_investigasi_2?: string;
+  assignee_lab_testing?: string;
+
+  department?: string;
+
   first_response_at?: string;
   first_response_sla?: string;
-  resolution_sla?: string; 
-  
+  resolution_sla?: string;
+
   resolution?: string;
   resolution_summary?: string;
   resolved_at?: string;
-  resolved_by?: string; 
-  
+  resolved_by?: string;
+
   customer_satisfaction_rating?: number;
   customer_feedback?: string;
   customer_feedback_at?: string;
   feedback_submitted_at?: string;
   feedback_quick_answers?: string[];
-  
+
   internal_notes?: string;
-  
+
   escalated: boolean;
   escalated_at?: string;
-  escalated_by?: string; 
-  
+  escalated_by?: string;
+
   created_at: string;
   updated_at: string;
-  created_by?: string; 
+  created_by?: string;
 
   assigned_to_user?: RelatedUser;
   assigned_by_user?: RelatedUser;
+
+  assignee_observasi_user?: RelatedUser;
+  assignee_investigasi_1_user?: RelatedUser;
+  assignee_investigasi_2_user?: RelatedUser;
+  assignee_lab_testing_user?: RelatedUser;
+
   resolved_by_user?: RelatedUser;
   escalated_by_user?: RelatedUser;
   created_by_user?: RelatedUser;
@@ -445,12 +470,12 @@ interface Complaint {
 }
 
 interface AdminUser {
-  user_id: string;      
-  full_name: string;    
-  department: string;   
-  email: string;        
-  job_title?: string;   
-  is_active: boolean;   
+  user_id: string;
+  full_name: string;
+  department: string;
+  email: string;
+  job_title?: string;
+  is_active: boolean;
 }
 
 interface DisplayUser {
@@ -474,13 +499,13 @@ const complaintDepartments = [
 ];
 
 const complaintStatuses = [
-  'submitted',        
-  'acknowledged',     
-  'observation',      
-  'investigation',    
-  'decision',         
-  'pending_response', 
-  'resolved',         
+  'submitted',
+  'acknowledged',
+  'observation',
+  'investigation',
+  'decision',
+  'pending_response',
+  'resolved',
 ];
 
 export default function ComplaintDetailPage() {
@@ -491,23 +516,31 @@ export default function ComplaintDetailPage() {
   const [user, setUser] = useState<DisplayUser | null>(null);
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [responseMessage, setResponseMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isInternalResponse, setIsInternalResponse] = useState(false);
-  
+
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   const [resolveMessage, setResolveMessage] = useState('');
   const [satisfactionRating, setSatisfactionRating] = useState(0);
-  
+
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
-  const [selectedAssignee, setSelectedAssignee] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState('');
+  // Removed selectedAssignee and selectedDepartment as per refactor
+  // const [selectedAssignee, setSelectedAssignee] = useState('');
+  // const [selectedDepartment, setSelectedDepartment] = useState('');
+
+  // States for multi-department assignments
+  const [assigneeObservasi, setAssigneeObservasi] = useState('');
+  const [assigneeInvestigasi1, setAssigneeInvestigasi1] = useState('');
+  const [assigneeInvestigasi2, setAssigneeInvestigasi2] = useState('');
+  const [assigneeLabTesting, setAssigneeLabTesting] = useState('');
+
   const [assignmentNotes, setAssignmentNotes] = useState('');
 
   const [showEscalateModal, setShowEscalateModal] = useState(false);
@@ -545,12 +578,10 @@ export default function ComplaintDetailPage() {
   }, [user, id]);
 
   useEffect(() => {
-  if (complaint) {
-    setSelectedAssignee(complaint.assigned_to || '');
-    setSelectedDepartment(complaint.department || 'customer_service');
-    setSelectedStatus(complaint.status);
-  }
-}, [complaint]);
+    if (complaint) {
+      setSelectedStatus(complaint.status);
+    }
+  }, [complaint]);
 
 
   const hasPermission = (permission: string) => {
@@ -600,9 +631,9 @@ export default function ComplaintDetailPage() {
 
   const handlePostResponse = async () => {
     if (!responseMessage.trim() || !user) return;
-    
+
     setIsSending(true);
-    
+
     try {
       const response = await fetch(`/api/complaints/${id}/responses`, {
         method: 'POST',
@@ -619,10 +650,10 @@ export default function ComplaintDetailPage() {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || 'Failed to post response');
       }
-      
+
       setResponseMessage('');
       setIsInternalResponse(false);
-      loadComplaint(); 
+      loadComplaint();
       toast.success('Balasan berhasil dikirim!');
 
     } catch (error: any) {
@@ -634,33 +665,37 @@ export default function ComplaintDetailPage() {
   };
 
   const handleAssignComplaint = async () => {
-    if (!selectedAssignee || !selectedDepartment) {
-        alert('Harap pilih petugas dan departemen.');
-        return;
+    if (!assigneeObservasi && !assigneeInvestigasi1 && !assigneeInvestigasi2 && !assigneeLabTesting) {
+      toast.error('Gagal, pilih setidaknya satu petugas untuk departemen.');
+      return;
     }
-    
+
     setIsAssigning(true);
     try {
       const response = await fetch(`/api/complaints/${id}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          admin_id: selectedAssignee,
-          department: selectedDepartment,
+          assignee_observasi: assigneeObservasi,
+          assignee_investigasi_1: assigneeInvestigasi1,
+          assignee_investigasi_2: assigneeInvestigasi2,
+          assignee_lab_testing: assigneeLabTesting,
           notes: assignmentNotes,
-          assigner_id: user?.id
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to assign complaint');
-      }
-      
+      if (!response.ok) throw new Error('Penugasan gagal');
+
+      toast.success('Komplain berhasil ditugaskan');
       setShowAssignmentModal(false);
+      setAssigneeObservasi('');
+      setAssigneeInvestigasi1('');
+      setAssigneeInvestigasi2('');
+      setAssigneeLabTesting('');
       setAssignmentNotes('');
       loadComplaint();
-    } catch (err) {
-      console.error('Error assigning complaint:', err);
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal menyimpan penugasan');
     } finally {
       setIsAssigning(false);
     }
@@ -683,7 +718,7 @@ export default function ComplaintDetailPage() {
       if (!response.ok) {
         throw new Error('Failed to resolve complaint');
       }
-      
+
       setShowResolveModal(false);
       setResolveMessage('');
       setSatisfactionRating(0);
@@ -714,7 +749,7 @@ export default function ComplaintDetailPage() {
       if (!response.ok) {
         throw new Error('Failed to escalate complaint');
       }
-      
+
       setShowEscalateModal(false);
       setEscalationNotes('');
       loadComplaint();
@@ -745,7 +780,7 @@ export default function ComplaintDetailPage() {
       if (!response.ok) {
         throw new Error('Failed to update status');
       }
-      
+
       setShowStatusModal(false);
       loadComplaint();
     } catch (err) {
@@ -787,7 +822,7 @@ export default function ComplaintDetailPage() {
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
-  
+
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       submitted: 'Dikirim',
@@ -861,7 +896,7 @@ export default function ComplaintDetailPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Navbar user={user} onLogout={handleLogout} />
       <Toaster position="top-right" />
-      
+
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -917,8 +952,8 @@ export default function ComplaintDetailPage() {
             {/* === QUICK ACTIONS === */}
             {complaint.status !== 'resolved' && complaint.status !== 'closed' && (
               <div className="lg:col-span-3">
-                <QuickActions 
-                  complaint={complaint} 
+                <QuickActions
+                  complaint={complaint}
                   userId={user.id!}
                   user={user} // 🔥 TAMBAHKAN INI
                   onStatusChange={loadComplaint}
@@ -927,20 +962,82 @@ export default function ComplaintDetailPage() {
             )}
             {/* Observation Summary Card */}
             {complaint.complaint_observations && complaint.complaint_observations.length > 0 && (
-              <div className="lg:col-span-3">
-                <ObservationSummaryCard 
-                  data={complaint.complaint_observations[0]} 
+              <div className="lg:col-span-3 space-y-4">
+                <ObservationSummaryCard
+                  data={complaint.complaint_observations[0]}
                 />
+
+                {/* OBSERVATION EVIDENCE FILES */}
+                {complaint.complaint_observations[0].evidence_files && complaint.complaint_observations[0].evidence_files.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                    <dt className="text-sm font-medium text-cyan-600 dark:text-cyan-400 flex items-center gap-2 mb-4">
+                      <DocumentTextIcon className="w-5 h-5 text-cyan-500" />
+                      Dokumentasi Observasi
+                    </dt>
+                    <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {complaint.complaint_observations[0].evidence_files.map((src: string, index: number) => {
+                        let fileNameStr = `File Observasi ${index + 1}`;
+                        let base64Data = src;
+
+                        if (src.includes('|')) {
+                          const separatorIndex = src.indexOf('|');
+                          fileNameStr = src.substring(0, separatorIndex);
+                          base64Data = src.substring(separatorIndex + 1);
+                        }
+
+                        const isBase64 = base64Data.startsWith('data:image/');
+                        const isHttp = base64Data.startsWith('http');
+                        const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+
+                        const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                        const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
+
+                        return (
+                          <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square">
+                            {isVisualImage ? (
+                              <img
+                                src={displayUrl}
+                                alt={finalFileName}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center p-4 h-full">
+                                <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">
+                                  {finalFileName}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Hover overlay for download */}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
+                              <a
+                                href={displayUrl}
+                                download={finalFileName || `obs-${complaint.complaint_number}-${index + 1}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors shadow-lg text-xs"
+                              >
+                                <ArrowDownTrayIcon className="w-4 h-4" />
+                                Unduh
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </dd>
+                  </div>
+                )}
               </div>
             )}
             {/* Left Column: Details */}
             <div className="lg:col-span-2 space-y-8">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-                
+
                 {/* Info Pelanggan (TERMASUK ALAMAT) */}
                 <div className="p-6">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Info Pelanggan</h3>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                     <div>
                       <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Nama</dt>
@@ -982,7 +1079,7 @@ export default function ComplaintDetailPage() {
                 {/* Detail Keluhan */}
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
                   <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">Detail Keluhan</h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                       <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tipe</dt>
@@ -1037,96 +1134,96 @@ export default function ComplaintDetailPage() {
 
                   {/* KATEGORISASI KOMPLAIN */}
                   {(complaint.complaint_category_name || complaint.complaint_subcategory_name || (complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0)) && (
-                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
-                      <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                      </svg>
-                      Kategorisasi Komplain
-                    </h4>
-                    
-                    {/* Path: Kategori → Sub-Kategori */}
-                    {complaint.complaint_category_name && (
-                      <div className="mb-4">
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Kategori Path:</dt>
-                        <dd className="flex items-center gap-2 flex-wrap">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold shadow-sm">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                            </svg>
-                            {complaint.complaint_category_name}
-                          </span>
-                          {complaint.complaint_subcategory_name && (
-                            <>
-                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg text-sm font-bold shadow-sm">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                </svg>
-                                {complaint.complaint_subcategory_name}
-                              </span>
-                            </>
-                          )}
-                        </dd>
-                      </div>
-                    )}
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                        <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        Kategorisasi Komplain
+                      </h4>
 
-                    {/* MULTIPLE CASE TYPES */}
-                    {complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0 && (
-                      <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 dark:from-purple-900/30 dark:via-pink-900/30 dark:to-purple-900/30 rounded-2xl p-5 border-2 border-purple-200 dark:border-purple-800 shadow-lg">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-md">
-                              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      {/* Path: Kategori → Sub-Kategori */}
+                      {complaint.complaint_category_name && (
+                        <div className="mb-4">
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Kategori Path:</dt>
+                          <dd className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold shadow-sm">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                               </svg>
-                            </div>
-                            <dt className="text-base font-bold text-purple-900 dark:text-purple-100">
-                              Jenis Masalah Dilaporkan
-                            </dt>
-                          </div>
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold rounded-full shadow-lg">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                            </svg>
-                            {complaint.complaint_case_type_names.length} Masalah
-                          </span>
+                              {complaint.complaint_category_name}
+                            </span>
+                            {complaint.complaint_subcategory_name && (
+                              <>
+                                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg text-sm font-bold shadow-sm">
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                  </svg>
+                                  {complaint.complaint_subcategory_name}
+                                </span>
+                              </>
+                            )}
+                          </dd>
                         </div>
-                        
-                        <dd className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {complaint.complaint_case_type_names.map((caseTypeName, index) => (
-                            <div
-                              key={index}
-                              className="group relative overflow-hidden"
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-pink-400/20 dark:from-purple-600/20 dark:to-pink-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
-                              <div className="relative flex items-start gap-3 p-4 bg-white dark:bg-gray-800/80 rounded-xl border-2 border-purple-200 dark:border-purple-700 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5">
-                                <div className="flex-shrink-0 mt-0.5">
-                                  <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/60 dark:to-pink-900/60 rounded-lg">
-                                    <svg className="w-5 h-5 text-purple-600 dark:text-purple-300" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                    </svg>
+                      )}
+
+                      {/* MULTIPLE CASE TYPES */}
+                      {complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0 && (
+                        <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 dark:from-purple-900/30 dark:via-pink-900/30 dark:to-purple-900/30 rounded-2xl p-5 border-2 border-purple-200 dark:border-purple-800 shadow-lg">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-md">
+                                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                              </div>
+                              <dt className="text-base font-bold text-purple-900 dark:text-purple-100">
+                                Jenis Masalah Dilaporkan
+                              </dt>
+                            </div>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold rounded-full shadow-lg">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                                <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                              </svg>
+                              {complaint.complaint_case_type_names.length} Masalah
+                            </span>
+                          </div>
+
+                          <dd className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {complaint.complaint_case_type_names.map((caseTypeName, index) => (
+                              <div
+                                key={index}
+                                className="group relative overflow-hidden"
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-pink-400/20 dark:from-purple-600/20 dark:to-pink-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                                <div className="relative flex items-start gap-3 p-4 bg-white dark:bg-gray-800/80 rounded-xl border-2 border-purple-200 dark:border-purple-700 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5">
+                                  <div className="flex-shrink-0 mt-0.5">
+                                    <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/60 dark:to-pink-900/60 rounded-lg">
+                                      <svg className="w-5 h-5 text-purple-600 dark:text-purple-300" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-purple-900 dark:text-purple-100 leading-snug">
+                                      {caseTypeName}
+                                    </p>
+                                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                                      Masalah #{index + 1}
+                                    </p>
                                   </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold text-purple-900 dark:text-purple-100 leading-snug">
-                                    {caseTypeName}
-                                  </p>
-                                  <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                                    Masalah #{index + 1}
-                                  </p>
-                                </div>
                               </div>
-                            </div>
-                          ))}
-                        </dd>
-                      </div>
-                    )}
-                  </div>
-                )}
+                            ))}
+                          </dd>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <div>
@@ -1143,23 +1240,173 @@ export default function ComplaintDetailPage() {
                     {/* ATTACHMENTS */}
                     {complaint.attachments && complaint.attachments.length > 0 && (
                       <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Lampiran</dt>
-                        <dd className="mt-2 space-y-2">
-                          {complaint.attachments.map((url, index) => (
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              key={index}
-                              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                            >
-                              <PaperClipIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 truncate">
-                                {url.split('/').pop()}
-                              </span>
-                              <LinkIcon className="h-4 w-4 text-gray-400 ml-auto" />
-                            </a>
-                          ))}
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Lampiran Komplain Awal</dt>
+                        <dd className="mt-2 space-y-4">
+                          {complaint.attachments.map((url, index) => {
+                            // Cek apakah lampiran adalah base64 image
+                            const isBase64Image = url.startsWith('data:image/');
+                            // Terapkan URL proxy yang sama (encoded base64) agar domain supabase tidak bocor
+                            const proxyUrl = isBase64Image
+                              ? url
+                              : `/api/public/images?url=${btoa(url)}`;
+
+                            return isBase64Image || proxyUrl ? (
+                              <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video max-w-sm">
+                                <img
+                                  src={proxyUrl}
+                                  alt={`Lampiran ${index + 1}`}
+                                  className="w-full h-full object-contain bg-white dark:bg-slate-900"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <a
+                                    href={proxyUrl}
+                                    download={`lampiran-${complaint.complaint_number}-${index + 1}.jpg`}
+                                    className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-lg font-medium transition-colors shadow-lg"
+                                  >
+                                    Unduh Gambar
+                                  </a>
+                                </div>
+                              </div>
+                            ) : (
+                              <a
+                                href={proxyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                key={index}
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors w-fit"
+                              >
+                                <PaperClipIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                                <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 truncate max-w-[200px]">
+                                  {url.split('/').pop() || `Lampiran ${index + 1}`}
+                                </span>
+                                <LinkIcon className="h-4 w-4 text-gray-400 ml-2" />
+                              </a>
+                            );
+                          })}
+                        </dd>
+                      </div>
+                    )}
+
+                    {/* INVESTIGATION EVIDENCE FILES */}
+                    {complaint.complaint_investigations && complaint.complaint_investigations.length > 0 && complaint.complaint_investigations[0].evidence_files && complaint.complaint_investigations[0].evidence_files.length > 0 && (
+                      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                          <DocumentTextIcon className="w-5 h-5 text-purple-500" />
+                          Dokumentasi Investigasi
+                        </dt>
+                        <dd className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {complaint.complaint_investigations[0].evidence_files.map((src: string, index: number) => {
+                            let fileNameStr = `File Evidence ${index + 1}`;
+                            let base64Data = src;
+
+                            if (src.includes('|')) {
+                              const separatorIndex = src.indexOf('|');
+                              fileNameStr = src.substring(0, separatorIndex);
+                              base64Data = src.substring(separatorIndex + 1);
+                            }
+
+                            const isBase64 = base64Data.startsWith('data:image/');
+                            const isHttp = base64Data.startsWith('http');
+                            const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+
+                            const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                            const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
+
+                            return (
+                              <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between h-32">
+                                {isVisualImage ? (
+                                  <img
+                                    src={displayUrl}
+                                    alt={finalFileName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center p-4 h-full">
+                                    <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2">
+                                      {finalFileName}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Hover overlay for download */}
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
+                                  <a
+                                    href={displayUrl}
+                                    download={finalFileName || `evidence-${complaint.complaint_number}-${index + 1}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors shadow-lg text-sm"
+                                  >
+                                    <ArrowDownTrayIcon className="w-4 h-4" />
+                                    Unduh File
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </dd>
+                      </div>
+                    )}
+
+                    {/* LAB TESTING EVIDENCE FILES */}
+                    {complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0 && complaint.complaint_lab_testing[0].evidence_files && complaint.complaint_lab_testing[0].evidence_files.length > 0 && (
+                      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                          <BeakerIcon className="w-5 h-5 text-teal-500" />
+                          Dokumentasi Lab Testing
+                        </dt>
+                        <dd className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {complaint.complaint_lab_testing[0].evidence_files.map((src: string, index: number) => {
+                            let fileNameStr = `File Lab ${index + 1}`;
+                            let base64Data = src;
+
+                            if (src.includes('|')) {
+                              const separatorIndex = src.indexOf('|');
+                              fileNameStr = src.substring(0, separatorIndex);
+                              base64Data = src.substring(separatorIndex + 1);
+                            }
+
+                            const isBase64 = base64Data.startsWith('data:image/');
+                            const isHttp = base64Data.startsWith('http');
+                            const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+
+                            const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                            const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
+
+                            return (
+                              <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between h-32">
+                                {isVisualImage ? (
+                                  <img
+                                    src={displayUrl}
+                                    alt={finalFileName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center p-4 h-full">
+                                    <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2">
+                                      {finalFileName}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Hover overlay for download */}
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
+                                  <a
+                                    href={displayUrl}
+                                    download={finalFileName || `lab-${complaint.complaint_number}-${index + 1}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-medium transition-colors shadow-lg text-sm"
+                                  >
+                                    <ArrowDownTrayIcon className="w-4 h-4" />
+                                    Unduh File
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </dd>
                       </div>
                     )}
@@ -1177,7 +1424,7 @@ export default function ComplaintDetailPage() {
                       {complaint.complaint_responses
                         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                         .map((response) => {
-                          
+
                           // --- TAMPILAN 1: Catatan Internal (is_internal = TRUE) ---
                           if (response.is_internal) {
                             return (
@@ -1216,13 +1463,13 @@ export default function ComplaintDetailPage() {
                                         </div>
                                       </div>
                                     </div>
-                                    
+
                                     <div className="pl-14">
                                       <p className="text-sm text-amber-950 dark:text-amber-50 whitespace-pre-wrap leading-relaxed bg-white/60 dark:bg-black/20 rounded-lg p-3 border border-amber-200 dark:border-amber-800">
                                         {response.message}
                                       </p>
                                     </div>
-                                    
+
                                     <div className="mt-3 pl-14 pt-3 border-t border-amber-300 dark:border-amber-700">
                                       <div className="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200">
                                         <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
@@ -1345,7 +1592,7 @@ export default function ComplaintDetailPage() {
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
                       Kirim Balasan
                     </h3>
-                    
+
                     <div className="relative">
                       <textarea
                         value={responseMessage}
@@ -1382,7 +1629,7 @@ export default function ComplaintDetailPage() {
                         />
                         <span className="font-medium">Tandai sebagai catatan internal (tidak terlihat oleh pelanggan)</span>
                       </label>
-                      
+
                       {isInternalResponse && (
                         <div className="mt-2 ml-8 text-xs text-yellow-700 dark:text-yellow-400 p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-700">
                           Catatan ini hanya akan terlihat oleh tim admin.
@@ -1414,20 +1661,20 @@ export default function ComplaintDetailPage() {
 
             {/* Right Column: Actions */}
             <div className="lg:col-span-1 space-y-6">
-              
+
               {/* Status Card */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Status</h3>
-                    {hasPermission('canUpdateComplaintStatus') && (complaint.status !== 'resolved' && complaint.status !== 'closed') && (
-                      <button
-                        onClick={() => setShowStatusModal(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-                      >
-                        <PencilIcon className="h-3 w-3" />
-                        Ubah
-                      </button>
-                    )}
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Status</h3>
+                  {hasPermission('canUpdateComplaintStatus') && (complaint.status !== 'resolved' && complaint.status !== 'closed') && (
+                    <button
+                      onClick={() => setShowStatusModal(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                    >
+                      <PencilIcon className="h-3 w-3" />
+                      Ubah
+                    </button>
+                  )}
                 </div>
                 <span className={`inline-flex items-center gap-2 px-3 py-1 text-sm font-bold rounded-full ${getStatusClass(complaint.status)}`}>
                   {complaint.status === 'resolved' || complaint.status === 'closed' ? (
@@ -1437,7 +1684,7 @@ export default function ComplaintDetailPage() {
                   )}
                   {getStatusLabel(complaint.status)}
                 </span>
-                
+
                 {complaint.resolved_at && (
                   <div className="mt-4">
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tgl Selesai</dt>
@@ -1497,11 +1744,10 @@ export default function ComplaintDetailPage() {
                           {[...Array(5)].map((_, i) => (
                             <StarIcon
                               key={i}
-                              className={`h-6 w-6 transition-all duration-300 ${
-                                i < (complaint.customer_satisfaction_rating || 0)
-                                  ? 'text-yellow-400 fill-yellow-400 drop-shadow-md'
-                                  : 'text-gray-300 dark:text-gray-600'
-                              }`}
+                              className={`h-6 w-6 transition-all duration-300 ${i < (complaint.customer_satisfaction_rating || 0)
+                                ? 'text-yellow-400 fill-yellow-400 drop-shadow-md'
+                                : 'text-gray-300 dark:text-gray-600'
+                                }`}
                             />
                           ))}
                         </div>
@@ -1550,7 +1796,7 @@ export default function ComplaintDetailPage() {
                         </dt>
                         <dd className="flex flex-wrap gap-2">
                           {complaint.feedback_quick_answers.map((answer, index) => (
-                            <span 
+                            <span
                               key={index}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 rounded-lg text-xs font-semibold border border-yellow-300 dark:border-yellow-700"
                             >
@@ -1595,37 +1841,89 @@ export default function ComplaintDetailPage() {
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-5">
                   Penugasan & Departemen
                 </h3>
-                
-                {complaint.assigned_to_user ? (
-                  <div className="flex items-center gap-3">
-                    <UserIcon className="h-8 w-8 text-gray-500 dark:text-gray-400" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ditugaskan ke</dt>
-                      <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assigned_to_user.name}</dd>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ditugaskan ke</dt>
-                      <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
-                    </div>
-                  </div>
-                )}
 
-                <div className="mt-4 space-y-3">
-                  {complaint.department && (
-                     <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Departemen</dt>
-                      <dd className="mt-1 text-sm text-gray-900 dark:text-white capitalize">
-                        {formatDepartment(complaint.department)}
-                      </dd>
+                <div className="space-y-4">
+                  {/* Observasi */}
+                  {complaint.assignee_observasi_user ? (
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-8 w-8 text-cyan-500 dark:text-cyan-400" />
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Observasi</dt>
+                        <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_observasi_user.name}</dd>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Observasi</dt>
+                        <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                      </div>
                     </div>
                   )}
+
+                  {/* Investigasi 1 */}
+                  {complaint.assignee_investigasi_1_user ? (
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 1</dt>
+                        <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_investigasi_1_user.name}</dd>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 1</dt>
+                        <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Investigasi 2 */}
+                  {complaint.assignee_investigasi_2_user ? (
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 2</dt>
+                        <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_investigasi_2_user.name}</dd>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 2</dt>
+                        <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lab Testing */}
+                  {complaint.assignee_lab_testing_user ? (
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-8 w-8 text-teal-500 dark:text-teal-400" />
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Lab Testing</dt>
+                        <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_lab_testing_user.name}</dd>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Lab Testing</dt>
+                        <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                   {complaint.assigned_at && (
                     <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tgl Ditugaskan</dt>
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Terakhir Ditugaskan</dt>
                       <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(complaint.assigned_at)}</dd>
                     </div>
                   )}
@@ -1639,10 +1937,10 @@ export default function ComplaintDetailPage() {
 
                 {complaint.internal_notes && (
                   <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Catatan Internal</dt>
-                     <dd className="text-sm text-gray-700 dark:text-gray-300 italic bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                       "{complaint.internal_notes}"
-                     </dd>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Catatan Internal</dt>
+                    <dd className="text-sm text-gray-700 dark:text-gray-300 italic bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                      "{complaint.internal_notes}"
+                    </dd>
                   </div>
                 )}
 
@@ -1669,7 +1967,7 @@ export default function ComplaintDetailPage() {
       {/* Modal Resolusi */}
       {showResolveModal && (
         <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-            {/* Isi Modal Resolusi (Sama seperti sebelumnya) */}
+          {/* Isi Modal Resolusi (Sama seperti sebelumnya) */}
         </div>
       )}
 
@@ -1683,63 +1981,90 @@ export default function ComplaintDetailPage() {
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-4">
+              {/* Observasi Dropdown */}
               <div>
-                <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Pilih Departemen (Tujuan Penugasan)
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Petugas Observasi
                 </label>
                 <select
-                  id="department"
-                  value={selectedDepartment}
-                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  value={assigneeObservasi}
+                  onChange={(e) => setAssigneeObservasi(e.target.value)}
                   className="mt-1 w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 focus:border-purple-500 text-base px-4 py-3"
                 >
-                  <option value="">-- Pilih Departemen --</option>
-                  {complaintDepartments.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {formatDepartment(dept)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="assignee" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Pilih Petugas
-                </label>
-                <select
-                  id="assignee"
-                  value={selectedAssignee}
-                  onChange={(e) => setSelectedAssignee(e.target.value)}
-                  disabled={!selectedDepartment || adminUsers.length === 0}
-                  className="mt-1 w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 focus:border-purple-500 text-base px-4 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">-- Pilih Petugas --</option>
+                  <option value="">-- Pilih Petugas Observasi --</option>
                   {adminUsers
-                    .filter(admin => 
-                      !selectedDepartment || 
-                      admin.department === selectedDepartment
-                    )
+                    .filter(admin => admin.department === 'observasi' || admin.department === 'admin')
                     .map((admin) => (
                       <option key={admin.user_id} value={admin.user_id}>
                         {admin.full_name} - {formatDepartment(admin.department)}
                       </option>
                     ))}
                 </select>
-                
-                {selectedDepartment && adminUsers.filter(admin => admin.department === selectedDepartment).length === 0 && (
-                  <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400 flex items-center gap-2">
-                    <ExclamationTriangleIcon className="h-4 w-4" />
-                    Tidak ada petugas aktif di departemen {formatDepartment(selectedDepartment)}
-                  </p>
-                )}
-                
-                {selectedDepartment && adminUsers.filter(admin => admin.department === selectedDepartment).length > 0 && (
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    {adminUsers.filter(admin => admin.department === selectedDepartment).length} petugas tersedia
-                  </p>
-                )}
+              </div>
+
+              {/* Investigasi 1 Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Petugas Investigasi 1
+                </label>
+                <select
+                  value={assigneeInvestigasi1}
+                  onChange={(e) => setAssigneeInvestigasi1(e.target.value)}
+                  className="mt-1 w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 focus:border-purple-500 text-base px-4 py-3"
+                >
+                  <option value="">-- Pilih Petugas Investigasi 1 --</option>
+                  {adminUsers
+                    .filter(admin => admin.department === 'investigasi_1' || admin.department === 'admin')
+                    .map((admin) => (
+                      <option key={admin.user_id} value={admin.user_id}>
+                        {admin.full_name} - {formatDepartment(admin.department)}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Investigasi 2 Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Petugas Investigasi 2
+                </label>
+                <select
+                  value={assigneeInvestigasi2}
+                  onChange={(e) => setAssigneeInvestigasi2(e.target.value)}
+                  className="mt-1 w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 focus:border-purple-500 text-base px-4 py-3"
+                >
+                  <option value="">-- Pilih Petugas Investigasi 2 --</option>
+                  {adminUsers
+                    .filter(admin => admin.department === 'investigasi_2' || admin.department === 'admin')
+                    .map((admin) => (
+                      <option key={admin.user_id} value={admin.user_id}>
+                        {admin.full_name} - {formatDepartment(admin.department)}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Lab Testing Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Petugas Lab Testing
+                </label>
+                <select
+                  value={assigneeLabTesting}
+                  onChange={(e) => setAssigneeLabTesting(e.target.value)}
+                  className="mt-1 w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 focus:border-purple-500 text-base px-4 py-3"
+                >
+                  <option value="">-- Pilih Petugas Lab Testing --</option>
+                  {adminUsers
+                    .filter(admin => admin.department === 'lab_testing' || admin.department === 'admin')
+                    .map((admin) => (
+                      <option key={admin.user_id} value={admin.user_id}>
+                        {admin.full_name} - {formatDepartment(admin.department)}
+                      </option>
+                    ))}
+                </select>
               </div>
 
               <div>
@@ -1766,7 +2091,7 @@ export default function ComplaintDetailPage() {
               </button>
               <button
                 onClick={handleAssignComplaint}
-                disabled={isAssigning || !selectedAssignee || !selectedDepartment}
+                disabled={isAssigning || (!assigneeObservasi && !assigneeInvestigasi1 && !assigneeInvestigasi2 && !assigneeLabTesting)}
                 className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isAssigning ? (
@@ -1789,7 +2114,7 @@ export default function ComplaintDetailPage() {
       {/* Modal Eskalasi */}
       {showEscalateModal && (
         <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-             {/* Isi Modal Eskalasi (Sama seperti sebelumnya) */}
+          {/* Isi Modal Eskalasi (Sama seperti sebelumnya) */}
         </div>
       )}
 
@@ -1803,7 +2128,7 @@ export default function ComplaintDetailPage() {
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
                 <div className="flex items-center justify-between">
@@ -1824,8 +2149,8 @@ export default function ComplaintDetailPage() {
                       key={status}
                       className={`
                         flex items-start gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all
-                        ${selectedStatus === status 
-                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
+                        ${selectedStatus === status
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
                           : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-gray-800'
                         }
                       `}

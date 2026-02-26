@@ -3,12 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  ArrowLeftIcon, 
-  DocumentMagnifyingGlassIcon, 
-  PhotoIcon 
+import {
+  ArrowLeftIcon,
+  DocumentMagnifyingGlassIcon,
+  PhotoIcon,
+  XMarkIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
+import { useDropzone } from 'react-dropzone';
 import { toast, Toaster } from 'react-hot-toast';
+import { createBrowserClient } from '@supabase/ssr';
 
 export default function ObservationFormPage() {
   const params = useParams();
@@ -17,7 +21,7 @@ export default function ObservationFormPage() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     planting_date: '',
     label_expired_date: '',
@@ -43,8 +47,30 @@ export default function ObservationFormPage() {
     replacement_qty: '',
     replacement_hybrid: '',
     general_notes: '',
-    observation_result: ''
+    observation_result: '',
+    evidence_files: [] as string[]
   });
+
+  // 🔥 Inisialisasi Supabase
+  const [supabase] = useState(() =>
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  );
+
+  // 🔥 Fungsi mengubah Base64 kembali menjadi File untuk diupload
+  const base64ToFile = (base64String: string, filename: string): File => {
+    const arr = base64String.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,7 +82,8 @@ export default function ObservationFormPage() {
             setFormData(prev => ({
               ...prev,
               ...result.data,
-              observation_date: result.data.observation_date ? result.data.observation_date.split('T')[0] : prev.observation_date
+              observation_date: result.data.observation_date ? result.data.observation_date.split('T')[0] : prev.observation_date,
+              evidence_files: result.data.evidence_files || []
             }));
           }
         }
@@ -77,28 +104,183 @@ export default function ObservationFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    const loadingToast = toast.loading('Sedang menyimpan data dan mengunggah dokumen...');
 
     try {
+      // 🔥 1. Upload File ke Supabase Storage Dulu
+      let uploadedUrls: string[] = [];
+
+      for (let i = 0; i < formData.evidence_files.length; i++) {
+        const fileData = formData.evidence_files[i];
+
+        // Cek apakah ini file baru (format: "namafile|data:image/...")
+        if (fileData.includes('|') && fileData.includes('data:')) {
+          const separatorIndex = fileData.indexOf('|');
+          const fileName = fileData.substring(0, separatorIndex);
+          const base64Data = fileData.substring(separatorIndex + 1);
+
+          const file = base64ToFile(base64Data, fileName);
+          const filePath = `observations/${id}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('complaints')
+            .upload(filePath, file);
+
+          if (uploadError) throw new Error(`Gagal mengunggah ${fileName}`);
+
+          const { data: publicUrlData } = supabase.storage
+            .from('complaints')
+            .getPublicUrl(filePath);
+
+          uploadedUrls.push(publicUrlData.publicUrl);
+        } else {
+          // Jika sudah berupa URL (file yang sudah pernah diupload), langsung push
+          uploadedUrls.push(fileData);
+        }
+      }
+
+      // 🔥 2. Siapkan Payload dengan URL Asli
+      const payload = {
+        ...formData,
+        evidence_files: uploadedUrls
+      };
+
+      // 🔥 3. Kirim ke API Route
       const response = await fetch(`/api/complaints/${id}/observation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) throw new Error('Gagal menyimpan data observasi');
 
-      toast.success('Data observasi berhasil disimpan!');
-      
+      toast.success('Data observasi berhasil disimpan!', { id: loadingToast });
+
       setTimeout(() => {
         router.push(`/admin/complaints/${id}`);
       }, 1500);
 
-    } catch (error) {
-      toast.error('Terjadi kesalahan saat menyimpan.');
+    } catch (error: any) {
+      toast.error(error.message || 'Terjadi kesalahan saat menyimpan.', { id: loadingToast });
       console.error(error);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB maksimal masing-masing
+  const MAX_FILES = 10; // Batas total 10 file lampiran untuk observasi
+
+  const compressImage = (file: File): Promise<{ data: string; name: string }> => {
+    return new Promise((resolve, reject) => {
+      // Return file base64 directly if it's not an image (e.g., PDF, Excel, Word)
+      if (!file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve({ data: reader.result as string, name: file.name });
+        reader.onerror = error => reject(error);
+        return;
+      }
+
+      // If it's an image, apply canvas resizing and compression safely
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 800; // Resize target dimension
+
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Compress to JPEG with 0.6 detail
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          // Ganti ekstensi jadi .jpeg karena dikonversi
+          const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpeg";
+          resolve({ data: dataUrl, name: newName });
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const onDrop = async (acceptedFiles: File[]) => {
+    if (formData.evidence_files.length + acceptedFiles.length > MAX_FILES) {
+      toast.error(`Maksimal ${MAX_FILES} bukti dokumentasi.`);
+      return;
+    }
+
+    const processingToast = toast.loading('Sedang memproses file...');
+    try {
+      const processedFilesPromises = acceptedFiles.map(file => compressImage(file));
+      const processedFiles = await Promise.all(processedFilesPromises);
+
+      // Simpan format `name|base64` untuk mempertahankan nama file asli jika bukan gambar
+      const formattedAttachments = processedFiles.map(pf => `${pf.name}|${pf.data}`);
+
+      setFormData(prev => ({
+        ...prev,
+        evidence_files: [...prev.evidence_files, ...formattedAttachments]
+      }));
+      toast.success('File berhasil ditambahkan.', { id: processingToast });
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast.error('Gagal memproses file.', { id: processingToast });
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png'],
+      // Support PDF, Word, Excel files
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+    },
+    maxSize: MAX_FILE_SIZE,
+    maxFiles: MAX_FILES,
+    onDropRejected: (fileRejections) => {
+      fileRejections.forEach((rejection) => {
+        rejection.errors.forEach((error) => {
+          if (error.code === 'file-invalid-type') {
+            toast.error(`File ${rejection.file.name} bermasalah: Format tidak didukung.`);
+          } else if (error.code === 'file-too-large') {
+            toast.error(`File ${rejection.file.name} terlalu besar (Maks 5MB)`);
+          } else {
+            toast.error(`Error pada ${rejection.file.name}: ${error.message}`);
+          }
+        });
+      });
+    },
+  });
+
+  const removeAttachment = (indexToRemove: number) => {
+    setFormData(prev => ({
+      ...prev,
+      evidence_files: prev.evidence_files.filter((_, idx) => idx !== indexToRemove)
+    }));
   };
 
   const RadioField = ({ name, label, required = false }: { name: string; label: string; required?: boolean }) => (
@@ -140,7 +322,7 @@ export default function ObservationFormPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
       <Toaster position="top-right" />
-      
+
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
@@ -168,7 +350,7 @@ export default function ObservationFormPage() {
               <h2 className="font-bold text-teal-900 dark:text-teal-200">1. Data Penanaman & Pembelian</h2>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              
+
               {/* Tanggal Penanaman */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -214,8 +396,8 @@ export default function ObservationFormPage() {
                 />
               </div>
 
-               {/* Tempat Pembelian */}
-               <div>
+              {/* Tempat Pembelian */}
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Tempat Pembelian Benih (Nama Toko) <span className="text-red-500">*</span>
                 </label>
@@ -230,8 +412,8 @@ export default function ObservationFormPage() {
                 />
               </div>
 
-               {/* Alamat Pembelian */}
-               <div className="md:col-span-2">
+              {/* Alamat Pembelian */}
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Alamat Pembelian Benih <span className="text-red-500">*</span>
                 </label>
@@ -248,7 +430,7 @@ export default function ObservationFormPage() {
 
             </div>
           </div>
-          
+
           {/* SECTION 2: DATA OBSERVER */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="px-6 py-4 bg-cyan-50 dark:bg-cyan-900/20 border-b border-cyan-100 dark:border-cyan-800">
@@ -331,18 +513,73 @@ export default function ObservationFormPage() {
               <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Dokumentasi terkait komplain <span className="text-red-500">*</span>
-                  <span className="block text-xs text-gray-500 mt-1">Foto kemasan, lahan penanaman, dll (Max 10 file, 100MB per file)</span>
+                  <span className="block text-xs text-gray-500 mt-1">Foto kemasan, lahan penanaman, dll (Max {MAX_FILES} file, {MAX_FILE_SIZE / 1024 / 1024}MB per file)</span>
                 </label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <PhotoIcon className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400"><span className="font-semibold">Klik untuk upload</span></p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Word, Excel, PDF, Image, Video, Audio</p>
-                    </div>
-                    <input type="file" className="hidden" multiple accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,image/*,video/*,audio/*" />
-                  </label>
+
+                <div
+                  {...getRootProps()}
+                  className={`flex flex-col items-center justify-center w-full h-32 border-2 ${isDragActive ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500'} border-dashed rounded-lg cursor-pointer transition-colors`}
+                >
+                  <input {...getInputProps()} />
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <PhotoIcon className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400"><span className="font-semibold">Klik atau seret file ke sini</span></p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">PDF, Excel, Word, Image</p>
+                  </div>
                 </div>
+
+                {/* Tampilan Preview File */}
+                {formData.evidence_files.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {formData.evidence_files.map((src, index) => {
+                      // Parse name if exists (name|base64)
+                      let fileNameStr = `File ${index + 1}`;
+                      let base64Data = src;
+
+                      if (src.includes('|')) {
+                        const separatorIndex = src.indexOf('|');
+                        fileNameStr = src.substring(0, separatorIndex);
+                        base64Data = src.substring(separatorIndex + 1);
+                      }
+
+                      // Gunakan proxy URL untuk file http agar preview aman di sisi client juga (meski ini admin)
+                      const isBase64 = base64Data.startsWith('data:image/');
+                      const isHttp = base64Data.startsWith('http');
+                      const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+
+                      // Check if it's visually an image
+                      const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+
+                      return (
+                        <div key={index} className="relative group rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 aspect-square bg-gray-50 flex flex-col items-center justify-center p-2 text-center">
+                          {isVisualImage ? (
+                            <img
+                              src={displayUrl}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover absolute inset-0"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center w-full h-full p-2 z-10">
+                              <DocumentTextIcon className="w-10 h-10 text-gray-400 mb-2" />
+                              <span className="text-xs text-gray-600 dark:text-gray-300 break-all line-clamp-2">
+                                {isHttp ? src.split('/').pop() : fileNameStr}
+                              </span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); removeAttachment(index); }}
+                              className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg transform hover:scale-110 transition-transform"
+                            >
+                              <XMarkIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -446,14 +683,13 @@ export default function ObservationFormPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                 Apakah komplain ini valid dan dapat diterima? <span className="text-red-500">*</span>
               </label>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Pilihan Diterima */}
-                <label className={`relative flex items-center p-4 border rounded-xl cursor-pointer transition-all ${
-                  formData.observation_result === 'Valid' 
-                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20 ring-1 ring-green-500' 
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}>
+                <label className={`relative flex items-center p-4 border rounded-xl cursor-pointer transition-all ${formData.observation_result === 'Valid'
+                  ? 'border-green-500 bg-green-50 dark:bg-green-900/20 ring-1 ring-green-500'
+                  : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}>
                   <input
                     type="radio"
                     name="observation_result"
@@ -474,11 +710,10 @@ export default function ObservationFormPage() {
                 </label>
 
                 {/* Pilihan Ditolak */}
-                <label className={`relative flex items-center p-4 border rounded-xl cursor-pointer transition-all ${
-                  formData.observation_result === 'Invalid' 
-                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20 ring-1 ring-red-500' 
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}>
+                <label className={`relative flex items-center p-4 border rounded-xl cursor-pointer transition-all ${formData.observation_result === 'Invalid'
+                  ? 'border-red-500 bg-red-50 dark:bg-red-900/20 ring-1 ring-red-500'
+                  : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}>
                   <input
                     type="radio"
                     name="observation_result"

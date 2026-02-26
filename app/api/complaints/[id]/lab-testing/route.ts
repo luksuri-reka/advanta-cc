@@ -39,7 +39,7 @@ export async function POST(
     const labTestingData = {
       complaint_id: id,
       technician_id: user?.id,
-      
+
       // Market Sample
       market_sample_received_date: body.market_sample_received_date,
       market_germination_result_date: body.market_germination_result_date,
@@ -50,7 +50,7 @@ export async function POST(
       market_mc_percent: body.market_mc_percent,
       market_genetic_purity_percent: body.market_genetic_purity_percent,
       market_result: body.market_result,
-      
+
       // Guard Sample
       guard_sample_received_date: body.guard_sample_received_date,
       guard_germination_result_date: body.guard_germination_result_date,
@@ -61,12 +61,13 @@ export async function POST(
       guard_mc_percent: body.guard_mc_percent,
       guard_genetic_purity_percent: body.guard_genetic_purity_percent,
       guard_result: body.guard_result,
-      
+
       // Additional
       lab_technician_name: body.lab_technician_name,
       testing_method: body.testing_method,
       notes: body.notes,
-      
+      evidence_files: body.evidence_files,
+
       updated_at: new Date().toISOString()
     };
 

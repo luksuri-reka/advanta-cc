@@ -78,6 +78,9 @@ export async function POST(
       investigation_conclusion: body.investigation_conclusion,
       root_cause_determination: body.root_cause_determination,
       long_term_corrective_action: body.long_term_corrective_action,
+      is_valid: body.is_valid,
+      validity_notes: body.validity_notes,
+      evidence_files: body.attachments,
       updated_at: new Date().toISOString()
     };
 

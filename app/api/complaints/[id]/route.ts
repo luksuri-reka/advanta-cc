@@ -6,19 +6,19 @@ import { SupabaseClient } from '@supabase/supabase-js';
 // --- HELPER: Mengambil Profil User ---
 async function getUserProfile(supabase: SupabaseClient, userId: string | null) {
   if (!userId) return null;
-  
+
   try {
     const { data, error } = await supabase
-      .from('user_complaint_profiles') 
+      .from('user_complaint_profiles')
       .select('user_id, full_name, department')
       .eq('user_id', userId)
       .maybeSingle();
-      
+
     if (error || !data) return null;
-    
+
     return {
       id: data.user_id,
-      name: data.full_name || 'Admin', 
+      name: data.full_name || 'Admin',
       department: data.department
     };
   } catch (err) {
@@ -73,12 +73,26 @@ export async function GET(
       .eq('complaint_id', id);
 
     // 6. Ambil Data Profil User Terkait
-    const [assignedTo, assignedBy, resolvedBy, escalatedBy, createdBy] = await Promise.all([
+    const [
+      assignedTo,
+      assignedBy,
+      resolvedBy,
+      escalatedBy,
+      createdBy,
+      assigneeObservasi,
+      assigneeInvestigasi1,
+      assigneeInvestigasi2,
+      assigneeLabTesting
+    ] = await Promise.all([
       getUserProfile(supabase, complaint.assigned_to),
       getUserProfile(supabase, complaint.assigned_by),
       getUserProfile(supabase, complaint.resolved_by),
       getUserProfile(supabase, complaint.escalated_by),
-      getUserProfile(supabase, complaint.created_by)
+      getUserProfile(supabase, complaint.created_by),
+      getUserProfile(supabase, complaint.assignee_observasi),
+      getUserProfile(supabase, complaint.assignee_investigasi_1),
+      getUserProfile(supabase, complaint.assignee_investigasi_2),
+      getUserProfile(supabase, complaint.assignee_lab_testing)
     ]);
 
     // 7. Gabungkan Semua Data
@@ -87,12 +101,16 @@ export async function GET(
       complaint_responses: responses || [],
       complaint_observations: observations || [],
       complaint_investigations: investigations || [],
-      complaint_lab_testing: labTesting || [], // 🔥 TAMBAHKAN INI
+      complaint_lab_testing: labTesting || [],
       assigned_to_user: assignedTo,
       assigned_by_user: assignedBy,
       resolved_by_user: resolvedBy,
       escalated_by_user: escalatedBy,
-      created_by_user: createdBy
+      created_by_user: createdBy,
+      assignee_observasi_user: assigneeObservasi,
+      assignee_investigasi_1_user: assigneeInvestigasi1,
+      assignee_investigasi_2_user: assigneeInvestigasi2,
+      assignee_lab_testing_user: assigneeLabTesting
     };
 
     return NextResponse.json({ success: true, data: enrichedData });
@@ -128,15 +146,15 @@ export async function DELETE(
 
     if (error) throw error;
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Complaint deleted successfully'
     });
 
   } catch (error: any) {
-    return NextResponse.json({ 
-      error: 'Internal server error', 
-      details: error.message 
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error.message
     }, { status: 500 });
   }
 }
@@ -165,16 +183,16 @@ export async function PATCH(
 
     if (error) throw error;
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       data,
-      message: 'Complaint updated successfully' 
+      message: 'Complaint updated successfully'
     });
 
   } catch (error: any) {
-    return NextResponse.json({ 
-      error: 'Failed to update', 
-      details: error.message 
+    return NextResponse.json({
+      error: 'Failed to update',
+      details: error.message
     }, { status: 500 });
   }
 }

@@ -40,7 +40,7 @@ export async function POST(
     const observationData = {
       complaint_id: id,
       observer_id: user?.id,
-      
+
       // --- FIELD BARU (Data Penanaman & Pembelian) ---
       planting_date: body.planting_date,
       label_expired_date: body.label_expired_date,
@@ -53,7 +53,7 @@ export async function POST(
       observer_name: body.observer_name,
       observer_position: body.observer_position,
       observation_date: body.observation_date,
-      
+
       // Field Germinasi
       is_germination_issue: body.is_germination_issue,
       germination_below_85: body.germination_below_85,
@@ -66,17 +66,18 @@ export async function POST(
       additional_seed_treatment: body.additional_seed_treatment,
       seed_soaking: body.seed_soaking,
       planting_depth_over_7cm: body.planting_depth_over_7cm,
-      
+
       // Field Bukti
       has_purchase_proof: body.has_purchase_proof,
       has_packaging_evidence: body.has_packaging_evidence,
-      
+      evidence_files: body.evidence_files,
+
       // Field Replacement & Result
       replacement_qty: body.replacement_qty ? parseInt(body.replacement_qty) : null,
       replacement_hybrid: body.replacement_hybrid,
       observation_result: body.observation_result,
       general_notes: body.general_notes,
-      
+
       updated_at: new Date().toISOString()
     };
 

@@ -1,10 +1,10 @@
 // app/complaint/ComplaintForm.tsx
 'use client';
 
-import { createBrowserClient } from '@supabase/ssr'; 
+import { createBrowserClient } from '@supabase/ssr';
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { 
+import {
   ExclamationTriangleIcon,
   PaperAirplaneIcon,
   ArrowLeftIcon,
@@ -21,9 +21,11 @@ import {
   ScaleIcon,
   CubeIcon,
   ChevronDownIcon,
-  SparklesIcon
+  SparklesIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { useDropzone } from 'react-dropzone';
 
 interface ComplaintFormData {
   customer_name: string;
@@ -44,6 +46,7 @@ interface ComplaintFormData {
   related_product_name?: string;
   lot_number: string;
   problematic_quantity: string;
+  attachments: string[];
 }
 
 interface CaseType {
@@ -86,7 +89,7 @@ interface Product {
 export default function ComplaintForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const [supabase] = useState(() =>
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,7 +101,7 @@ export default function ComplaintForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [complaintNumber, setComplaintNumber] = useState('');
-  
+
   const productId = searchParams?.get('product_id') || '';
   const serial = searchParams?.get('serial') || '';
   const lot = searchParams?.get('lot') || '';
@@ -106,28 +109,28 @@ export default function ComplaintForm() {
   const customerName = searchParams?.get('name') || '';
   const customerEmail = searchParams?.get('email') || '';
   const customerPhone = searchParams?.get('phone') || '';
-  
+
   const [productPhoto, setProductPhoto] = useState<string>('');
   const [photoLoading, setPhotoLoading] = useState(false);
   const [phoneError, setPhoneError] = useState('');
-  
+
   // 🔥 TAMBAHKAN: State untuk daftar produk & dropdown
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(productId);
-  
+
   const [categories, setCategories] = useState<ComplaintCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | ''>('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
   const [selectedCaseTypeIds, setSelectedCaseTypeIds] = useState<string[]>([]);
   const [categoryError, setCategoryError] = useState('');
-  
+
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [regencies, setRegencies] = useState<Regency[]>([]);
   const [availableRegencies, setAvailableRegencies] = useState<Regency[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(true);
-  
+
   const [formData, setFormData] = useState<ComplaintFormData>({
     customer_name: customerName,
     customer_email: customerEmail,
@@ -145,8 +148,9 @@ export default function ComplaintForm() {
     description: '',
     related_product_serial: serial,
     related_product_name: productNameQuery,
-    lot_number: lot, 
-    problematic_quantity: ''
+    lot_number: lot,
+    problematic_quantity: '',
+    attachments: []
   });
 
   const selectedCategory = categories.find(c => Number(c.id) === Number(selectedCategoryId));
@@ -160,7 +164,7 @@ export default function ComplaintForm() {
         .from('products')
         .select('id, name, photo')
         .order('name', { ascending: true });
-        
+
       if (data) {
         setAllProducts(data);
       }
@@ -232,7 +236,7 @@ export default function ComplaintForm() {
       const selectedNames = selectedCaseTypeIds
         .map(id => selectedSubCategory.caseTypes.find(ct => ct.id === id)?.name)
         .filter(Boolean) as string[];
-      
+
       setFormData(prev => ({
         ...prev,
         complaint_case_type_ids: selectedCaseTypeIds,
@@ -301,7 +305,7 @@ export default function ComplaintForm() {
   const handleSubCategoryChange = (subCategoryId: string) => {
     setSelectedSubCategoryId(subCategoryId);
     setSelectedCaseTypeIds([]);
-    
+
     const category = categories.find(c => Number(c.id) === Number(selectedCategoryId));
     const subCategory = category?.subCategories.find(s => s.id === subCategoryId);
 
@@ -339,10 +343,95 @@ export default function ComplaintForm() {
     setSelectedProductId(newProductId);
   };
 
+  // ++ FUNGSI KOMPRESI GAMBAR (CANVAS) ++
+  const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDimension = 800;
+
+          if (width > height) {
+            if (width > maxDimension) {
+              height *= maxDimension / width;
+              width = maxDimension;
+            }
+          } else {
+            if (height > maxDimension) {
+              width *= maxDimension / height;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) {
+            // Fallback if context fails
+            resolve(img.src);
+            return;
+          }
+
+          // Clear and fill with white background just in case (handles transparent PNGs)
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress to JPEG with 0.6 quality (60%)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  // ++ HANDLER UNTUK DRAG AND DROP FOTO ++
+  const onDrop = async (acceptedFiles: File[]) => {
+    setPhotoLoading(true);
+    try {
+      const compressedImages = await Promise.all(
+        acceptedFiles.map((file) => compressImage(file))
+      );
+
+      setFormData(prev => ({
+        ...prev,
+        attachments: [...prev.attachments, ...compressedImages]
+      }));
+    } catch (error) {
+      console.error('Error compressing images:', error);
+      alert('Gagal memproses gambar. Silakan coba file lain.');
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
+  const removeAttachment = (indexToRemove: number) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, idx) => idx !== indexToRemove)
+    }));
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.webp']
+    },
+    maxSize: 10 * 1024 * 1024, // 10MB limit per file sebelum dikompres
+  });
+
   // ++ FUNGSI VALIDASI NO HP ++
   const validatePhoneNumber = (phone: string) => {
     if (!/^[0-9+]+$/.test(phone)) return "Hanya boleh berisi angka";
-    
+
     // Cek Awalan (0, 62, atau +62)
     const validPrefix = /^(\+62|62|0)/.test(phone);
     if (!validPrefix) return "Nomor harus diawali 0, 62, atau +62";
@@ -364,14 +453,28 @@ export default function ComplaintForm() {
     }
   };
 
+  // ++ FUNGSI UBAH BASE64 KEMBALI KE FILE UNTUK DIUPLOAD ++
+  const base64ToFile = (base64String: string, filename: string): File => {
+    const arr = base64String.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+
+    return new File([u8arr], filename, { type: mime });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // ++ VALIDASI PHONE SEBELUM SUBMIT ++
     const pError = validatePhoneNumber(formData.customer_phone);
     if (pError) {
       setPhoneError(pError);
-      // Scroll ke input telepon agar user sadar ada error
       const phoneInput = document.querySelector('input[name="customer_phone"]');
       if (phoneInput) {
         phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -379,7 +482,7 @@ export default function ComplaintForm() {
       }
       return;
     }
-    
+
     if (!formData.complaint_category_id || !formData.complaint_subcategory_id) {
       setCategoryError('Silakan pilih kategori dan sub-kategori');
       return;
@@ -389,16 +492,56 @@ export default function ComplaintForm() {
       setCategoryError('Silakan pilih minimal 1 jenis masalah');
       return;
     }
-    
+
     setIsSubmitting(true);
 
     try {
+      // 🔥 PROSES UPLOAD GAMBAR KE SUPABASE STORAGE DULU 🔥
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < formData.attachments.length; i++) {
+        const attachment = formData.attachments[i];
+
+        // Cek jika formatnya base64 (gambar baru dari form)
+        if (attachment.startsWith('data:image/')) {
+          const file = base64ToFile(attachment, `complaint-${Date.now()}-${i}.jpg`);
+          const filePath = `complaint_images/${file.name}`; // Pastikan folder/bucket ini ada
+
+          // Upload ke Supabase Storage (Bucket bernama 'complaints')
+          const { error: uploadError } = await supabase.storage
+            .from('complaints')
+            .upload(filePath, file);
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            throw new Error('Gagal mengunggah gambar ke Storage');
+          }
+
+          // Ambil URL Publiknya
+          const { data: publicUrlData } = supabase.storage
+            .from('complaints')
+            .getPublicUrl(filePath);
+
+          uploadedUrls.push(publicUrlData.publicUrl);
+        } else {
+          // Jika sudah berupa URL (misal dari data sebelumnya), langsung push
+          uploadedUrls.push(attachment);
+        }
+      }
+
+      // Siapkan data final yang akan dikirim ke API (mengganti base64 dengan URL asli)
+      const finalDataToSubmit = {
+        ...formData,
+        attachments: uploadedUrls
+      };
+
+      // 🔥 KIRIM KE API ROUTE 🔥
       const response = await fetch('/api/complaints', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(finalDataToSubmit), // Gunakan data yang URL-nya sudah di-update
       });
 
       const result = await response.json();
@@ -420,13 +563,13 @@ export default function ComplaintForm() {
   const handleReportAnother = () => {
     setIsSubmitted(false);
     setComplaintNumber('');
-    
+
     setSelectedCategoryId('');
     setSelectedSubCategoryId('');
     setSelectedCaseTypeIds([]);
     setCategoryError('');
     setSelectedProductId(''); // 🔥 RESET selected product
-    
+
     setFormData(prev => ({
       ...prev,
       complaint_category_id: '',
@@ -438,7 +581,8 @@ export default function ComplaintForm() {
       subject: '',
       description: '',
       lot_number: '',
-      problematic_quantity: ''
+      problematic_quantity: '',
+      attachments: []
     }));
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -457,7 +601,7 @@ export default function ComplaintForm() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
-            
+
             <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 px-8 py-12 text-center">
               <div className="relative inline-block mb-6">
                 <CheckCircleIcon className="h-20 w-20 text-white mx-auto" />
@@ -477,9 +621,9 @@ export default function ComplaintForm() {
                   <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Nomor Komplain Anda:</span>
                   <span className="text-xl font-bold text-emerald-800 dark:text-emerald-200">{complaintNumber}</span>
                 </div>
-                
+
                 <p className="text-gray-600 dark:text-slate-300 mb-8 leading-relaxed">
-                  Komplain Anda telah diterima dan akan ditindaklanjuti oleh tim kami dalam waktu maksimal 24 jam. 
+                  Komplain Anda telah diterima dan akan ditindaklanjuti oleh tim kami dalam waktu maksimal 24 jam.
                   Anda akan mendapat email konfirmasi sebentar lagi.
                 </p>
               </div>
@@ -492,7 +636,7 @@ export default function ComplaintForm() {
                   <ChatBubbleLeftRightIcon className="h-5 w-5" />
                   Lacak Status
                 </Link>
-                
+
                 <Link
                   href="/"
                   className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 text-gray-700 dark:text-slate-200 font-semibold rounded-xl hover:from-gray-200 hover:to-gray-300 dark:hover:from-slate-600 dark:hover:to-slate-500 transition-all duration-300"
@@ -555,7 +699,7 @@ export default function ComplaintForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
-      
+
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -578,9 +722,9 @@ export default function ComplaintForm() {
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        
+
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/80 dark:border-slate-700/80 overflow-hidden">
-          
+
           <div className="bg-gradient-to-r from-red-500 to-orange-500 dark:from-red-600 dark:to-orange-600 px-8 py-12 text-center">
             <div className="relative inline-block mb-6">
               <ExclamationTriangleIcon className="h-16 w-16 text-white mx-auto" />
@@ -595,7 +739,7 @@ export default function ComplaintForm() {
 
           <form onSubmit={handleSubmit} className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
+
               {/* Left Column - Personal Info */}
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
@@ -645,13 +789,12 @@ export default function ComplaintForm() {
                       type="tel"
                       name="customer_phone"
                       value={formData.customer_phone}
-                      onChange={handlePhoneChange} 
+                      onChange={handlePhoneChange}
                       required
-                      className={`w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
-                        phoneError 
-                          ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-                          : 'border-gray-300 dark:border-slate-600 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400'
-                      }`}
+                      className={`w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500 ${phoneError
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                        : 'border-gray-300 dark:border-slate-600 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400'
+                        }`}
                       placeholder="Contoh: 081234567890"
                     />
                   </div>
@@ -741,19 +884,17 @@ export default function ComplaintForm() {
                       Pilih Produk
                       <span className="text-slate-400 text-xs">(Opsional)</span>
                     </label>
-                    
+
                     <div className="relative">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4 z-10">
-                        <div className={`p-1.5 rounded-lg transition-all duration-300 ${
-                          selectedProductId 
-                            ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20' 
-                            : 'bg-slate-100 dark:bg-slate-800'
-                        }`}>
-                          <CubeIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${
-                            selectedProductId 
-                              ? 'text-emerald-600 dark:text-emerald-400 scale-110' 
-                              : 'text-slate-400'
-                          }`} />
+                        <div className={`p-1.5 rounded-lg transition-all duration-300 ${selectedProductId
+                          ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20'
+                          : 'bg-slate-100 dark:bg-slate-800'
+                          }`}>
+                          <CubeIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${selectedProductId
+                            ? 'text-emerald-600 dark:text-emerald-400 scale-110'
+                            : 'text-slate-400'
+                            }`} />
                         </div>
                       </div>
 
@@ -763,18 +904,17 @@ export default function ComplaintForm() {
                           value={selectedProductId}
                           onChange={handleProductChange}
                           disabled={productsLoading}
-                          className={`block w-full rounded-xl sm:rounded-2xl border-2 py-3.5 sm:py-4 pl-14 sm:pl-16 pr-12 text-sm sm:text-base font-medium transition-all duration-300 appearance-none cursor-pointer ${
-                            selectedProductId
-                              ? 'text-slate-900 dark:text-slate-100 bg-gradient-to-r from-white to-emerald-50/50 dark:from-slate-900 dark:to-emerald-950/30 border-emerald-500 dark:border-emerald-600 ring-4 ring-emerald-500/10 shadow-xl shadow-emerald-500/20'
-                              : 'text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 shadow-lg hover:shadow-xl'
-                          } focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:border-emerald-400 focus:scale-[1.01] disabled:opacity-60 disabled:cursor-not-allowed`}
+                          className={`block w-full rounded-xl sm:rounded-2xl border-2 py-3.5 sm:py-4 pl-14 sm:pl-16 pr-12 text-sm sm:text-base font-medium transition-all duration-300 appearance-none cursor-pointer ${selectedProductId
+                            ? 'text-slate-900 dark:text-slate-100 bg-gradient-to-r from-white to-emerald-50/50 dark:from-slate-900 dark:to-emerald-950/30 border-emerald-500 dark:border-emerald-600 ring-4 ring-emerald-500/10 shadow-xl shadow-emerald-500/20'
+                            : 'text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 shadow-lg hover:shadow-xl'
+                            } focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:border-emerald-400 focus:scale-[1.01] disabled:opacity-60 disabled:cursor-not-allowed`}
                         >
                           <option value="" className="text-slate-400">
                             {productsLoading ? '⏳ Memuat produk...' : '🌱 Pilih produk (opsional)'}
                           </option>
                           {allProducts.map((product) => (
-                            <option 
-                              key={product.id} 
+                            <option
+                              key={product.id}
                               value={product.id.toString()}
                               className="text-slate-900 dark:text-slate-100 py-2"
                             >
@@ -784,16 +924,14 @@ export default function ComplaintForm() {
                         </select>
 
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4">
-                          <div className={`p-1.5 rounded-lg transition-all duration-300 ${
-                            selectedProductId 
-                              ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20' 
-                              : 'bg-slate-100 dark:bg-slate-800'
-                          }`}>
-                            <ChevronDownIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${
-                              selectedProductId 
-                                ? 'text-emerald-600 dark:text-emerald-400' 
-                                : 'text-slate-400'
-                            }`} />
+                          <div className={`p-1.5 rounded-lg transition-all duration-300 ${selectedProductId
+                            ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20'
+                            : 'bg-slate-100 dark:bg-slate-800'
+                            }`}>
+                            <ChevronDownIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${selectedProductId
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-slate-400'
+                              }`} />
                           </div>
                         </div>
 
@@ -817,15 +955,13 @@ export default function ComplaintForm() {
                       )}
                     </div>
 
-                    <div className={`mt-2 sm:mt-3 transition-all duration-300 ${
-                      selectedProductId ? 'opacity-100 translate-y-0' : 'opacity-70 translate-y-1'
-                    }`}>
+                    <div className={`mt-2 sm:mt-3 transition-all duration-300 ${selectedProductId ? 'opacity-100 translate-y-0' : 'opacity-70 translate-y-1'
+                      }`}>
                       <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                        <SparklesIcon className={`w-3 h-3 transition-all duration-300 ${
-                          selectedProductId ? 'text-emerald-500 animate-pulse' : 'text-slate-400'
-                        }`} />
+                        <SparklesIcon className={`w-3 h-3 transition-all duration-300 ${selectedProductId ? 'text-emerald-500 animate-pulse' : 'text-slate-400'
+                          }`} />
                         <span>
-                          {selectedProductId 
+                          {selectedProductId
                             ? `Produk dipilih - ${allProducts.find(p => p.id.toString() === selectedProductId)?.name || ''}`
                             : 'Pilih produk yang ingin dikomplain (opsional)'
                           }
@@ -840,20 +976,20 @@ export default function ComplaintForm() {
                   <div className="relative bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-900/20 dark:via-slate-800 dark:to-emerald-900/10 rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 dark:border-emerald-800 shadow-lg hover:shadow-xl transition-all duration-300">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/10 to-transparent rounded-bl-full"></div>
                     <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-emerald-400/10 to-transparent rounded-tr-full"></div>
-                    
+
                     <div className="relative z-10">
                       <h4 className="text-lg sm:text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4 flex items-center gap-2">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                         Produk Terkait
                       </h4>
-                      
+
                       {photoLoading ? (
                         <div className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse rounded-2xl mb-4 shadow-inner"></div>
                       ) : productPhoto ? (
                         <div className="group relative w-full mb-4 rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-xl hover:shadow-2xl transition-all duration-300 border-2 border-emerald-300 dark:border-emerald-700 hover:border-emerald-400 dark:hover:border-emerald-600">
                           <div className="relative aspect-[4/3] sm:aspect-video w-full">
-                            <img 
-                              src={productPhoto} 
+                            <img
+                              src={productPhoto}
                               alt={formData.related_product_name || 'Produk'}
                               className="absolute inset-0 w-full h-full object-contain p-4 sm:p-6 transition-transform duration-300 group-hover:scale-105"
                             />
@@ -872,7 +1008,7 @@ export default function ComplaintForm() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="space-y-3 bg-white/50 dark:bg-slate-900/30 rounded-xl p-4 backdrop-blur-sm border border-emerald-100 dark:border-emerald-900">
                         {formData.related_product_name && (
                           <div className="flex items-start gap-3">
@@ -980,20 +1116,19 @@ export default function ComplaintForm() {
                               </span>
                             </span>
                           </label>
-                          
+
                           <p className="text-xs text-purple-600 dark:text-purple-400 mb-3">
                             Pilih semua masalah yang Anda alami (bisa lebih dari 1):
                           </p>
 
                           <div className="space-y-2 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                             {selectedSubCategory?.caseTypes.map((caseType) => (
-                              <label 
+                              <label
                                 key={caseType.id}
-                                className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                                  selectedCaseTypeIds.includes(caseType.id)
-                                    ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-400 dark:border-purple-600 shadow-md'
-                                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:border-purple-300 dark:hover:border-purple-700'
-                                }`}
+                                className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedCaseTypeIds.includes(caseType.id)
+                                  ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-400 dark:border-purple-600 shadow-md'
+                                  : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:border-purple-300 dark:hover:border-purple-700'
+                                  }`}
                               >
                                 <input
                                   type="checkbox"
@@ -1040,7 +1175,7 @@ export default function ComplaintForm() {
                             </svg>
                             Ringkasan Kategori:
                           </p>
-                          
+
                           {/* Path */}
                           <div className="flex items-center gap-2 flex-wrap mb-4">
                             <span className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold shadow-sm">
@@ -1064,7 +1199,7 @@ export default function ComplaintForm() {
                               {selectedCaseTypeIds.map(id => {
                                 const caseType = selectedSubCategory?.caseTypes.find(ct => ct.id === id);
                                 return (
-                                  <span 
+                                  <span
                                     key={id}
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 rounded-lg text-xs font-semibold shadow-sm"
                                   >
@@ -1158,6 +1293,76 @@ export default function ComplaintForm() {
                     placeholder="Jelaskan masalah Anda secara detail. Sertakan informasi seperti kapan masalah terjadi, langkah-langkah yang sudah dilakukan, dan dampak yang dialami."
                   />
                 </div>
+
+                {/* 🔥 UPLOAD LAMPIRAN (FOTO/BUKTI) 🔥 */}
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                    Lampiran Foto / Bukti <span className="text-slate-400 font-normal">(Opsional)</span>
+                  </label>
+                  <p className="text-xs text-slate-500 mb-3 block">
+                    Unggah foto pendukung. Gambar akan dikompresi otomatis untuk menghemat kuota.
+                  </p>
+
+                  <div
+                    {...getRootProps()}
+                    className={`relative w-full rounded-2xl border-2 border-dashed p-6 text-center transition-all cursor-pointer ${isDragActive
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                      : 'border-slate-300 dark:border-slate-600 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}
+                  >
+                    <input {...getInputProps()} />
+
+                    {photoLoading ? (
+                      <div className="flex flex-col items-center justify-center space-y-3 py-4">
+                        <div className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
+                        <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 animate-pulse">
+                          Memproses & Mengkompresi gambar...
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center space-y-3 py-2">
+                        <div className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-full">
+                          <PhotoIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            Pilih gambar atau tarik ke sini
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Maks. 10MB per file (Otomatis diringkas)
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* PREVIEW LAMPIRAN */}
+                  {formData.attachments.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                      {formData.attachments.map((imgSrc, idx) => (
+                        <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-[4/3]">
+                          <img
+                            src={imgSrc}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeAttachment(idx);
+                              }}
+                              className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transform scale-0 group-hover:scale-100 transition-transform"
+                            >
+                              <XMarkIcon className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1167,7 +1372,7 @@ export default function ComplaintForm() {
                 <p className="text-sm text-gray-600 dark:text-slate-400">
                   Dengan mengirim formulir ini, Anda menyetujui bahwa informasi yang diberikan akurat dan dapat diverifikasi.
                 </p>
-                
+
                 <button
                   type="submit"
                   disabled={isSubmitting}

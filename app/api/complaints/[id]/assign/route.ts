@@ -16,32 +16,13 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { admin_id, department, notes } = body;
-
-    if (!admin_id) {
-      return NextResponse.json({ 
-        error: 'admin_id is required' 
-      }, { status: 400 });
-    }
-    if (!department) {
-      return NextResponse.json({ 
-        error: 'department is required' 
-      }, { status: 400 });
-    }
-
-    // Validate target user exists and is active
-    const { data: targetUser, error: userCheckError } = await supabase
-      .from('user_complaint_profiles')
-      .select('*')
-      .eq('user_id', admin_id)
-      .eq('is_active', true)
-      .single();
-
-    if (userCheckError || !targetUser) {
-      return NextResponse.json({ 
-        error: 'Target user not found or inactive' 
-      }, { status: 404 });
-    }
+    const {
+      assignee_observasi,
+      assignee_investigasi_1,
+      assignee_investigasi_2,
+      assignee_lab_testing,
+      notes
+    } = body;
 
     // Get current complaint data
     const { data: complaint, error: complaintError } = await supabase
@@ -51,77 +32,77 @@ export async function POST(
       .single();
 
     if (complaintError || !complaint) {
-      return NextResponse.json({ 
-        error: 'Complaint not found' 
+      return NextResponse.json({
+        error: 'Complaint not found'
       }, { status: 404 });
     }
 
-    const previousAssignee = complaint.assigned_to;
-
-    // Tentukan status baru berdasarkan department
+    // Tentukan status baru. Jika kita menugaskan ke departemen investigasi/lab, prioritas status adalah investigation.
+    // Jika hanya menugaskan observasi, statusnya observation. Jika belum diakui, status tidak berubah dari logika sini.
     let newStatus = complaint.status;
-    
-    if (department === 'observasi' && complaint.status === 'acknowledged') {
-      newStatus = 'observation';
-    } else if ((department === 'investigasi_1' || department === 'investigasi_2' || department === 'lab_tasting') 
-               && (complaint.status === 'observation' || complaint.status === 'acknowledged')) {
-      newStatus = 'investigation';
+
+    if (assignee_investigasi_1 || assignee_investigasi_2 || assignee_lab_testing) {
+      if (complaint.status === 'observation' || complaint.status === 'acknowledged') {
+        newStatus = 'investigation';
+      }
+    } else if (assignee_observasi) {
+      if (complaint.status === 'acknowledged') {
+        newStatus = 'observation';
+      }
     }
 
-    // Update complaint dengan department dan status
+    const payload: any = {
+      assigned_at: new Date().toISOString(),
+      assigned_by: user.id,
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    if (assignee_observasi !== undefined) payload.assignee_observasi = assignee_observasi || null;
+    if (assignee_investigasi_1 !== undefined) payload.assignee_investigasi_1 = assignee_investigasi_1 || null;
+    if (assignee_investigasi_2 !== undefined) payload.assignee_investigasi_2 = assignee_investigasi_2 || null;
+    if (assignee_lab_testing !== undefined) payload.assignee_lab_testing = assignee_lab_testing || null;
+
+    // Hapus logika single assignee_to dan department
+    // Update complaint
     const { error: updateError } = await supabase
       .from('complaints')
-      .update({
-        assigned_to: admin_id,
-        assigned_at: new Date().toISOString(),
-        assigned_by: user.id,
-        department: department,
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update(payload)
       .eq('id', id);
 
     if (updateError) {
       console.error('Update error:', updateError);
-      return NextResponse.json({ 
-        error: 'Failed to assign complaint' 
+      return NextResponse.json({
+        error: 'Failed to assign complaint'
       }, { status: 500 });
     }
 
-    // Deactivate previous assignment if exists
-    if (previousAssignee) {
+    // Log the assignment (Minimal mapping for manual tracking if needed)
+    const validAssignees = [
+      assignee_observasi,
+      assignee_investigasi_1,
+      assignee_investigasi_2,
+      assignee_lab_testing
+    ].filter(Boolean);
+
+    if (validAssignees.length > 0) {
       await supabase
         .from('complaint_assignments')
-        .update({ 
-          is_active: false,
-          unassigned_at: new Date().toISOString(),
-          unassigned_by: user.id
-        })
-        .eq('complaint_id', id)
-        .eq('is_active', true);
+        .insert({
+          complaint_id: parseInt(id),
+          assigned_to: validAssignees[0], // Menyimpan satu dari mereka untuk legacy fallback
+          assigned_by: user.id,
+          assignment_reason: notes || 'Manual multi-department assignment by admin',
+          is_active: true
+        });
     }
 
-    // Log new assignment
-    await supabase
-      .from('complaint_assignments')
-      .insert({
-        complaint_id: parseInt(id),
-        assigned_to: admin_id,
-        assigned_by: user.id,
-        assignment_reason: notes || 'Manual assignment by admin',
-        previous_assignee: previousAssignee,
-        is_active: true
-      });
-
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       data: {
-        assigned_to: targetUser.full_name,
-        department: department,
         new_status: newStatus,
-        previous_assignee: previousAssignee
       },
-      message: 'Complaint assigned successfully'
+      message: 'Complaint assigned to multiple departments successfully'
     });
 
   } catch (error: any) {

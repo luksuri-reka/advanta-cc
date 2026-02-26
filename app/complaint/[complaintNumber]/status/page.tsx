@@ -52,6 +52,7 @@ interface Complaint {
   // 🔥 BARU: Definisi Field Baru di Interface
   lot_number?: string;
   problematic_quantity?: string;
+  attachments?: string[];
 
   complaint_observations?: any[];
 
@@ -84,7 +85,7 @@ const getStatusTimeline = (currentStatus: string) => {
   ];
 
   let currentIndex = timeline.findIndex(item => item.status === currentStatus);
-  
+
   if (currentIndex === -1) {
     if (currentStatus === 'investigating') {
       currentIndex = timeline.findIndex(item => item.status === 'investigation');
@@ -145,14 +146,14 @@ const formatDateTimeFull = (dateString?: string) => {
 
 const formatSla = (intervalString?: string) => {
   if (!intervalString) return 'Tidak Ditentukan';
-  
+
   // Format interval PostgreSQL 'HH:MM:SS' menjadi jam dan menit
   const parts = intervalString.split(':');
   if (parts.length < 3) return intervalString;
-  
+
   const hours = parseInt(parts[0], 10);
   const minutes = parseInt(parts[1], 10);
-  
+
   let result = '';
   if (hours > 0) {
     result += `${hours} Jam`;
@@ -184,8 +185,8 @@ export default function ComplaintStatusPage() {
   const [showDetailFeedback, setShowDetailFeedback] = useState(false);
 
   const toggleQuickAnswer = (answer: string) => {
-    setQuickAnswers(prev => 
-      prev.includes(answer) 
+    setQuickAnswers(prev =>
+      prev.includes(answer)
         ? prev.filter(a => a !== answer)
         : [...prev, answer]
     );
@@ -193,7 +194,7 @@ export default function ComplaintStatusPage() {
 
   const handleSubmitFeedback = async () => {
     if (tempRating === 0 || !complaint) return;
-    
+
     setIsSubmittingFeedback(true);
     try {
       const response = await fetch(`/api/complaints/${complaint.id}/feedback`, {
@@ -234,19 +235,19 @@ export default function ComplaintStatusPage() {
     setError(null);
     try {
       const response = await fetch(`/api/complaints?complaint_number=${complaintNumber}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || 'Komplain tidak ditemukan.');
       }
-      
+
       const data = await response.json();
-      
+
       if (!data.data || data.data.length === 0) {
         throw new Error('Detail komplain tidak ditemukan.');
       }
-      setComplaint(data.data[0]); 
-      
+      setComplaint(data.data[0]);
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -262,7 +263,7 @@ export default function ComplaintStatusPage() {
 
   const handlePostResponse = async () => {
     if (!responseMessage.trim() || !complaint) return;
-    
+
     setIsSending(true);
     try {
       const response = await fetch(`/api/complaints/${complaint.id}/responses`, {
@@ -273,7 +274,7 @@ export default function ComplaintStatusPage() {
         body: JSON.stringify({
           message: responseMessage,
           admin_id: null,
-          admin_name: null, 
+          admin_name: null,
           is_internal: false
         }),
       });
@@ -292,7 +293,7 @@ export default function ComplaintStatusPage() {
         },
       });
       setResponseMessage('');
-      loadComplaint(); 
+      loadComplaint();
 
     } catch (error: any) {
       console.error('Error posting response:', error);
@@ -382,7 +383,7 @@ export default function ComplaintStatusPage() {
       <main className="max-w-4xl mx-auto px-6 py-8">
         {complaint && (
           <div className="space-y-8">
-            
+
             {/* Status Card Premium */}
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-600 to-blue-600 rounded-3xl blur opacity-20 group-hover:opacity-30 transition duration-500"></div>
@@ -405,7 +406,7 @@ export default function ComplaintStatusPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Timeline */}
                   <div className="relative overflow-x-auto pb-4">
                     <div className="min-w-[600px]">
@@ -417,8 +418,8 @@ export default function ComplaintStatusPage() {
                               <div className={`
                                 w-10 h-10 rounded-full text-xl flex items-center justify-center mx-auto
                                 transition-all duration-500 transform hover:scale-110
-                                ${item.isCompleted || item.isCurrent 
-                                  ? 'bg-gradient-to-br from-emerald-500 to-blue-500 text-white shadow-lg shadow-emerald-500/50' 
+                                ${item.isCompleted || item.isCurrent
+                                  ? 'bg-gradient-to-br from-emerald-500 to-blue-500 text-white shadow-lg shadow-emerald-500/50'
                                   : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}
                                 ${item.isCurrent ? 'ring-4 ring-emerald-300 dark:ring-emerald-500/50 animate-pulse' : ''}
                               `}>
@@ -427,8 +428,8 @@ export default function ComplaintStatusPage() {
                             </div>
                             <div className={`
                               text-xs font-bold transition-colors duration-300
-                              ${item.isCompleted || item.isCurrent 
-                                ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600' 
+                              ${item.isCompleted || item.isCurrent
+                                ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600'
                                 : 'text-gray-500 dark:text-gray-400'}
                             `}>
                               {item.label}
@@ -444,8 +445,8 @@ export default function ComplaintStatusPage() {
 
             {/* Observation Summary Card */}
             {complaint.complaint_observations && complaint.complaint_observations.length > 0 && (
-              <ObservationSummaryCard 
-                data={complaint.complaint_observations[0]} 
+              <ObservationSummaryCard
+                data={complaint.complaint_observations[0]}
               />
             )}
 
@@ -474,7 +475,7 @@ export default function ComplaintStatusPage() {
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="relative">
                       <textarea
                         value={responseMessage}
@@ -498,7 +499,7 @@ export default function ComplaintStatusPage() {
                         <PaperAirplaneIcon className="h-6 w-6" />
                       </div>
                     </div>
-                    
+
                     <div className="mt-6 flex justify-end">
                       <button
                         onClick={handlePostResponse}
@@ -543,7 +544,7 @@ export default function ComplaintStatusPage() {
                         .filter(response => !response.is_internal)
                         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                         .map((response) => {
-                          
+
                           // Customer Response (ANDA)
                           if (!response.admin_name) {
                             return (
@@ -666,7 +667,7 @@ export default function ComplaintStatusPage() {
                       <dd className="text-base font-semibold text-gray-900 dark:text-white">{complaint.customer_email || '-'}</dd>
                     </div>
                     <div className="p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
-      
+
                       <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">WhatsApp</dt>
                       <dd className="text-base font-semibold text-gray-900 dark:text-white">{complaint.customer_phone || '-'}</dd>
                     </div>
@@ -687,7 +688,7 @@ export default function ComplaintStatusPage() {
                         </dd>
                       </div>
                     )}
-                    
+
                     {/* 🔥 BARU: Alamat Detail */}
                     {complaint.customer_address && (
                       <div className="sm:col-span-2 p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-800">
@@ -714,7 +715,7 @@ export default function ComplaintStatusPage() {
                           SLA Respons Awal
                         </dt>
                         <dd className="text-base font-bold text-yellow-900 dark:text-yellow-300">
-                          {complaint.first_response_at 
+                          {complaint.first_response_at
                             ? `Sudah direspons (${formatDateTimeFull(complaint.first_response_at)})`
                             : `Maks. ${formatSla(complaint.first_response_sla)}`}
                         </dd>
@@ -783,66 +784,66 @@ export default function ComplaintStatusPage() {
                     )}
 
                     {(complaint.complaint_category_name || complaint.complaint_subcategory_name || (complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0)) && (
-                    <div className="sm:col-span-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
-                        Kategori Komplain {complaint.related_product_name && `- Produk ${complaint.related_product_name}`}
-                      </dt>
-                      <dd className="space-y-3">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {complaint.complaint_category_name && (
-                            <>
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold shadow-sm">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                </svg>
-                                {complaint.complaint_category_name}
-                              </span>
-                              {complaint.complaint_subcategory_name && (
-                                <>
-                                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      <div className="sm:col-span-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                          Kategori Komplain {complaint.related_product_name && `- Produk ${complaint.related_product_name}`}
+                        </dt>
+                        <dd className="space-y-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {complaint.complaint_category_name && (
+                              <>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-lg text-sm font-bold shadow-sm">
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                                   </svg>
-                                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg text-sm font-bold shadow-sm">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                    </svg>
-                                    {complaint.complaint_subcategory_name}
-                                  </span>
-                                </>
-                              )}
-                            </>
-                          )}
-                        </div>
-
-                        {complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0 && (
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
-                              <svg className="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                              </svg>
-                              Jenis Masalah ({complaint.complaint_case_type_names.length}):
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {complaint.complaint_case_type_names.map((caseTypeName, index) => (
-                                <span 
-                                  key={index}
-                                  className="group inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/50 dark:to-pink-900/50 text-purple-800 dark:text-purple-300 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-300 border-2 border-purple-200 dark:border-purple-800 hover:scale-105"
-                                >
-                                  <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                  </svg>
-                                  {caseTypeName}
+                                  {complaint.complaint_category_name}
                                 </span>
-                              ))}
-                            </div>
+                                {complaint.complaint_subcategory_name && (
+                                  <>
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg text-sm font-bold shadow-sm">
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                      </svg>
+                                      {complaint.complaint_subcategory_name}
+                                    </span>
+                                  </>
+                                )}
+                              </>
+                            )}
                           </div>
-                        )}
-                      </dd>
-                    </div>
-                  )}
+
+                          {complaint.complaint_case_type_names && complaint.complaint_case_type_names.length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
+                                <svg className="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                Jenis Masalah ({complaint.complaint_case_type_names.length}):
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {complaint.complaint_case_type_names.map((caseTypeName, index) => (
+                                  <span
+                                    key={index}
+                                    className="group inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/50 dark:to-pink-900/50 text-purple-800 dark:text-purple-300 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-300 border-2 border-purple-200 dark:border-purple-800 hover:scale-105"
+                                  >
+                                    <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                    {caseTypeName}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </dd>
+                      </div>
+                    )}
 
                     <div className="sm:col-span-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Subjek</dt>
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Subjek</dt>
                       <dd className="text-base font-bold text-gray-900 dark:text-white">{complaint.subject}</dd>
                     </div>
                     <div className="sm:col-span-2 p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
@@ -851,6 +852,45 @@ export default function ComplaintStatusPage() {
                         {complaint.description}
                       </dd>
                     </div>
+
+                    {/* FOTO/GAMBAR LAMPIRAN */}
+                    {complaint.attachments && complaint.attachments.length > 0 && (
+                      <div className="sm:col-span-2 p-4 bg-gray-50/50 dark:bg-gray-700/20 rounded-2xl">
+                        <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Foto/Gambar Terlampir
+                        </dt>
+                        <dd className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                          {complaint.attachments.map((url, index) => {
+                            // Cek jika gambar adalah versi URL atau versi base64 just in case
+                            const isBase64Image = url.startsWith('data:image/');
+                            // Use our new proxy API to mask the Supabase URL
+                            const displayUrl = isBase64Image ? url : `/api/public/images?url=${btoa(url)}`;
+
+                            return (
+                              <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-square shadow-sm hover:shadow-md transition-all">
+                                <img
+                                  src={displayUrl}
+                                  alt={`Lampiran ${index + 1}`}
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 bg-white dark:bg-gray-900"
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                                  <a
+                                    href={displayUrl}
+                                    {...(isBase64Image ? { download: `lampiran-${complaint.complaint_number}-${index + 1}.jpg` } : { target: "_blank", rel: "noopener noreferrer" })}
+                                    className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg border border-white/30"
+                                  >
+                                    {isBase64Image ? 'Unduh Gambar' : 'Lihat Penuh'}
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </dd>
+                      </div>
+                    )}
                   </dl>
                 </div>
               </div>
@@ -861,7 +901,7 @@ export default function ComplaintStatusPage() {
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl blur opacity-30 group-hover:opacity-40 transition duration-500 animate-pulse"></div>
                 <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-yellow-400/50 dark:border-yellow-600/50 overflow-hidden">
-                  
+
                   <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500 p-4 text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">
                       <StarIcon className="h-5 w-5 text-white" />
@@ -900,21 +940,19 @@ export default function ComplaintStatusPage() {
                               setTempRating(star);
                               setShowDetailFeedback(true);
                             }}
-                            className={`transition-all duration-300 hover:scale-125 ${
-                              tempRating >= star ? 'drop-shadow-lg' : ''
-                            }`}
-                          >
-                            <StarIcon 
-                              className={`h-12 w-12 transition-colors ${
-                                tempRating >= star 
-                                  ? 'text-yellow-400 fill-yellow-400' 
-                                  : 'text-gray-300 dark:text-gray-600 hover:text-yellow-200'
+                            className={`transition-all duration-300 hover:scale-125 ${tempRating >= star ? 'drop-shadow-lg' : ''
                               }`}
+                          >
+                            <StarIcon
+                              className={`h-12 w-12 transition-colors ${tempRating >= star
+                                ? 'text-yellow-400 fill-yellow-400'
+                                : 'text-gray-300 dark:text-gray-600 hover:text-yellow-200'
+                                }`}
                             />
                           </button>
                         ))}
                       </div>
-                      
+
                       {tempRating > 0 && (
                         <div className="text-center mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-xl">
                           <p className="text-lg font-bold">
@@ -941,11 +979,10 @@ export default function ComplaintStatusPage() {
                                 <button
                                   key={option}
                                   onClick={() => toggleQuickAnswer(option)}
-                                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                                    quickAnswers.includes(option)
-                                      ? 'bg-red-600 text-white shadow-lg scale-105'
-                                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-2 border-red-200 dark:border-red-800'
-                                  }`}
+                                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${quickAnswers.includes(option)
+                                    ? 'bg-red-600 text-white shadow-lg scale-105'
+                                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-2 border-red-200 dark:border-red-800'
+                                    }`}
                                 >
                                   {quickAnswers.includes(option) && '✓ '}
                                   {option}
@@ -966,11 +1003,10 @@ export default function ComplaintStatusPage() {
                                 <button
                                   key={option}
                                   onClick={() => toggleQuickAnswer(option)}
-                                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                                    quickAnswers.includes(option)
-                                      ? 'bg-yellow-600 text-white shadow-lg scale-105'
-                                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-800'
-                                  }`}
+                                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${quickAnswers.includes(option)
+                                    ? 'bg-yellow-600 text-white shadow-lg scale-105'
+                                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-800'
+                                    }`}
                                 >
                                   {quickAnswers.includes(option) && '✓ '}
                                   {option}
@@ -991,11 +1027,10 @@ export default function ComplaintStatusPage() {
                                 <button
                                   key={option}
                                   onClick={() => toggleQuickAnswer(option)}
-                                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                                    quickAnswers.includes(option)
-                                      ? 'bg-green-600 text-white shadow-lg scale-105'
-                                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-100 dark:hover:bg-green-900/30 border-2 border-green-200 dark:border-green-800'
-                                  }`}
+                                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${quickAnswers.includes(option)
+                                    ? 'bg-green-600 text-white shadow-lg scale-105'
+                                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-100 dark:hover:bg-green-900/30 border-2 border-green-200 dark:border-green-800'
+                                    }`}
                                 >
                                   {quickAnswers.includes(option) && '✓ '}
                                   {option}
@@ -1076,18 +1111,17 @@ export default function ComplaintStatusPage() {
                         Feedback Anda
                       </h3>
                     </div>
-                    
+
                     <div className="mb-6">
                       <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">Rating Kepuasan</dt>
                       <dd className="flex items-center gap-2">
                         {[...Array(5)].map((_, i) => (
                           <StarIcon
                             key={i}
-                            className={`h-8 w-8 transition-all duration-300 ${
-                              i < (complaint.customer_satisfaction_rating || 0)
-                                ? 'text-yellow-400 fill-yellow-400 drop-shadow-lg'
-                                : 'text-gray-300 dark:text-gray-600'
-                            }`}
+                            className={`h-8 w-8 transition-all duration-300 ${i < (complaint.customer_satisfaction_rating || 0)
+                              ? 'text-yellow-400 fill-yellow-400 drop-shadow-lg'
+                              : 'text-gray-300 dark:text-gray-600'
+                              }`}
                           />
                         ))}
                         <span className="ml-2 text-2xl font-bold text-gray-900 dark:text-white">
