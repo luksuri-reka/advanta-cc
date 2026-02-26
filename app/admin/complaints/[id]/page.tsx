@@ -65,6 +65,8 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
   ].filter(Boolean);
 
   const isAssignedToMe = activeAssignees.includes(userId);
+  const isSuperAdmin = user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin');
+  const isManagement = user?.department === 'management';
 
   const handleQuickStatus = async (newStatus: string, message?: string) => {
     setUpdating(true);
@@ -211,9 +213,10 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
               {(userId === complaint.assignee_investigasi_1 ||
                 userId === complaint.assignee_investigasi_2 ||
                 userId === complaint.assignee_lab_testing ||
-                complaint.department === 'investigasi_1' ||
-                complaint.department === 'investigasi_2' ||
-                complaint.department === 'lab_testing') && (
+                complaint.department?.startsWith('investigasi') ||
+                complaint.department?.startsWith('lab') ||
+                isSuperAdmin ||
+                isManagement) && (
                   <button
                     onClick={() => handleQuickStatus('investigation', 'Tim investigasi telah memulai pengujian dan analisis mendalam.')}
                     disabled={updating}
@@ -231,7 +234,7 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
           {complaint.status === 'investigation' && (
             <>
               <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(userId === complaint.assignee_investigasi_1 || userId === complaint.assignee_investigasi_2 || complaint.department?.startsWith('investigasi')) && (
+                {(userId === complaint.assignee_investigasi_1 || userId === complaint.assignee_investigasi_2 || complaint.department?.startsWith('investigasi') || isSuperAdmin || isManagement) && (
                   <Link
                     href={`/admin/complaints/${complaint.id}/investigation`}
                     className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${complaint.complaint_investigations && complaint.complaint_investigations.length > 0
@@ -248,8 +251,7 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
                     </span>
                   </Link>
                 )}
-
-                {(userId === complaint.assignee_lab_testing || complaint.department === 'lab_testing') && (
+                {(userId === complaint.assignee_lab_testing || complaint.department?.startsWith('lab') || isSuperAdmin || isManagement) && (
                   <Link
                     href={`/admin/complaints/${complaint.id}/lab-testing`}
                     className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
@@ -285,86 +287,88 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
         <p className="text-xs text-gray-600 dark:text-gray-400 mt-4 text-center">
           Gunakan tombol ini untuk update status dengan cepat
         </p>
-      </div>
+      </div >
 
       {/* 🔥 MODAL DIRECT REPLACEMENT */}
-      {showReplacementModal && (
-        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Direct Replacement Proposal</h3>
-              <button
-                onClick={() => setShowReplacementModal(false)}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <InformationCircleIcon className="h-5 w-5 inline mr-2" />
-                  Tentukan usulan penggantian benih untuk komplain ini. Data ini akan ditampilkan ke customer.
-                </p>
+      {
+        showReplacementModal && (
+          <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Direct Replacement Proposal</h3>
+                <button
+                  onClick={() => setShowReplacementModal(false)}
+                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Quantity <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={replacementQty}
-                  onChange={(e) => setReplacementQty(e.target.value)}
-                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
-                  placeholder="Jumlah unit"
-                  min="1"
-                />
+              <div className="p-6 space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <InformationCircleIcon className="h-5 w-5 inline mr-2" />
+                    Tentukan usulan penggantian benih untuk komplain ini. Data ini akan ditampilkan ke customer.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Quantity <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={replacementQty}
+                    onChange={(e) => setReplacementQty(e.target.value)}
+                    className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
+                    placeholder="Jumlah unit"
+                    min="1"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Hybrid / Varietas <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={replacementHybrid}
+                    onChange={(e) => setReplacementHybrid(e.target.value)}
+                    className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
+                    placeholder="Nama varietas hybrid"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Hybrid / Varietas <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={replacementHybrid}
-                  onChange={(e) => setReplacementHybrid(e.target.value)}
-                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
-                  placeholder="Nama varietas hybrid"
-                />
+              <div className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowReplacementModal(false)}
+                  className="px-6 py-3 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleAcknowledgeWithReplacement}
+                  disabled={updating || !replacementQty || !replacementHybrid}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {updating ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <CheckIcon className="h-5 w-5" />
+                      Konfirmasi & Simpan
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
-
-            <div className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
-              <button
-                onClick={() => setShowReplacementModal(false)}
-                className="px-6 py-3 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleAcknowledgeWithReplacement}
-                disabled={updating || !replacementQty || !replacementHybrid}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {updating ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Menyimpan...
-                  </>
-                ) : (
-                  <>
-                    <CheckIcon className="h-5 w-5" />
-                    Konfirmasi & Simpan
-                  </>
-                )}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </>
   );
 }
@@ -481,6 +485,7 @@ interface AdminUser {
 interface DisplayUser {
   name: string;
   roles?: string[];
+  department?: string;
   complaint_permissions?: Record<string, boolean>;
   id?: string;
 }
