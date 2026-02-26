@@ -19,12 +19,12 @@ export async function proxy(request: NextRequest) {
         },
         set(name: string, value: string, options: CookieOptions) {
           request.cookies.set({ name, value, ...options })
-          response = NextResponse.next({ request: { headers: request.headers }})
+          response = NextResponse.next({ request: { headers: request.headers } })
           response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options })
-          response = NextResponse.next({ request: { headers: request.headers }})
+          response = NextResponse.next({ request: { headers: request.headers } })
           response.cookies.set({ name, value: '', ...options })
         },
       },
@@ -42,6 +42,24 @@ export async function proxy(request: NextRequest) {
   // Redirect ke dashboard jika sudah login tapi akses halaman login
   if (user && pathname === '/admin/login') {
     return NextResponse.redirect(new URL('/admin', request.url))
+  }
+
+  // RBAC untuk Customer Service
+  if (user && pathname.startsWith('/admin') && pathname !== '/admin/login') {
+    const { data: profile } = await supabase
+      .from('user_complaint_profiles')
+      .select('department, role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profile?.department === 'customer_service') {
+      const allowedCustomerServicePaths = ['/admin/complaints', '/admin/profile', '/admin/help'];
+      const isAllowed = allowedCustomerServicePaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+
+      if (!isAllowed) {
+        return NextResponse.redirect(new URL('/admin/complaints', request.url));
+      }
+    }
   }
 
   return response

@@ -5,10 +5,10 @@ import { Fragment } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
-import { 
-  Bars3Icon, 
-  XMarkIcon, 
-  UserCircleIcon, 
+import {
+  Bars3Icon,
+  XMarkIcon,
+  UserCircleIcon,
   PowerIcon,
   BellIcon,
   CogIcon,
@@ -34,6 +34,7 @@ function classNames(...classes: string[]) {
 interface DisplayUser {
   name: string;
   roles?: string[];
+  department?: string;
   complaint_permissions?: Record<string, boolean>;
 }
 
@@ -57,17 +58,20 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
   };
 
   const { stats, markAllAsRead } = useComplaintNotifications(hasComplaintPermission('canViewComplaints'));
-  
+
   const totalNotifications = stats.unreadCount;
   const customerCareBadge = stats.unreadCount > 0 ? stats.unreadCount : undefined;
 
+  // Cek apakah user adalah Customer Service
+  const isCustomerService = user?.roles?.includes('customer_service') || user?.roles?.includes('Customer Service') || user?.department === 'customer_service';
+
   const navigation: NavItem[] = [
-    { 
-      name: 'Dashboard', 
+    (!isCustomerService ? {
+      name: 'Dashboard',
       href: '/admin',
       icon: HomeIcon
-    },
-    {
+    } : null),
+    (!isCustomerService ? {
       name: 'Manajemen',
       icon: Squares2X2Icon,
       children: [
@@ -76,46 +80,46 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
         { name: 'Data Produk', href: '/admin/products' },
         { name: 'Data Produksi', href: '/admin/productions' },
       ],
-    },
+    } : null),
     {
       name: 'Customer Care',
       icon: ChatBubbleLeftRightIcon,
       badge: customerCareBadge,
       children: [
-        { 
-          name: 'Dashboard Komplain', 
-          href: '/admin/complaints', 
+        {
+          name: 'Dashboard Komplain',
+          href: '/admin/complaints',
           icon: ExclamationTriangleIcon,
           requiresPermission: 'canViewComplaints',
           badge: stats.unreadCount > 0 ? stats.unreadCount : undefined
         },
-        { 
-          name: 'Survey Analytics', 
-          href: '/admin/surveys', 
+        {
+          name: 'Survey Analytics',
+          href: '/admin/surveys',
           icon: DocumentTextIcon,
           requiresPermission: 'canViewComplaints'
         },
-        { 
-          name: 'Analytics & Reports', 
-          href: '/admin/analytics', 
+        {
+          name: 'Analytics & Reports',
+          href: '/admin/analytics',
           icon: ChartBarSquareIcon,
           requiresPermission: 'canViewComplaintAnalytics'
         },
-        { 
-          name: 'Complaint Team', 
-          href: '/admin/complaint-users', 
+        {
+          name: 'Complaint Team',
+          href: '/admin/complaint-users',
           icon: UserGroupIcon,
           requiresPermission: 'canManageComplaintUsers'
         },
-        { 
-          name: 'Pengaturan Komplain', 
-          href: '/admin/settings/complaints', 
+        {
+          name: 'Pengaturan Komplain',
+          href: '/admin/settings/complaints',
           icon: CogIcon,
           requiresPermission: 'canConfigureComplaintSystem'
         }
       ].filter(item => !item.requiresPermission || hasComplaintPermission(item.requiresPermission)),
     },
-    {
+    (!isCustomerService ? {
       name: 'Master Data',
       icon: ChartBarIcon,
       children: [
@@ -125,16 +129,16 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
         { name: 'Bahan Aktif', href: '/admin/bahan-aktif' },
         { name: 'Data Perusahaan', href: '/admin/companies' },
       ],
-    },
-  ];
-  
+    } : null),
+  ].filter(Boolean) as NavItem[];
+
   return (
     <Disclosure as="nav" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl shadow-lg border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-50">
       {({ open }) => (
         <>
           <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
             <div className="flex h-16 lg:h-20 justify-between items-center">
-              
+
               {/* Logo & Brand */}
               <div className="flex items-center min-w-0 flex-shrink">
                 <Link href="/admin" className="flex items-center group gap-2 lg:gap-3 min-w-0">
@@ -159,7 +163,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                     <p className="text-xs text-gray-500 dark:text-slate-400 hidden lg:block truncate">Advanta Seeds</p>
                   </div>
                 </Link>
-                
+
                 {/* Desktop Navigation */}
                 <div className="hidden xl:flex xl:items-center xl:space-x-1 xl:ml-6">
                   {navigation.map((item) =>
@@ -260,7 +264,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                         {totalNotifications > 9 ? '9+' : totalNotifications}
                       </span>
                     </Menu.Button>
-                    
+
                     <Transition
                       as={Fragment}
                       enter="transition ease-out duration-200"
@@ -291,7 +295,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                             </button>
                           )}
                         </div>
-                        
+
                         <div className="py-1 max-h-96 overflow-y-auto">
                           {stats.criticalCount > 0 && (
                             <Menu.Item>
@@ -321,7 +325,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                               )}
                             </Menu.Item>
                           )}
-                          
+
                           {stats.pendingCount > 0 && (
                             <Menu.Item>
                               {({ active }) => (
@@ -351,7 +355,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                             </Menu.Item>
                           )}
                         </div>
-                        
+
                         <div className="border-t border-gray-100 dark:border-slate-700 px-4 py-2">
                           <Link
                             href="/admin/complaints"
@@ -404,7 +408,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="py-1">
                         <Menu.Item>
                           {({ active }) => (
@@ -420,7 +424,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                             </Link>
                           )}
                         </Menu.Item>
-                        
+
                         <Menu.Item>
                           {({ active }) => (
                             <Link
@@ -435,7 +439,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                             </Link>
                           )}
                         </Menu.Item>
-                        
+
                         <Menu.Item>
                           {({ active }) => (
                             <Link
@@ -451,7 +455,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                           )}
                         </Menu.Item>
                       </div>
-                      
+
                       <div className="border-t border-gray-100 dark:border-slate-700 mt-1">
                         <Menu.Item>
                           {({ active }) => (

@@ -29,8 +29,8 @@ export async function GET(
     }
 
     if (!data) {
-      return NextResponse.json({ 
-        error: 'User complaint profile not found' 
+      return NextResponse.json({
+        error: 'User complaint profile not found'
       }, { status: 404 });
     }
 
@@ -45,7 +45,7 @@ export async function GET(
       .eq('assigned_to', userId)
       .not('status', 'in', '(resolved,closed)');
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       data: {
         ...data,
@@ -83,6 +83,7 @@ export async function PATCH(
       job_title: body.job_title,
       complaint_permissions: body.complaint_permissions,
       max_assigned_complaints: body.max_assigned_complaints,
+      assigned_regions: body.assigned_regions, // 🔥 TAMBAHKAN
       is_active: body.is_active,
       updated_at: new Date().toISOString()
     };
@@ -97,12 +98,12 @@ export async function PATCH(
 
     if (error) {
       console.error('Update error:', error);
-      return NextResponse.json({ 
-        error: error.message 
+      return NextResponse.json({
+        error: error.message
       }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       data,
       message: 'Profile updated successfully'
@@ -110,8 +111,8 @@ export async function PATCH(
 
   } catch (error: any) {
     console.error('API error:', error);
-    return NextResponse.json({ 
-      error: error.message 
+    return NextResponse.json({
+      error: error.message
     }, { status: 500 });
   }
 }
@@ -133,7 +134,7 @@ export async function DELETE(
     // Soft delete - set is_active to false
     const { error } = await supabase
       .from('user_complaint_profiles')
-      .update({ 
+      .update({
         is_active: false,
         updated_at: new Date().toISOString()
       })
@@ -144,7 +145,7 @@ export async function DELETE(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: 'User deactivated successfully'
     });

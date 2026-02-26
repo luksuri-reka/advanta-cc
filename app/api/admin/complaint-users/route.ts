@@ -28,7 +28,7 @@ export async function GET() {
 
     // Use admin client untuk bypass RLS
     const adminClient = createAdminClient();
-    
+
     const { data, error } = await adminClient
       .from('user_complaint_profiles')
       .select('*')
@@ -41,7 +41,7 @@ export async function GET() {
 
     const userIds = data?.map(u => u.user_id) || [];
     const emailMap: Record<string, string> = {};
-    
+
     for (const userId of userIds) {
       const { data: authUser } = await adminClient.auth.admin.getUserById(userId);
       if (authUser?.user?.email) {
@@ -54,9 +54,9 @@ export async function GET() {
       email: emailMap[profile.user_id] || 'N/A'
     }));
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      data: enrichedData 
+      data: enrichedData
     });
 
   } catch (error: any) {
@@ -79,14 +79,14 @@ export async function POST(request: Request) {
 
     // Validasi
     if (!body.user_id || typeof body.user_id !== 'string' || body.user_id.trim() === '') {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Valid user_id is required',
         received: body.user_id
       }, { status: 400 });
     }
 
     if (!body.full_name || typeof body.full_name !== 'string' || body.full_name.trim() === '') {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Valid full_name is required',
         received: body.full_name
       }, { status: 400 });
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       .single();
 
     if (existing) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'User sudah terdaftar dalam sistem keluhan',
         user_id: body.user_id
       }, { status: 409 }); // Conflict
@@ -127,6 +127,7 @@ export async function POST(request: Request) {
           canExportComplaintData: false
         },
         max_assigned_complaints: body.max_assigned_complaints || 10,
+        assigned_regions: body.assigned_regions || [], // 🔥 TAMBAHKAN
         current_assigned_count: 0,
         total_resolved_complaints: 0,
         is_active: body.is_active !== undefined ? body.is_active : true,
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Insert error:', error);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: error.message,
         code: error.code,
         details: error.details,
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       data,
       message: 'User complaint profile created successfully'
@@ -155,7 +156,7 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('API error:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
@@ -175,8 +176,8 @@ export async function PATCH(request: Request) {
     console.log('PATCH received:', body);
 
     if (!body.user_id) {
-      return NextResponse.json({ 
-        error: 'user_id is required for PATCH' 
+      return NextResponse.json({
+        error: 'user_id is required for PATCH'
       }, { status: 400 });
     }
 
@@ -204,7 +205,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       data,
       message: 'User profile updated successfully'
@@ -229,8 +230,8 @@ export async function DELETE(request: Request) {
     const userId = searchParams.get('user_id');
 
     if (!userId) {
-      return NextResponse.json({ 
-        error: 'user_id parameter is required' 
+      return NextResponse.json({
+        error: 'user_id parameter is required'
       }, { status: 400 });
     }
 
@@ -238,7 +239,7 @@ export async function DELETE(request: Request) {
 
     const { data, error } = await adminClient
       .from('user_complaint_profiles')
-      .update({ 
+      .update({
         is_active: false,
         updated_at: new Date().toISOString()
       })
@@ -250,7 +251,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       data,
       message: 'User deactivated successfully'

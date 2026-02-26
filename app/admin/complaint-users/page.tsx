@@ -17,6 +17,7 @@ import {
   ChartBarIcon,
   ShieldCheckIcon,
   ArrowLeftIcon,
+  MapPinIcon, // 🔥 TAMBAHKAN
   XMarkIcon // Pastikan XMarkIcon di-import
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
@@ -35,6 +36,7 @@ interface ComplaintUser {
   job_title: string;
   complaint_permissions: Record<string, boolean>;
   max_assigned_complaints: number;
+  assigned_regions?: string[]; // 🔥 TAMBAHKAN
   current_assigned_count: number;
   total_resolved_complaints: number;
   avg_resolution_time: string | null;
@@ -57,6 +59,7 @@ interface FormData {
   department: string; // tidak boleh null
   job_title: string;  // tidak boleh null
   max_assigned_complaints: number;
+  assigned_regions: string[]; // 🔥 TAMBAHKAN
   is_active: boolean;
   complaint_permissions: Record<string, boolean>;
 }
@@ -66,15 +69,17 @@ export default function ComplaintUsersPage() {
   const [user, setUser] = useState<DisplayUser | null>(null);
   const [users, setUsers] = useState<ComplaintUser[]>([]);
   const [availableAuthUsers, setAvailableAuthUsers] = useState<AuthUser[]>([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<ComplaintUser | null>(null);
+  const [provinces, setProvinces] = useState<{ id: number, name: string }[]>([]); // 🔥 TAMBAHKAN
   const [formData, setFormData] = useState<FormData>({
     user_id: '',
     department: '',
     job_title: '',
     max_assigned_complaints: 5,
+    assigned_regions: [], // 🔥 TAMBAHKAN
     is_active: true,
     complaint_permissions: {}
   });
@@ -135,13 +140,23 @@ export default function ComplaintUsersPage() {
       if (response.ok) {
         setUsers(result.data || []);
       }
+
+      // Load provinces
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: provData } = await supabase.from('provinces').select('id, name').order('name');
+      if (provData) setProvinces(provData);
+
     } catch (error) {
       console.error('Error loading complaint users:', error);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const loadAvailableAuthUsers = async () => {
     try {
       const response = await fetch('/api/admin/auth-users');
@@ -160,52 +175,54 @@ export default function ComplaintUsersPage() {
   };
 
   const openModal = (user: ComplaintUser | null) => {
-  if (user) {
-    setEditingUser(user);
-    setFormData({
-      user_id: user.user_id,
-      department: user.department || '', // ← Handle null
-      job_title: user.job_title || '', // ← Handle null
-      max_assigned_complaints: user.max_assigned_complaints || 5,
-      is_active: user.is_active ?? true, // ← Handle null/undefined
-      complaint_permissions: user.complaint_permissions || {}
-    });
-  } else {
-    setEditingUser(null);
-    setFormData({
-      user_id: '',
-      department: '',
-      job_title: '',
-      max_assigned_complaints: 5,
-      is_active: true,
-      complaint_permissions: {}
-    });
-  }
-  setShowModal(true);
-};
-  
+    if (user) {
+      setEditingUser(user);
+      setFormData({
+        user_id: user.user_id,
+        department: user.department || '', // ← Handle null
+        job_title: user.job_title || '', // ← Handle null
+        max_assigned_complaints: user.max_assigned_complaints || 5,
+        assigned_regions: user.assigned_regions || [], // 🔥 TAMBAHKAN
+        is_active: user.is_active ?? true, // ← Handle null/undefined
+        complaint_permissions: user.complaint_permissions || {}
+      });
+    } else {
+      setEditingUser(null);
+      setFormData({
+        user_id: '',
+        department: '',
+        job_title: '',
+        max_assigned_complaints: 5,
+        assigned_regions: [], // 🔥 TAMBAHKAN
+        is_active: true,
+        complaint_permissions: {}
+      });
+    }
+    setShowModal(true);
+  };
+
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-  const { name, value, type } = e.target;
-  
-  if (type === 'checkbox') {
-    const { checked } = e.target as HTMLInputElement;
-    setFormData(prev => ({
-      ...prev,
-      complaint_permissions: {
-        ...prev.complaint_permissions,
-        [name]: checked
-      }
-    }));
-  } else {
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? (parseInt(value) || 0) : (value || '') // ← Handle empty
-    }));
-  }
-};
-  
+    const { name, value, type } = e.target;
+
+    if (type === 'checkbox') {
+      const { checked } = e.target as HTMLInputElement;
+      setFormData(prev => ({
+        ...prev,
+        complaint_permissions: {
+          ...prev.complaint_permissions,
+          [name]: checked
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'number' ? (parseInt(value) || 0) : (value || '') // ← Handle empty
+      }));
+    }
+  };
+
   const handleToggleChange = (name: string, checked: boolean) => {
-     setFormData(prev => ({
+    setFormData(prev => ({
       ...prev,
       [name]: checked
     }));
@@ -214,94 +231,96 @@ export default function ComplaintUsersPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Ganti handleSubmit function
-// Ganti handleSubmit function
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  
-  setIsSaving(true);
-  
-  let apiData: any;
-  
-  if (editingUser) {
-    // UPDATE existing user
-    apiData = {
-      user_id: editingUser.user_id,
-      department: formData.department || 'customer_service',
-      job_title: formData.job_title || null,
-      max_assigned_complaints: formData.max_assigned_complaints || 5,
-      is_active: formData.is_active,
-      complaint_permissions: formData.complaint_permissions
-    };
-  } else {
-    // CREATE new user
-    console.log('Available users:', availableAuthUsers); // ← Debug
-    console.log('Selected user_id:', formData.user_id); // ← Debug
-    
-    const selectedAuthUser = availableAuthUsers.find(u => u.id === formData.user_id);
-    console.log('Found user:', selectedAuthUser); // ← Debug
-    
-    if (!selectedAuthUser) {
-      alert(`User tidak ditemukan!\nuser_id: ${formData.user_id}\nAvailable: ${availableAuthUsers.length} users`);
-      setIsSaving(false);
-      return;
-    }
+  // Ganti handleSubmit function
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
-    if (!selectedAuthUser.name || selectedAuthUser.name.trim() === '') {
-      alert('User tidak memiliki nama lengkap. Silakan update profil user di auth terlebih dahulu.');
-      setIsSaving(false);
-      return;
-    }
+    setIsSaving(true);
 
-    apiData = {
-      user_id: formData.user_id,
-      full_name: selectedAuthUser.name.trim(), // ← Ubah dari full_name ke name
-      department: formData.department || 'customer_service',
-      job_title: formData.job_title?.trim() || null,
-      max_assigned_complaints: formData.max_assigned_complaints || 5,
-      is_active: formData.is_active,
-      complaint_permissions: formData.complaint_permissions
-    };
-  }
+    let apiData: any;
 
-  console.log('Sending data:', apiData); // ← Debug log
-
-  try {
-    const method = editingUser ? 'PATCH' : 'POST';
-    const url = '/api/admin/complaint-users'; // ← Simplified URL
-      
-    const response = await fetch(url, {
-      method: method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(apiData),
-    });
-
-    const result = await response.json();
-
-    if (response.ok) {
-      alert(editingUser ? 'User berhasil diperbarui' : 'User berhasil ditambahkan');
-      setShowModal(false);
-      loadComplaintUsers();
-      if (!editingUser) {
-        loadAvailableAuthUsers(); // Refresh available users
-      }
+    if (editingUser) {
+      // UPDATE existing user
+      apiData = {
+        user_id: editingUser.user_id,
+        department: formData.department || 'customer_service',
+        job_title: formData.job_title || null,
+        max_assigned_complaints: formData.max_assigned_complaints || 5,
+        assigned_regions: formData.assigned_regions, // 🔥 TAMBAHKAN
+        is_active: formData.is_active,
+        complaint_permissions: formData.complaint_permissions
+      };
     } else {
-      console.error('API Error:', result);
-      alert(`Error: ${result.error || result.message || 'Gagal menyimpan'}`);
+      // CREATE new user
+      console.log('Available users:', availableAuthUsers); // ← Debug
+      console.log('Selected user_id:', formData.user_id); // ← Debug
+
+      const selectedAuthUser = availableAuthUsers.find(u => u.id === formData.user_id);
+      console.log('Found user:', selectedAuthUser); // ← Debug
+
+      if (!selectedAuthUser) {
+        alert(`User tidak ditemukan!\nuser_id: ${formData.user_id}\nAvailable: ${availableAuthUsers.length} users`);
+        setIsSaving(false);
+        return;
+      }
+
+      if (!selectedAuthUser.name || selectedAuthUser.name.trim() === '') {
+        alert('User tidak memiliki nama lengkap. Silakan update profil user di auth terlebih dahulu.');
+        setIsSaving(false);
+        return;
+      }
+
+      apiData = {
+        user_id: formData.user_id,
+        full_name: selectedAuthUser.name.trim(), // ← Ubah dari full_name ke name
+        department: formData.department || 'customer_service',
+        job_title: formData.job_title?.trim() || null,
+        max_assigned_complaints: formData.max_assigned_complaints || 5,
+        assigned_regions: formData.assigned_regions, // 🔥 TAMBAHKAN
+        is_active: formData.is_active,
+        complaint_permissions: formData.complaint_permissions
+      };
     }
-  } catch (error) {
-    console.error('Failed to save user:', error);
-    alert('Gagal menyimpan user. Cek console untuk detail.');
-  } finally {
-    setIsSaving(false);
-  }
-};
+
+    console.log('Sending data:', apiData); // ← Debug log
+
+    try {
+      const method = editingUser ? 'PATCH' : 'POST';
+      const url = '/api/admin/complaint-users'; // ← Simplified URL
+
+      const response = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(editingUser ? 'User berhasil diperbarui' : 'User berhasil ditambahkan');
+        setShowModal(false);
+        loadComplaintUsers();
+        if (!editingUser) {
+          loadAvailableAuthUsers(); // Refresh available users
+        }
+      } else {
+        console.error('API Error:', result);
+        alert(`Error: ${result.error || result.message || 'Gagal menyimpan'}`);
+      }
+    } catch (error) {
+      console.error('Failed to save user:', error);
+      alert('Gagal menyimpan user. Cek console untuk detail.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const formatInterval = (interval: string | null) => {
     if (!interval) return '-';
     // ... (logika formatInterval)
     return interval; // Placeholder
   };
-  
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('id-ID');
@@ -331,7 +350,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Navbar user={user} onLogout={handleLogout} />
-      
+
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
@@ -398,11 +417,10 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                           member.is_active 
-                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                           : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                         }`}>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${member.is_active
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                          }`}>
                           {member.is_active ? 'Aktif' : 'Nonaktif'}
                         </span>
                       </td>
@@ -422,7 +440,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                           <ChartBarIcon className="h-4 w-4" /> Detail
                         </Link>
                         {hasPermission('canManageComplaintSettings') && (
-                           <button onClick={() => openModal(member)} className="text-emerald-600 hover:text-emerald-900 dark:hover:text-emerald-400 ml-4 inline-flex items-center gap-1">
+                          <button onClick={() => openModal(member)} className="text-emerald-600 hover:text-emerald-900 dark:hover:text-emerald-400 ml-4 inline-flex items-center gap-1">
                             <PencilIcon className="h-4 w-4" /> Edit
                           </button>
                         )}
@@ -459,7 +477,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                     <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
-                
+
                 <div className="px-6 py-6 bg-white dark:bg-gray-800 space-y-6">
                   {/* User Selection */}
                   <div>
@@ -490,52 +508,52 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       )}
                     </select>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* DROPDOWN DEPARTEMEN - DIPERBAIKI */}
-                  <div>
-                    <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Departemen
-                    </label>
-                    <select
-                      name="department"
-                      id="department"
-                      value={formData.department || ''} // ← Always string
-                      onChange={handleFormChange}
-                      className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
-                      required
-                    >
-                      <option value="">-- Pilih Departemen --</option>
-                      <option value="admin">Admin</option>
-                      <option value="customer_service">Customer Service</option>
-                      <option value="quality_assurance">Quality Assurance</option>
-                      <option value="technical">Technical</option>
-                      <option value="management">Management</option>
-                      <option value="observasi">Observasi</option>
-                      <option value="investigasi_1">Investigasi 1</option>
-                      <option value="investigasi_2">Investigasi 2</option>
-                      <option value="lab_testing">Lab Testing</option>
-                      <option value="sales">Sales</option>
-                    </select>
+                    {/* DROPDOWN DEPARTEMEN - DIPERBAIKI */}
+                    <div>
+                      <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Departemen
+                      </label>
+                      <select
+                        name="department"
+                        id="department"
+                        value={formData.department || ''} // ← Always string
+                        onChange={handleFormChange}
+                        className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                        required
+                      >
+                        <option value="">-- Pilih Departemen --</option>
+                        <option value="admin">Admin</option>
+                        <option value="customer_service">Customer Service</option>
+                        <option value="quality_assurance">Quality Assurance</option>
+                        <option value="technical">Technical</option>
+                        <option value="management">Management</option>
+                        <option value="observasi">Observasi</option>
+                        <option value="investigasi_1">Investigasi 1</option>
+                        <option value="investigasi_2">Investigasi 2</option>
+                        <option value="lab_testing">Lab Testing</option>
+                        <option value="sales">Sales</option>
+                      </select>
+                    </div>
+
+                    {/* Job Title tetap sama */}
+                    <div>
+                      <label htmlFor="job_title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Jabatan
+                      </label>
+                      <input
+                        type="text"
+                        name="job_title"
+                        id="job_title"
+                        value={formData.job_title || ''} // ← Always string
+                        onChange={handleFormChange}
+                        className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                        placeholder="cth: Staff Support"
+                      />
+                    </div>
                   </div>
-                  
-                  {/* Job Title tetap sama */}
-                  <div>
-                    <label htmlFor="job_title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Jabatan
-                    </label>
-                    <input
-                      type="text"
-                      name="job_title"
-                      id="job_title"
-                      value={formData.job_title || ''} // ← Always string
-                      onChange={handleFormChange}
-                      className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
-                      placeholder="cth: Staff Support"
-                    />
-                  </div>
-                </div>
-                  
+
                   <div>
                     <label htmlFor="max_assigned_complaints" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Batas Beban Keluhan
@@ -550,6 +568,35 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                     />
                   </div>
+
+                  {/* UI Multi-select Wilayah Penugasan */}
+                  {formData.department === 'customer_service' && (
+                    <div className="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-3 mb-4">
+                        <MapPinIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">Wilayah Penugasan</h4>
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                        Pilih provinsi mana saja yang dapat dikelola oleh CS ini. Kosongi untuk melihat semua keluhan.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto pr-2">
+                        {provinces.map(prov => (
+                          <label key={prov.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-gray-800 transition-colors cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={formData.assigned_regions.includes(prov.name)}
+                              onChange={(e) => {
+                                if (e.target.checked) setFormData(prev => ({ ...prev, assigned_regions: [...prev.assigned_regions, prov.name] }))
+                                else setFormData(prev => ({ ...prev, assigned_regions: prev.assigned_regions.filter(r => r !== prov.name) }))
+                              }}
+                              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                            />
+                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{prov.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Permissions Section */}
                   <div className="p-6 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
@@ -576,7 +623,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Active Toggle */}
                   <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                     <span className="font-medium text-gray-900 dark:text-white">Status User</span>
