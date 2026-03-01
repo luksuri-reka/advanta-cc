@@ -4,14 +4,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { login } from '../../utils/auth';
-import { 
-  EyeIcon, 
-  EyeSlashIcon, 
-  UserIcon, 
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  UserIcon,
   LockClosedIcon,
   ArrowRightIcon,
   ShieldCheckIcon,
-  SparklesIcon 
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
 export default function LoginForm() {
@@ -43,9 +43,10 @@ export default function LoginForm() {
     try {
       setSubmitting(true);
       await login(email, password);
-      
+
       const next = searchParams?.get('next');
       router.replace(next && next.startsWith('/admin') ? next : '/admin');
+      router.refresh(); // 🔥 Force layout.tsx to reload its auth state and show the Navbar
     } catch (err: any) {
       console.error('Login error:', err);
       const message = err?.message || 'Gagal masuk. Periksa kembali email/kata sandi Anda.';
@@ -57,25 +58,25 @@ export default function LoginForm() {
 
   return (
     <div className={`bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 lg:p-12 border border-white/80 dark:border-slate-700/80 relative overflow-hidden transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-      
+
       {/* Decorative Background Elements */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-400/10 to-blue-400/10 dark:from-emerald-500/5 dark:to-blue-500/5 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-purple-400/10 to-emerald-400/10 dark:from-purple-500/5 dark:to-emerald-500/5 rounded-full blur-2xl"></div>
-      
+
       <div className="relative z-10">
         {/* Header Section */}
         <div className="text-center mb-8">
           <div className="mb-6 animate-bounce-in">
             <img src="/advanta-logo.png" alt="Advanta Logo" className="w-40 mx-auto drop-shadow-xl" />
           </div>
-          
+
           <div className="mb-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-800/30 rounded-full text-emerald-800 dark:text-emerald-300 text-sm font-semibold border border-emerald-200 dark:border-emerald-800 shadow-sm mb-4">
               <ShieldCheckIcon className="w-4 h-4" />
               <span>Admin Console</span>
               <SparklesIcon className="w-4 h-4" />
             </div>
-            
+
             <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-800 via-slate-800 to-emerald-700 dark:from-emerald-400 dark:via-slate-300 dark:to-emerald-500 bg-clip-text text-transparent mb-3">
               Selamat Datang Kembali
             </h1>
@@ -87,7 +88,7 @@ export default function LoginForm() {
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          
+
           {/* Email Input */}
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -165,7 +166,7 @@ export default function LoginForm() {
           >
             {/* Button Shine Effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-            
+
             <div className="relative z-10 flex items-center gap-3">
               {submitting ? (
                 <>

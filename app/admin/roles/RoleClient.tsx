@@ -4,7 +4,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
 import { deleteRole } from './actions';
 import { toast, Toaster } from 'react-hot-toast'; 
@@ -64,9 +63,7 @@ export default function RoleClient({ initialRoles }: RoleClientProps) {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
       <Toaster position="top-center" reverseOrder={false} />
-      <Navbar user={displayUser} onLogout={handleLogout} />
-
-      <main className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-slate-100">

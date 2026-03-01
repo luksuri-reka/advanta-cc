@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
-import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext'; // Asumsi 'user' dari sini adalah tipe 'User | null' dari Supabase
 import PlantTypeForm from './PlantTypeForm';
 import { deletePlantType } from './actions';
@@ -82,9 +81,7 @@ export default function PlantTypeClient({ initialPlantTypes }: PlantTypeClientPr
       <Toaster position="top-center" reverseOrder={false} />
       
       {/* ++ FIX 3: Berikan 'displayUser' (bukan 'user') ke Navbar ++ */}
-      <Navbar user={displayUser} onLogout={handleLogout} />
-
-      <main className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-slate-100">

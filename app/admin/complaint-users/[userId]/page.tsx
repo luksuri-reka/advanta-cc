@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getProfile, logout } from '../../../utils/auth';
 import type { User } from '@supabase/supabase-js';
-import Navbar from '../../Navbar';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -186,9 +185,7 @@ export default function ComplaintUserDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
-      <Navbar user={user} onLogout={handleLogout} />
-      
-      <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <Link

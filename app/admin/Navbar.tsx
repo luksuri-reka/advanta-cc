@@ -3,7 +3,8 @@
 
 import { Fragment } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { logout } from '../utils/auth';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
 import {
   Bars3Icon,
@@ -47,8 +48,15 @@ interface NavItem {
   requiresPermission?: string;
 }
 
-export default function Navbar({ user, onLogout }: { user: DisplayUser | null; onLogout: () => void }) {
+export default function Navbar({ user }: { user: DisplayUser | null }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/admin/login');
+    router.refresh(); // 🔥 Paksa Next.js Server Component (layout.tsx) memuat ulang auth state
+  };
 
   const hasComplaintPermission = (permission: string) => {
     if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
@@ -460,7 +468,7 @@ export default function Navbar({ user, onLogout }: { user: DisplayUser | null; o
                         <Menu.Item>
                           {({ active }) => (
                             <button
-                              onClick={onLogout}
+                              onClick={handleLogout}
                               className={classNames(
                                 active ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'text-gray-700 dark:text-slate-300',
                                 'w-full text-left flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-400 transition-colors duration-150'

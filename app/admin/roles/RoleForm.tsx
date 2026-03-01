@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { toast, Toaster } from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
-import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
 import { createRole, updateRole } from './actions';
 
@@ -147,9 +146,7 @@ export default function RoleForm({ role }: RoleFormProps) {
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
             <Toaster position="top-center" reverseOrder={false} />
-            <Navbar user={displayUser} onLogout={handleLogout} />
-
-            <main className="mx-auto max-w-4xl py-10 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto max-w-4xl py-10 px-4 sm:px-6 lg:px-8">
                 <div className="mb-6">
                     <Link href="/admin/roles" className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100">
                         <ArrowLeftIcon className="h-4 w-4" />

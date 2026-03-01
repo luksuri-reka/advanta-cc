@@ -5,15 +5,15 @@ import { NextResponse } from 'next/server';
 // Tambahkan helper function
 function formatPhoneNumber(phone: string): string {
   let cleaned = phone.replace(/\D/g, '');
-  
+
   if (cleaned.startsWith('0')) {
     cleaned = '62' + cleaned.substring(1);
   }
-  
+
   if (!cleaned.startsWith('62')) {
     cleaned = '62' + cleaned;
   }
-  
+
   return cleaned;
 }
 
@@ -58,11 +58,11 @@ export async function POST(request: Request) {
     let complaint = null;
     let complaintNumber = '';
     let lastError = null;
-    
+
     for (let attempt = 0; attempt < 10; attempt++) {
       try {
         complaintNumber = await generateUniqueComplaintNumber(supabase);
-        
+
         const complaintData = {
           complaint_number: complaintNumber,
           customer_name: body.customer_name,
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
           // 🔥 BARU: Simpan data Lot dan Quantity
           lot_number: body.lot_number || '',
           problematic_quantity: body.problematic_quantity || '',
-          
+
           priority: body.priority || 'medium',
           status: 'submitted',
           complaint_case_type_ids: body.complaint_case_type_ids,
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
 
         complaint = data;
         break;
-        
+
       } catch (err: any) {
         lastError = err;
         if (attempt === 9) break;
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
           type: 'complaint_created',
           customer_phone: formattedPhone,
           customer_name: body.customer_name,
-          complaint_number: complaintNumber, 
+          complaint_number: complaintNumber,
         }),
       });
 
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
 async function generateUniqueComplaintNumber(supabase: any): Promise<string> {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-  
+
   const { data: existingComplaints } = await supabase
     .from('complaints')
     .select('complaint_number')
@@ -196,7 +196,7 @@ async function generateUniqueComplaintNumber(supabase: any): Promise<string> {
     .limit(1);
 
   let newCounter = 1;
-  
+
   if (existingComplaints && existingComplaints.length > 0) {
     const lastNumber = existingComplaints[0].complaint_number;
     const match = lastNumber.match(/CMP-\d{8}-(\d{4})$/);
@@ -207,17 +207,22 @@ async function generateUniqueComplaintNumber(supabase: any): Promise<string> {
 
   const microtime = Date.now().toString().slice(-4);
   const uniqueId = `${newCounter}${microtime}`.slice(0, 4).padStart(4, '0');
-  
+
   return `CMP-${dateStr}-${uniqueId}`;
 }
 
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    
     const complaintNumber = searchParams.get('complaint_number');
-    
+
     if (complaintNumber) {
       // 🔥 UPDATE: Tambahkan observations di sini
       const { data: complaint, error } = await supabase
@@ -254,10 +259,28 @@ export async function GET(request: Request) {
     }
 
     // List all complaints (tidak perlu observations di sini)
-    const { data, error } = await supabase
-      .from('complaints')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const roles = user?.app_metadata?.roles || [];
+    const isSuperAdmin = roles.includes('Superadmin') || roles.includes('superadmin');
+
+    let query = supabase.from('complaints').select('*').order('created_at', { ascending: false });
+
+    if (!isSuperAdmin) {
+      const { data: profile } = await supabase
+        .from('user_complaint_profiles')
+        .select('assigned_regions')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile?.assigned_regions && profile.assigned_regions.length > 0) {
+        query = query.in('customer_province', profile.assigned_regions);
+      } else {
+        // Jika petugas tidak punya wilayah assign, dia tidak bisa melihat apa-apa
+        // (Bisa juga dibiarkan kosong data-nya)
+        return NextResponse.json({ success: true, data: [] });
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

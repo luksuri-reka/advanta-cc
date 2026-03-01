@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getProfile, logout } from '../../utils/auth';
 import type { User } from '@supabase/supabase-js';
-import Navbar from '../Navbar';
 import {
   UserGroupIcon,
   PlusIcon,
@@ -41,6 +40,7 @@ interface ComplaintUser {
   total_resolved_complaints: number;
   avg_resolution_time: string | null;
   customer_satisfaction_avg: number | null;
+  whatsapp_number?: string;
   is_active: boolean;
   last_active_at: string | null;
 }
@@ -58,6 +58,7 @@ interface FormData {
   user_id: string;
   department: string; // tidak boleh null
   job_title: string;  // tidak boleh null
+  whatsapp_number: string;
   max_assigned_complaints: number;
   assigned_regions: string[]; // 🔥 TAMBAHKAN
   is_active: boolean;
@@ -78,6 +79,7 @@ export default function ComplaintUsersPage() {
     user_id: '',
     department: '',
     job_title: '',
+    whatsapp_number: '',
     max_assigned_complaints: 5,
     assigned_regions: [], // 🔥 TAMBAHKAN
     is_active: true,
@@ -181,6 +183,7 @@ export default function ComplaintUsersPage() {
         user_id: user.user_id,
         department: user.department || '', // ← Handle null
         job_title: user.job_title || '', // ← Handle null
+        whatsapp_number: user.whatsapp_number || '',
         max_assigned_complaints: user.max_assigned_complaints || 5,
         assigned_regions: user.assigned_regions || [], // 🔥 TAMBAHKAN
         is_active: user.is_active ?? true, // ← Handle null/undefined
@@ -192,6 +195,7 @@ export default function ComplaintUsersPage() {
         user_id: '',
         department: '',
         job_title: '',
+        whatsapp_number: '',
         max_assigned_complaints: 5,
         assigned_regions: [], // 🔥 TAMBAHKAN
         is_active: true,
@@ -245,6 +249,7 @@ export default function ComplaintUsersPage() {
         user_id: editingUser.user_id,
         department: formData.department || 'customer_service',
         job_title: formData.job_title || null,
+        whatsapp_number: formData.whatsapp_number || null,
         max_assigned_complaints: formData.max_assigned_complaints || 5,
         assigned_regions: formData.assigned_regions, // 🔥 TAMBAHKAN
         is_active: formData.is_active,
@@ -275,6 +280,7 @@ export default function ComplaintUsersPage() {
         full_name: selectedAuthUser.name.trim(), // ← Ubah dari full_name ke name
         department: formData.department || 'customer_service',
         job_title: formData.job_title?.trim() || null,
+        whatsapp_number: formData.whatsapp_number?.trim() || null,
         max_assigned_complaints: formData.max_assigned_complaints || 5,
         assigned_regions: formData.assigned_regions, // 🔥 TAMBAHKAN
         is_active: formData.is_active,
@@ -348,10 +354,7 @@ export default function ComplaintUsersPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
-      <Navbar user={user} onLogout={handleLogout} />
-
-      <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900"><main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
@@ -456,7 +459,7 @@ export default function ComplaintUsersPage() {
 
       {/* Modal Form */}
       {showModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             {/* Background overlay */}
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 transition-opacity" aria-hidden="true"></div>
@@ -554,19 +557,35 @@ export default function ComplaintUsersPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="max_assigned_complaints" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Batas Beban Keluhan
-                    </label>
-                    <input
-                      type="number"
-                      name="max_assigned_complaints"
-                      id="max_assigned_complaints"
-                      value={formData.max_assigned_complaints}
-                      onChange={handleFormChange}
-                      min="1"
-                      className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="max_assigned_complaints" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Batas Beban Keluhan
+                      </label>
+                      <input
+                        type="number"
+                        name="max_assigned_complaints"
+                        id="max_assigned_complaints"
+                        value={formData.max_assigned_complaints}
+                        onChange={handleFormChange}
+                        min="1"
+                        className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="whatsapp_number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Nomor WhatsApp
+                      </label>
+                      <input
+                        type="text"
+                        name="whatsapp_number"
+                        id="whatsapp_number"
+                        value={formData.whatsapp_number || ''}
+                        onChange={handleFormChange}
+                        className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                        placeholder="cth: 6281234..."
+                      />
+                    </div>
                   </div>
 
                   {/* UI Multi-select Wilayah Penugasan */}
@@ -669,8 +688,9 @@ export default function ComplaintUsersPage() {
               </form>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        </div >
+      )
+      }
+    </div >
   );
 }

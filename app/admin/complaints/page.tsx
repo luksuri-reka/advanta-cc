@@ -5,7 +5,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getProfile, logout } from '../../utils/auth';
 import type { User } from '@supabase/supabase-js';
-import Navbar from '../Navbar';
 import * as XLSX from 'xlsx';
 import {
   ExclamationTriangleIcon,
@@ -58,7 +57,7 @@ interface DisplayUser {
 
 type SortDirection = 'asc' | 'desc';
 interface SortConfig {
-  key: keyof Complaint | 'location' | null;
+  key: keyof Complaint | 'location' | 'age' | null;
   direction: SortDirection;
 }
 
@@ -74,7 +73,8 @@ export default function AdminComplaintsPage() {
   // STATE FILTER
   const [filters, setFilters] = useState({
     status: '',
-    search: ''
+    search: '',
+    age: ''
   });
 
   // STATE SORTING
@@ -229,7 +229,7 @@ export default function AdminComplaintsPage() {
     }
   };
 
-  const handleSort = (key: keyof Complaint | 'location') => {
+  const handleSort = (key: keyof Complaint | 'location' | 'age') => {
     let direction: SortDirection = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
@@ -247,6 +247,12 @@ export default function AdminComplaintsPage() {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
+  };
+
+  const calculateAge = (createdAt: string, resolvedAt?: string) => {
+    const startDate = new Date(createdAt).getTime();
+    const endDate = resolvedAt ? new Date(resolvedAt).getTime() : new Date().getTime();
+    return Math.max(0, Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)));
   };
 
   const getStatusClass = (status: string) => {
@@ -360,7 +366,17 @@ export default function AdminComplaintsPage() {
 
   const sortedAndFilteredComplaints = useMemo(() => {
     let data = complaints.filter(c => {
+      let ageMatch = true;
+      if (filters.age) {
+        const ageInDays = calculateAge(c.created_at, c.resolved_at);
+        if (filters.age === '0-3') ageMatch = ageInDays >= 0 && ageInDays <= 3;
+        else if (filters.age === '4-7') ageMatch = ageInDays >= 4 && ageInDays <= 7;
+        else if (filters.age === '8-14') ageMatch = ageInDays >= 8 && ageInDays <= 14;
+        else if (filters.age === '>14') ageMatch = ageInDays > 14;
+      }
+
       return (
+        ageMatch &&
         (filters.status === '' || c.status === filters.status) &&
         (filters.search === '' ||
           c.complaint_number.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -379,6 +395,9 @@ export default function AdminComplaintsPage() {
         if (sortConfig.key === 'location') {
           aValue = `${a.customer_city || ''} ${a.customer_province || ''}`.toLowerCase();
           bValue = `${b.customer_city || ''} ${b.customer_province || ''}`.toLowerCase();
+        } else if (sortConfig.key === 'age') {
+          aValue = calculateAge(a.created_at, a.resolved_at);
+          bValue = calculateAge(b.created_at, b.resolved_at);
         } else {
           // @ts-ignore
           aValue = a[sortConfig.key] || '';
@@ -386,7 +405,7 @@ export default function AdminComplaintsPage() {
           bValue = b[sortConfig.key] || '';
         }
 
-        if (sortConfig.key === 'created_at' || sortConfig.key === 'id') {
+        if (sortConfig.key === 'created_at' || sortConfig.key === 'id' || sortConfig.key === 'age') {
           if (sortConfig.key === 'created_at') {
             aValue = new Date(aValue).getTime();
             bValue = new Date(bValue).getTime();
@@ -413,12 +432,12 @@ export default function AdminComplaintsPage() {
       : <ChevronDownIcon className="h-3 w-3 text-emerald-600 font-bold" />;
   };
 
-  const TableHeader = ({ label, sortKey, align = 'left' }: { label: string, sortKey?: keyof Complaint | 'location', align?: 'left' | 'right' }) => (
+  const TableHeader = ({ label, sortKey, align = 'left' }: { label: string, sortKey?: keyof Complaint | 'location' | 'age', align?: 'left' | 'right' | 'center' }) => (
     <th
       className={`px-4 py-3 text-${align} text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group select-none`}
       onClick={() => sortKey && handleSort(sortKey)}
     >
-      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
+      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'}`}>
         {label}
         {sortKey && <SortIcon colKey={sortKey} />}
       </div>
@@ -449,10 +468,7 @@ export default function AdminComplaintsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
-      <Navbar user={user} onLogout={handleLogout} />
-
-      <main className="mx-auto max-w-7xl py-4 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900"><main className="mx-auto max-w-7xl py-4 px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <ArchiveBoxIcon className="h-6 w-6 text-emerald-600" />
@@ -693,6 +709,19 @@ export default function AdminComplaintsPage() {
                 <option value="closed">Ditutup</option>
               </select>
 
+              <select
+                name="age"
+                value={filters.age}
+                onChange={handleFilterChange}
+                className="rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3 text-sm dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">Semua Umur</option>
+                <option value="0-3">0-3 Hari</option>
+                <option value="4-7">4-7 Hari</option>
+                <option value="8-14">8-14 Hari</option>
+                <option value=">14">&gt; 14 Hari</option>
+              </select>
+
               {/* TOMBOL EXPORT */}
               <button
                 onClick={handleExport}
@@ -725,6 +754,7 @@ export default function AdminComplaintsPage() {
                   <TableHeader label="Lokasi" sortKey="location" />
                   <TableHeader label="Status" sortKey="status" />
                   <TableHeader label="Tgl Masuk" sortKey="created_at" />
+                  <TableHeader label="Umur" sortKey="age" align="center" />
                   <TableHeader label="Aksi" align="right" />
                 </tr>
               </thead>
@@ -755,6 +785,18 @@ export default function AdminComplaintsPage() {
                       </td>
                       <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
                         {formatDate(complaint.created_at)}
+                      </td>
+                      <td className="px-4 py-2 text-center text-xs">
+                        <span className={`px-2 py-1 rounded-full inline-block min-w-[60px] font-medium ${complaint.status === 'resolved' || complaint.status === 'closed'
+                          ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                          : calculateAge(complaint.created_at, complaint.resolved_at) > 14
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : calculateAge(complaint.created_at, complaint.resolved_at) > 7
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          }`}>
+                          {calculateAge(complaint.created_at, complaint.resolved_at)} Hari
+                        </span>
                       </td>
                       <td className="px-4 py-2 text-right">
                         <div className="flex items-center justify-end gap-2">

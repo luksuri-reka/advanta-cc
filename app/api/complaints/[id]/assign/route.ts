@@ -1,6 +1,7 @@
 // app/api/complaints/[id]/assign/route.ts
 import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { sendWhatsAppMessage } from '@/app/utils/whatsapp';
 
 export async function POST(
   request: Request,
@@ -95,6 +96,46 @@ export async function POST(
           assignment_reason: notes || 'Manual multi-department assignment by admin',
           is_active: true
         });
+
+      // 🔥 FIRE-AND-FORGET WA NOTIFICATION
+      // Jalankan asinkron tanpa menggunakan 'await' penghalang proses return API utama
+      (async () => {
+        try {
+          const { data: profiles, error: profileErr } = await supabase
+            .from('user_complaint_profiles')
+            .select('user_id, whatsapp_number, full_name')
+            .in('user_id', validAssignees);
+
+          if (!profileErr && profiles && profiles.length > 0) {
+
+            // Pemetaan role agar pesan lebih spesifik
+            const getRoleFromUuid = (uuid: string) => {
+              if (uuid === assignee_observasi) return 'Observasi Lapangan';
+              if (uuid === assignee_investigasi_1 || uuid === assignee_investigasi_2) return 'Investigasi';
+              if (uuid === assignee_lab_testing) return 'Lab Testing';
+              return 'Penanganan Komplain';
+            };
+
+            const appUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+            const complaintLink = `${appUrl}/admin/complaints/${id}`;
+
+            // Kirim pesan untuk setiap petugas yang di-assign
+            const waPromises = profiles.map(profile => {
+              if (profile.whatsapp_number) {
+                const roleName = getRoleFromUuid(profile.user_id);
+                const message = `Halo ${profile.full_name || 'Petugas'},\n\nAnda telah ditugaskan sebagai tim *${roleName}* pada komplain *${complaint.complaint_number}*.\n\nKlik tautan berikut untuk melihat detail komplain:\n${complaintLink}\n\nTerima kasih,\nSistem Advanta CC`;
+
+                return sendWhatsAppMessage(profile.whatsapp_number, message);
+              }
+              return Promise.resolve(false);
+            });
+
+            await Promise.allSettled(waPromises);
+          }
+        } catch (waError) {
+          console.error('Failed to trigger background WA assignment notifications:', waError);
+        }
+      })();
     }
 
     return NextResponse.json({

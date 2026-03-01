@@ -57,32 +57,36 @@ export function useComplaintNotifications(hasPermission: boolean) {
       // Catatan: Saya menghapus setIsLoading(true) di awal fungsi ini 
       // agar UI tidak 'flicker' (loading spinner muncul) setiap 30 detik saat auto-refresh.
       // Kita hanya set false saat selesai.
-      
+
       const response = await fetch('/api/complaints?limit=100');
       if (!response.ok) {
+        if (response.status === 401) {
+          // Silent fail on 401, stop loading to avoid console spam when logged out
+          return;
+        }
         throw new Error('Failed to fetch complaints');
       }
 
       const result = await response.json();
       const complaints: Complaint[] = result.data || [];
-      
+
       const readIds = getReadComplaintIds();
-      
-      const pending = complaints.filter(c => 
+
+      const pending = complaints.filter(c =>
         ['submitted', 'acknowledged', 'investigating'].includes(c.status)
       );
-      
-      const critical = complaints.filter(c => 
+
+      const critical = complaints.filter(c =>
         c.priority === 'critical' && !['resolved', 'closed'].includes(c.status)
       );
-      
-      const needsResponse = complaints.filter(c => 
+
+      const needsResponse = complaints.filter(c =>
         c.status === 'pending_response'
       );
-      
+
       const needsAttention = [...pending, ...critical];
       const unread = needsAttention.filter(c => !readIds.has(c.id));
-      
+
       // Update state
       setStats({
         pendingCount: pending.length,
@@ -97,14 +101,14 @@ export function useComplaintNotifications(hasPermission: boolean) {
     } finally {
       setIsLoading(false);
     }
-  }, [hasPermission, getReadComplaintIds]); 
+  }, [hasPermission, getReadComplaintIds]);
 
   // 3. Bungkus markAsRead dengan useCallback
   const markAsRead = useCallback((complaintId: number) => {
     const readIds = getReadComplaintIds();
     readIds.add(complaintId);
     saveReadComplaintIds(readIds);
-    
+
     loadStats();
   }, [getReadComplaintIds, saveReadComplaintIds, loadStats]);
 
@@ -115,11 +119,11 @@ export function useComplaintNotifications(hasPermission: boolean) {
       if (response.ok) {
         const result = await response.json();
         const readIds = getReadComplaintIds();
-        
+
         result.data?.forEach((complaint: Complaint) => {
           readIds.add(complaint.id);
         });
-        
+
         saveReadComplaintIds(readIds);
         loadStats();
       }
@@ -132,11 +136,11 @@ export function useComplaintNotifications(hasPermission: boolean) {
   useEffect(() => {
     if (hasPermission) {
       loadStats(); // Panggil segera saat mount
-      
+
       const interval = setInterval(() => {
         loadStats();
       }, 30000); // Refresh setiap 30 detik
-      
+
       return () => clearInterval(interval);
     } else {
       setIsLoading(false);

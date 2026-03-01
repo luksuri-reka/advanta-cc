@@ -16,7 +16,6 @@ import {
   ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
-import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
 import { formatDate, formatDateTime } from '@/app/utils/dateFormat';
 import BagForm from './BagForm';
@@ -198,9 +197,7 @@ export default function BagClient({
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-center" reverseOrder={false} />
-      <Navbar user={user ? { name: user.user_metadata?.name || 'Admin' } : null} onLogout={handleLogout} />
-
-      <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between pb-6 border-b border-gray-200">
           <div className="min-w-0 flex-1">

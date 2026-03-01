@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
-import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
 import ProductForm from './ProductForm';
 import { deleteProduct } from './actions';
@@ -109,9 +108,7 @@ export default function ProductClient({
     <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
       <Toaster position="top-center" />
       {/* ++ 5. Gunakan displayUser untuk Navbar ++ */}
-      <Navbar user={displayUser} onLogout={handleLogout} />
-      
-      {/* ++ 6. Sesuaikan layout main dan header ++ */}
+{/* ++ 6. Sesuaikan layout main dan header ++ */}
       <main className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>

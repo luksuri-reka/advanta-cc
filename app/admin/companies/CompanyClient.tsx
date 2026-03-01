@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
-import Navbar from '../Navbar';
 import { useAuth } from '@/app/AuthContext';
 import CompanyForm from './CompanyForm';
 import { deleteCompany } from './actions';
@@ -89,9 +88,7 @@ export default function CompanyClient({ initialCompanies, availableProvinces }: 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
       <Toaster position="top-center" reverseOrder={false} />
-      <Navbar user={displayUser} onLogout={handleLogout} />
-
-      <main className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>

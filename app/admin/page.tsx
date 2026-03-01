@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { getProfile, logout } from '../utils/auth';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabase';
-import Navbar from './Navbar';
 import {
   UsersIcon,
   ArchiveBoxIcon,
@@ -351,9 +350,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      <Navbar user={user} onLogout={handleLogout} />
-      
-      <main className="relative">
+<main className="relative">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-400/5 dark:bg-emerald-500/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-400/5 dark:bg-blue-500/10 rounded-full blur-3xl"></div>

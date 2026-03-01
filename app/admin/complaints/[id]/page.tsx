@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getProfile, logout } from '../../../utils/auth';
 import type { User } from '@supabase/supabase-js';
-import Navbar from '../../Navbar';
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -48,15 +47,22 @@ interface QuickActionsProps {
   userId: string;
   user: DisplayUser; // 🔥 TAMBAHKAN INI
   onStatusChange: () => void;
+  approvalData?: any;
+  onApprovalUpdate?: () => void;
 }
 
-function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsProps) {
+function QuickActions({ complaint, userId, user, onStatusChange, approvalData, onApprovalUpdate }: QuickActionsProps) {
   const [updating, setUpdating] = useState(false);
 
   // 🔥 TAMBAHKAN STATE UNTUK MODAL
   const [showReplacementModal, setShowReplacementModal] = useState(false);
   const [replacementQty, setReplacementQty] = useState('');
   const [replacementHybrid, setReplacementHybrid] = useState('');
+
+  // States for Approval Flow
+  const [showRequestApprovalModal, setShowRequestApprovalModal] = useState(false);
+  const [approvalItem, setApprovalItem] = useState('');
+  const [approvalNotes, setApprovalNotes] = useState('');
 
   const activeAssignees = [
     complaint.assignee_observasi,
@@ -101,6 +107,53 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
     } catch (error) {
       console.error('Quick action failed:', error);
       toast.error('Gagal memperbarui status');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // 🔥 HANDLER UNTUK REQUEST APPROVAL (NEW)
+  const handleRequestApproval = async () => {
+    if (!approvalItem.trim()) {
+      toast.error('Item penggantian harus diisi');
+      return;
+    }
+    setUpdating(true);
+    try {
+      const resp = await fetch(`/api/complaints/${complaint.id}/approval`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          replacement_item: approvalItem,
+          notes: approvalNotes
+        })
+      });
+      if (!resp.ok) throw new Error('Gagal mengajukan approval');
+      toast.success('Approval berhasil diajukan');
+      setShowRequestApprovalModal(false);
+      if (onApprovalUpdate) onApprovalUpdate(); // Refresh approval data in parent
+    } catch (err: any) {
+      toast.error(err.message || 'Terjadi kesalahan');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // 🔥 HANDLER UNTUK APPROVE / REJECT
+  const handleProcessApproval = async (status: 'approved' | 'rejected') => {
+    setUpdating(true);
+    try {
+      const resp = await fetch(`/api/complaints/${complaint.id}/approval`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (!resp.ok) throw new Error(`Gagal memproses ${status}`);
+      toast.success(`Approval berhasil di-${status}`);
+      if (onApprovalUpdate) onApprovalUpdate();
+      onStatusChange(); // Because status could change to 'decision'
+    } catch (err: any) {
+      toast.error(err.message || 'Terjadi kesalahan');
     } finally {
       setUpdating(false);
     }
@@ -284,9 +337,75 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
               </button>
             </>
           )}
+
+          {/* === STATUS: DECISION - MANAJEMEN APPROVAL === */}
+          {complaint.status === 'decision' && (
+            <div className="col-span-1 sm:col-span-2 p-5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Persetujuan Penggantian</h4>
+
+              {!approvalData ? (
+                // 1. Belum ada request approval diajukan
+                <button
+                  onClick={() => setShowRequestApprovalModal(true)}
+                  disabled={updating}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
+                >
+                  Ajukan Persetujuan Penggantian (Request Approval)
+                </button>
+              ) : approvalData.status === 'pending' ? (
+                // 2. Ada request pending. Cek siapa yang berhak approve.
+                <div className="space-y-4">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800 font-medium whitespace-pre-wrap">
+                      <span className="block mb-1 text-xs text-amber-600">Request Detail:</span>
+                      Item: {approvalData.replacement_item}<br />
+                      Notes: {approvalData.notes || '-'}
+                    </p>
+                  </div>
+
+                  {isSuperAdmin || isManagement || userId === complaint.assigned_to ? (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleProcessApproval('approved')}
+                        disabled={updating}
+                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors"
+                      >
+                        Approve Penggantian
+                      </button>
+                      <button
+                        onClick={() => handleProcessApproval('rejected')}
+                        disabled={updating}
+                        className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="py-3 px-4 bg-gray-100 text-gray-600 rounded-xl text-center text-sm font-medium">
+                      Menunggu persetujuan dari Management/Admin
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // 3. Status Approved atau Rejected
+                <div className={`p-4 rounded-xl border ${approvalData.status === 'approved' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                  <p className={`text-sm font-bold mb-1 ${approvalData.status === 'approved' ? 'text-emerald-800' : 'text-red-800'}`}>
+                    Penggantian telah di-{approvalData.status}
+                  </p>
+                  <p className={`text-xs ${approvalData.status === 'approved' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    Item: {approvalData.replacement_item}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Diputuskan oleh: {approvalData.approved_user?.full_name || 'Admin'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
 
-        <p className="text-xs text-gray-600 dark:text-gray-400 mt-4 text-center">
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-6 text-center">
           Gunakan tombol ini untuk update status dengan cepat
         </p>
       </div >
@@ -371,6 +490,67 @@ function QuickActions({ complaint, userId, user, onStatusChange }: QuickActionsP
           </div>
         )
       }
+
+      {/* 🔥 MODAL REQUEST APPROVAL */}
+      {showRequestApprovalModal && (
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Request Approval Penggantian</h3>
+              <button
+                onClick={() => setShowRequestApprovalModal(false)}
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Usulan Item Pengganti <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={approvalItem}
+                  onChange={(e) => setApprovalItem(e.target.value)}
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
+                  placeholder="Contoh: 5 Sak Benih Hybrid X"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Catatan Tambahan
+                </label>
+                <textarea
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
+                  placeholder="Alasan disetujui, hasil lab, dsb."
+                />
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowRequestApprovalModal(false)}
+                className="px-6 py-3 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleRequestApproval}
+                disabled={updating || !approvalItem}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 disabled:opacity-50 transition-colors"
+              >
+                {updating ? 'Mengirim...' : 'Ajukan Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -558,6 +738,9 @@ export default function ComplaintDetailPage() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
 
+  // 🔥 Approval State
+  const [approvalData, setApprovalData] = useState<any>(null);
+
   useEffect(() => {
     (async () => {
       try {
@@ -581,6 +764,7 @@ export default function ComplaintDetailPage() {
     if (user) {
       loadComplaint();
       loadAdminUsers();
+      loadApprovalData();
     }
   }, [user, id]);
 
@@ -612,6 +796,18 @@ export default function ComplaintDetailPage() {
       setError(err.message || 'An unknown error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadApprovalData = async () => {
+    try {
+      const response = await fetch(`/api/complaints/${id}/approval`);
+      if (response.ok) {
+        const json = await response.json();
+        setApprovalData(json.data);
+      }
+    } catch (err) {
+      console.error('Failed to load approval data:', err);
     }
   };
 
@@ -900,9 +1096,7 @@ export default function ComplaintDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
-      <Navbar user={user} onLogout={handleLogout} />
-      <Toaster position="top-right" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900"><Toaster position="top-right" />
 
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -962,8 +1156,10 @@ export default function ComplaintDetailPage() {
                 <QuickActions
                   complaint={complaint}
                   userId={user.id!}
-                  user={user} // 🔥 TAMBAHKAN INI
+                  user={user}
                   onStatusChange={loadComplaint}
+                  approvalData={approvalData}
+                  onApprovalUpdate={loadApprovalData}
                 />
               </div>
             )}

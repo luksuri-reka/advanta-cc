@@ -127,6 +127,7 @@ export async function POST(request: Request) {
           canExportComplaintData: false
         },
         max_assigned_complaints: body.max_assigned_complaints || 10,
+        whatsapp_number: body.whatsapp_number?.trim() || null,
         assigned_regions: body.assigned_regions || [], // 🔥 TAMBAHKAN
         current_assigned_count: 0,
         total_resolved_complaints: 0,
@@ -190,6 +191,7 @@ export async function PATCH(request: Request) {
     if (body.full_name) updateData.full_name = body.full_name.trim();
     if (body.department) updateData.department = body.department;
     if (body.job_title !== undefined) updateData.job_title = body.job_title?.trim() || null;
+    if (body.whatsapp_number !== undefined) updateData.whatsapp_number = body.whatsapp_number?.trim() || null;
     if (body.complaint_permissions) updateData.complaint_permissions = body.complaint_permissions;
     if (body.max_assigned_complaints !== undefined) updateData.max_assigned_complaints = body.max_assigned_complaints;
     if (body.is_active !== undefined) updateData.is_active = body.is_active;
