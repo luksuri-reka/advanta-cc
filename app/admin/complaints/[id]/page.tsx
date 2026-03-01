@@ -40,6 +40,8 @@ import {
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
 import ObservationSummaryCard from '@/app/components/ObservationSummaryCard';
+import InvestigationSummaryCard from '@/app/components/InvestigationSummaryCard';
+import LabTestingSummaryCard from '@/app/components/LabTestingSummaryCard';
 
 interface QuickActionsProps {
   complaint: Complaint;
@@ -1035,6 +1037,148 @@ export default function ComplaintDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Investigation Summary Card & Evidence */}
+            {complaint.complaint_investigations && complaint.complaint_investigations.length > 0 && (
+              <div className="lg:col-span-3 space-y-4">
+                <InvestigationSummaryCard
+                  data={complaint.complaint_investigations[0]}
+                />
+
+                {/* INVESTIGATION EVIDENCE FILES */}
+                {complaint.complaint_investigations[0].evidence_files && complaint.complaint_investigations[0].evidence_files.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                    <dt className="text-sm font-medium text-purple-600 dark:text-purple-400 flex items-center gap-2 mb-4">
+                      <DocumentTextIcon className="w-5 h-5 text-purple-500" />
+                      Dokumentasi Investigasi
+                    </dt>
+                    <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {complaint.complaint_investigations[0].evidence_files.map((src: string, index: number) => {
+                        let fileNameStr = `File Evidence ${index + 1}`;
+                        let base64Data = src;
+
+                        if (src.includes('|')) {
+                          const separatorIndex = src.indexOf('|');
+                          fileNameStr = src.substring(0, separatorIndex);
+                          base64Data = src.substring(separatorIndex + 1);
+                        }
+
+                        const isBase64 = base64Data.startsWith('data:image/');
+                        const isHttp = base64Data.startsWith('http');
+                        const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+
+                        const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                        const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
+
+                        return (
+                          <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square">
+                            {isVisualImage ? (
+                              <img
+                                src={displayUrl}
+                                alt={finalFileName}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center p-4 h-full">
+                                <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">
+                                  {finalFileName}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Hover overlay for download */}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
+                              <a
+                                href={displayUrl}
+                                download={finalFileName || `evidence-${complaint.complaint_number}-${index + 1}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors shadow-lg text-xs"
+                              >
+                                <ArrowDownTrayIcon className="w-4 h-4" />
+                                Unduh
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </dd>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Lab Testing Summary Card & Evidence */}
+            {complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0 && (
+              <div className="lg:col-span-3 space-y-4">
+                <LabTestingSummaryCard
+                  data={complaint.complaint_lab_testing[0]}
+                />
+
+                {/* LAB TESTING EVIDENCE FILES */}
+                {complaint.complaint_lab_testing[0].evidence_files && complaint.complaint_lab_testing[0].evidence_files.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                    <dt className="text-sm font-medium text-teal-600 dark:text-teal-400 flex items-center gap-2 mb-4">
+                      <BeakerIcon className="w-5 h-5 text-teal-500" />
+                      Dokumentasi Lab Testing
+                    </dt>
+                    <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {complaint.complaint_lab_testing[0].evidence_files.map((src: string, index: number) => {
+                        let fileNameStr = `File Lab ${index + 1}`;
+                        let base64Data = src;
+
+                        if (src.includes('|')) {
+                          const separatorIndex = src.indexOf('|');
+                          fileNameStr = src.substring(0, separatorIndex);
+                          base64Data = src.substring(separatorIndex + 1);
+                        }
+
+                        const isBase64 = base64Data.startsWith('data:image/');
+                        const isHttp = base64Data.startsWith('http');
+                        const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+
+                        const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                        const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
+
+                        return (
+                          <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square">
+                            {isVisualImage ? (
+                              <img
+                                src={displayUrl}
+                                alt={finalFileName}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center p-4 h-full">
+                                <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">
+                                  {finalFileName}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Hover overlay for download */}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
+                              <a
+                                href={displayUrl}
+                                download={finalFileName || `lab-${complaint.complaint_number}-${index + 1}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors shadow-lg text-xs"
+                              >
+                                <ArrowDownTrayIcon className="w-4 h-4" />
+                                Unduh
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </dd>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Left Column: Details */}
             <div className="lg:col-span-2 space-y-8">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
@@ -1292,129 +1436,7 @@ export default function ComplaintDetailPage() {
                       </div>
                     )}
 
-                    {/* INVESTIGATION EVIDENCE FILES */}
-                    {complaint.complaint_investigations && complaint.complaint_investigations.length > 0 && complaint.complaint_investigations[0].evidence_files && complaint.complaint_investigations[0].evidence_files.length > 0 && (
-                      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                          <DocumentTextIcon className="w-5 h-5 text-purple-500" />
-                          Dokumentasi Investigasi
-                        </dt>
-                        <dd className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                          {complaint.complaint_investigations[0].evidence_files.map((src: string, index: number) => {
-                            let fileNameStr = `File Evidence ${index + 1}`;
-                            let base64Data = src;
 
-                            if (src.includes('|')) {
-                              const separatorIndex = src.indexOf('|');
-                              fileNameStr = src.substring(0, separatorIndex);
-                              base64Data = src.substring(separatorIndex + 1);
-                            }
-
-                            const isBase64 = base64Data.startsWith('data:image/');
-                            const isHttp = base64Data.startsWith('http');
-                            const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
-
-                            const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
-                            const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
-
-                            return (
-                              <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between h-32">
-                                {isVisualImage ? (
-                                  <img
-                                    src={displayUrl}
-                                    alt={finalFileName}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex flex-col items-center justify-center p-4 h-full">
-                                    <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
-                                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2">
-                                      {finalFileName}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {/* Hover overlay for download */}
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
-                                  <a
-                                    href={displayUrl}
-                                    download={finalFileName || `evidence-${complaint.complaint_number}-${index + 1}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors shadow-lg text-sm"
-                                  >
-                                    <ArrowDownTrayIcon className="w-4 h-4" />
-                                    Unduh File
-                                  </a>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </dd>
-                      </div>
-                    )}
-
-                    {/* LAB TESTING EVIDENCE FILES */}
-                    {complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0 && complaint.complaint_lab_testing[0].evidence_files && complaint.complaint_lab_testing[0].evidence_files.length > 0 && (
-                      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                          <BeakerIcon className="w-5 h-5 text-teal-500" />
-                          Dokumentasi Lab Testing
-                        </dt>
-                        <dd className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                          {complaint.complaint_lab_testing[0].evidence_files.map((src: string, index: number) => {
-                            let fileNameStr = `File Lab ${index + 1}`;
-                            let base64Data = src;
-
-                            if (src.includes('|')) {
-                              const separatorIndex = src.indexOf('|');
-                              fileNameStr = src.substring(0, separatorIndex);
-                              base64Data = src.substring(separatorIndex + 1);
-                            }
-
-                            const isBase64 = base64Data.startsWith('data:image/');
-                            const isHttp = base64Data.startsWith('http');
-                            const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
-
-                            const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
-                            const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
-
-                            return (
-                              <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between h-32">
-                                {isVisualImage ? (
-                                  <img
-                                    src={displayUrl}
-                                    alt={finalFileName}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex flex-col items-center justify-center p-4 h-full">
-                                    <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
-                                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2">
-                                      {finalFileName}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {/* Hover overlay for download */}
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
-                                  <a
-                                    href={displayUrl}
-                                    download={finalFileName || `lab-${complaint.complaint_number}-${index + 1}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-medium transition-colors shadow-lg text-sm"
-                                  >
-                                    <ArrowDownTrayIcon className="w-4 h-4" />
-                                    Unduh File
-                                  </a>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </dd>
-                      </div>
-                    )}
                   </div>
                 </div>
 

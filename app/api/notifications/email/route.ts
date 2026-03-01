@@ -8,15 +8,15 @@ export async function POST(request: Request) {
 
     if (process.env.ENABLE_EMAIL_NOTIFICATIONS !== 'true') {
       console.log('Email notifications disabled, skipping...');
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Email notifications disabled' 
+      return NextResponse.json({
+        success: true,
+        message: 'Email notifications disabled'
       });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                    request.headers.get('origin') || 
-                    'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+      request.headers.get('origin') ||
+      'http://localhost:3000';
 
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
@@ -32,15 +32,15 @@ export async function POST(request: Request) {
         subject = `Komplain Anda Telah Diterima - ${complaint_number}`;
         htmlContent = generateComplaintCreatedEmail(customer_name, complaint_number, baseUrl, logoUrl);
         break;
-      
+
       case 'complaint_response':
         subject = `Update Komplain ${complaint_number}`;
         htmlContent = generateComplaintResponseEmail(customer_name, complaint_number, baseUrl, logoUrl);
         break;
-        
+
       case 'status_update': {
         const { complaint_number, customer_name, new_status } = body;
-        
+
         const statusLabels: Record<string, string> = {
           submitted: 'Dikirim',
           acknowledged: 'Dikonfirmasi',
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
               <div style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
                 <p style="color: #6b7280; font-size: 13px; margin: 0 0 10px 0;">
                   PT Advanta Seeds Indonesia<br>
-                  Email: ${process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'support@advanta.co.id'}<br>
+                  Email: ${process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'qaex@advantaseeds.com'}<br>
                   Website: ${baseUrl}
                 </p>
                 <p style="color: #9ca3af; font-size: 12px; margin: 15px 0 0 0;">
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
         `;
         break;
       }
-        
+
       default:
         subject = `Notifikasi dari Advanta Seeds - ${complaint_number}`;
         htmlContent = generateGenericEmail(customer_name, complaint_number, baseUrl, logoUrl);
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Email notification error:', error);
     return NextResponse.json(
-      { error: 'Failed to send notification' }, 
+      { error: 'Failed to send notification' },
       { status: 500 }
     );
   }
