@@ -19,8 +19,8 @@ export async function POST(
     const { replacement_qty, replacement_hybrid } = body;
 
     if (!replacement_qty || !replacement_hybrid) {
-      return NextResponse.json({ 
-        error: 'Replacement qty and hybrid are required' 
+      return NextResponse.json({
+        error: 'Replacement qty and hybrid are required'
       }, { status: 400 });
     }
 
@@ -57,8 +57,8 @@ export async function POST(
       .single();
 
     if (complaint) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-      
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
       // Email notification
       if (complaint.customer_email) {
         fetch(`${baseUrl}/api/notifications/email`, {
@@ -92,7 +92,7 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: 'Complaint acknowledged with replacement proposal'
     });

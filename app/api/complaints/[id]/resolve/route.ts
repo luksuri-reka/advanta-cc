@@ -17,7 +17,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    
+
     // --- PERBAIKAN: Membaca 'resolution' (pesan lengkap) ---
     const { resolution, resolution_summary, customer_satisfaction_rating } = body;
 
@@ -29,15 +29,15 @@ export async function POST(
       .single();
 
     if (complaintError || !complaint) {
-      return NextResponse.json({ 
-        error: 'Complaint not found' 
+      return NextResponse.json({
+        error: 'Complaint not found'
       }, { status: 404 });
     }
 
     // Check if already resolved
     if (complaint.status === 'resolved' || complaint.status === 'closed') {
-      return NextResponse.json({ 
-        error: 'Complaint is already resolved' 
+      return NextResponse.json({
+        error: 'Complaint is already resolved'
       }, { status: 400 });
     }
 
@@ -59,8 +59,8 @@ export async function POST(
 
     if (updateError) {
       console.error('Update error:', updateError);
-      return NextResponse.json({ 
-        error: 'Failed to resolve complaint' 
+      return NextResponse.json({
+        error: 'Failed to resolve complaint'
       }, { status: 500 });
     }
 
@@ -92,7 +92,7 @@ export async function POST(
     // Log to assignment history
     await supabase
       .from('complaint_assignments')
-      .update({ 
+      .update({
         is_active: false,
         unassigned_at: resolvedAt,
         unassigned_by: user.id
@@ -102,7 +102,7 @@ export async function POST(
 
     // Send resolution email to customer
     if (complaint.customer_email) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
       fetch(`${baseUrl}/api/notifications/email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,7 +116,7 @@ export async function POST(
       }).catch(err => console.error('Email notification failed:', err));
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: 'Complaint resolved successfully',
       data: {

@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     // Validasi Nama (wajib)
     if (!body.customer_name || body.customer_name.trim() === '') {
       return NextResponse.json(
-        { error: 'Nama pelanggan wajib diisi' }, 
+        { error: 'Nama pelanggan wajib diisi' },
         { status: 400 }
       );
     }
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(body.customer_email)) {
         return NextResponse.json(
-          { error: 'Format email tidak valid' }, 
+          { error: 'Format email tidak valid' },
           { status: 400 }
         );
       }
@@ -59,34 +59,34 @@ export async function POST(request: Request) {
       const preparedRatings: any = {};
       if (ratingsData.overall_satisfaction !== undefined) {
         preparedRatings.overall_satisfaction = validateRating(
-          ratingsData.overall_satisfaction, 
+          ratingsData.overall_satisfaction,
           'Kepuasan keseluruhan'
         );
       }
       if (ratingsData.product_quality !== undefined) {
         preparedRatings.product_quality = validateRating(
-          ratingsData.product_quality, 
+          ratingsData.product_quality,
           'Kualitas produk'
         );
       }
       if (ratingsData.packaging !== undefined) {
         preparedRatings.packaging = validateRating(
-          ratingsData.packaging, 
+          ratingsData.packaging,
           'Kemasan'
         );
       }
       if (ratingsData.delivery !== undefined) {
         preparedRatings.delivery = validateRating(
-          ratingsData.delivery, 
+          ratingsData.delivery,
           'Pengiriman'
         );
       }
       const productPerformanceRating = validateRating(
-        body.product_performance_rating, 
+        body.product_performance_rating,
         'Performa produk'
       );
       const packagingQualityRating = validateRating(
-        body.packaging_quality_rating, 
+        body.packaging_quality_rating,
         'Kualitas kemasan'
       );
 
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       console.log('Survey submitted successfully:', data.id);
 
       // ++ UBAH: Blok Notifikasi (Gunakan Fonnte untuk Keduanya) ++
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
       // 1. Kirim notifikasi WhatsApp (ke Admin via Fonnte)
       const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER;
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
               type: 'survey_submitted', // Tipe untuk pelanggan
               phone: body.customer_phone,
               customer_name: body.customer_name,
-              survey_id: data.id 
+              survey_id: data.id
             }),
           });
           console.log(`Notifikasi WhatsApp ke pelanggan ${body.customer_name} terpicu.`);

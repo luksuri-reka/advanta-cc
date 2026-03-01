@@ -9,13 +9,13 @@ export async function POST(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    
+
     // --- PERBAIKAN 1: Baca 'is_internal' BUKAN 'is_customer_response' ---
     const body = await request.json();
-    const { 
-      message, 
-      admin_name, 
-      admin_id, 
+    const {
+      message,
+      admin_name,
+      admin_id,
       is_internal // 👈 BACA INI (sesuai skema database)
     } = body;
 
@@ -25,15 +25,15 @@ export async function POST(
     // --- PERBAIKAN 2: Validasi ---
     if (!message) {
       return NextResponse.json(
-        { error: 'Message is required' }, 
+        { error: 'Message is required' },
         { status: 400 }
       );
     }
-    
+
     // Catatan internal harus punya admin_id
     if (admin_id === null && is_internal === true) {
-       return NextResponse.json(
-        { error: 'Internal notes must have an admin_id' }, 
+      return NextResponse.json(
+        { error: 'Internal notes must have an admin_id' },
         { status: 400 }
       );
     }
@@ -79,14 +79,14 @@ export async function POST(
     // --- PERBAIKAN 5: Kirim notifikasi HANYA jika BUKAN internal ---
     // (PENTING: 'admin_id' null berarti dari pelanggan, JANGAN kirim notif)
     if (is_internal === false && admin_id !== null) {
-      
+
       const { data: complaint } = await supabase
         .from('complaints')
         .select('customer_email, customer_name, complaint_number, customer_phone')
         .eq('id', id)
         .single();
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
       // Kirim Email
       if (complaint && complaint.customer_email) {
@@ -98,7 +98,7 @@ export async function POST(
             email: complaint.customer_email,
             complaint_number: complaint.complaint_number,
             customer_name: complaint.customer_name,
-            response_message: message 
+            response_message: message
           })
         }).catch(err => console.error('Email notification failed:', err));
       }

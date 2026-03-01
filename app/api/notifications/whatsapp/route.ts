@@ -4,12 +4,12 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
-    const { 
-      type, 
+
+    const {
+      type,
       customer_phone,
-      customer_name, 
-      complaint_number, 
+      customer_name,
+      complaint_number,
       survey_id,
       product_name,
       serial,
@@ -31,15 +31,15 @@ export async function POST(request: Request) {
 
     // Buat isi pesan berdasarkan tipe notifikasi
     let messageText = '';
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     if (type === 'complaint_created') {
       if (!complaint_number || !customer_name) {
         return NextResponse.json({ error: 'Missing complaint_number or customer_name for complaint_created' }, { status: 400 });
       }
-      
+
       const trackUrl = `${baseUrl}/complaint/${complaint_number}/status`;
-      
+
       messageText = `📋 *Komplain Berhasil Dikirim*
 
 Halo *${customer_name}*,
@@ -56,13 +56,13 @@ Anda dapat melacak status komplain kapan saja melalui link berikut:
 ---
 *PT Advanta Seeds Indonesia*
 Layanan Customer Care`;
-    
+
     } else if (type === 'complaint_status_update') {
       if (!complaint_number || !customer_name) {
         return NextResponse.json({ error: 'Missing complaint_number or customer_name for complaint_status_update' }, { status: 400 });
       }
       const trackUrl = `${baseUrl}/complaint/${complaint_number}/status`;
-      
+
       messageText = `🔔 *Update Status Komplain*
 
 Halo *${customer_name}*,
@@ -77,12 +77,12 @@ Silakan cek link berikut untuk melihat detail terbaru:
 ---
 *PT Advanta Seeds Indonesia*
 Layanan Customer Care`;
-    
+
     } else if (type === 'status_update') {
       if (!complaint_number || !customer_name || !new_status) {
         return NextResponse.json({ error: 'Missing required fields for status_update' }, { status: 400 });
       }
-      
+
       const statusLabels: Record<string, string> = {
         submitted: 'Dikirim',
         acknowledged: 'Dikonfirmasi',
@@ -135,14 +135,14 @@ ${trackUrl}
 ---
 *PT Advanta Seeds Indonesia*
 Layanan Customer Care`;
-    
+
     } else if (type === 'complaint_response') {
       if (!complaint_number || !customer_name) {
         return NextResponse.json({ error: 'Missing required fields for complaint_response' }, { status: 400 });
       }
-      
+
       const trackUrl = `${baseUrl}/complaint/${complaint_number}/status`;
-      
+
       messageText = `💬 *Pesan Baru dari Tim Kami*
 
 Halo *${customer_name}*,
@@ -159,7 +159,7 @@ ${trackUrl}
 ---
 *PT Advanta Seeds Indonesia*
 Layanan Customer Care`;
-    
+
     } else if (type === 'survey_submitted') {
       if (!customer_name) {
         return NextResponse.json({ error: 'Missing customer_name for survey_submitted' }, { status: 400 });
@@ -174,15 +174,15 @@ Feedback Anda sangat berharga untuk membantu kami terus meningkatkan kualitas pr
 
 ---
 *PT Advanta Seeds Indonesia*`;
-    
+
     } else if (type === 'survey_admin_notification') {
       if (!survey_id || !customer_name) {
         return NextResponse.json({ error: 'Missing survey_id or customer_name for survey_admin_notification' }, { status: 400 });
       }
-      
+
       const overallRating = Number(rating) || 0;
       const stars = overallRating > 0 ? '⭐'.repeat(overallRating) : 'Belum dinilai';
-      
+
       messageText = `📊 *Survey Baru Diterima!*
 
 *ID Survey:* ${survey_id}
@@ -230,7 +230,7 @@ Silakan cek dashboard admin untuk detail lebih lanjut.`;
       customer_phone,
       complaint_number
     });
-    
+
     return NextResponse.json({
       success: true,
       message: 'WhatsApp notification sent successfully',

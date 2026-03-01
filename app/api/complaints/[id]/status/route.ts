@@ -30,8 +30,8 @@ export async function POST(
     const { status } = body;
 
     if (!status || !complaintStatuses.includes(status)) {
-      return NextResponse.json({ 
-        error: `Invalid status: ${status}` 
+      return NextResponse.json({
+        error: `Invalid status: ${status}`
       }, { status: 400 });
     }
 
@@ -42,13 +42,13 @@ export async function POST(
       .single();
 
     if (complaintError || !complaint) {
-      return NextResponse.json({ 
-        error: 'Complaint not found' 
+      return NextResponse.json({
+        error: 'Complaint not found'
       }, { status: 404 });
     }
 
     if (complaint.status === status) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         message: 'Status already set',
         data: complaint
       }, { status: 200 });
@@ -76,8 +76,8 @@ export async function POST(
 
     if (updateError) {
       console.error('Update status error:', updateError);
-      return NextResponse.json({ 
-        error: 'Failed to update status' 
+      return NextResponse.json({
+        error: 'Failed to update status'
       }, { status: 500 });
     }
 
@@ -94,8 +94,8 @@ export async function POST(
       });
 
     // Kirim notifikasi ke customer
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
     // Email notification
     if (complaint.customer_email) {
       fetch(`${baseUrl}/api/notifications/email`, {
@@ -126,7 +126,7 @@ export async function POST(
       }).catch(err => console.error('WhatsApp notification failed:', err));
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: `Status updated to ${status}`,
       data: { old_status: complaint.status, new_status: status }
