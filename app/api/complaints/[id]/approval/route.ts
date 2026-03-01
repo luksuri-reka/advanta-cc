@@ -12,14 +12,33 @@ export async function GET(
 
         const { data: approval, error } = await supabase
             .from('complaint_approvals')
-            .select('*, requested_user:requested_by(full_name, department), approved_user:approved_by(full_name, department)')
-            .eq('complaint_id', id)
+            .select('*')
+            .eq('complaint_id', parseInt(id, 10))
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
 
         if (error && error.code !== 'PGRST116') {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        if (approval) {
+            const userIdsToFetch = [approval.requested_by, approval.approved_by].filter(Boolean);
+            if (userIdsToFetch.length > 0) {
+                const { data: profiles } = await supabase
+                    .from('user_complaint_profiles')
+                    .select('user_id, full_name, department')
+                    .in('user_id', userIdsToFetch);
+
+                if (profiles) {
+                    const profileMap = profiles.reduce((acc: any, p: any) => {
+                        acc[p.user_id] = p;
+                        return acc;
+                    }, {});
+                    approval.requested_user = profileMap[approval.requested_by] || null;
+                    approval.approved_user = approval.approved_by ? (profileMap[approval.approved_by] || null) : null;
+                }
+            }
         }
 
         return NextResponse.json({ success: true, data: approval || null });
@@ -43,7 +62,7 @@ export async function POST(
         }
 
         const approvalData = {
-            complaint_id: id,
+            complaint_id: parseInt(id, 10),
             requested_by: user.id,
             status: 'pending',
             replacement_item: body.replacement_item,
@@ -88,7 +107,7 @@ export async function PATCH(
         const { data: latestPending } = await supabase
             .from('complaint_approvals')
             .select('id')
-            .eq('complaint_id', id)
+            .eq('complaint_id', parseInt(id, 10))
             .eq('status', 'pending')
             .order('created_at', { ascending: false })
             .limit(1)
@@ -120,7 +139,7 @@ export async function PATCH(
                     acknowledged_replacement_hybrid: approvalDetails.replacement_item,
                     status: 'decision', // Push to decision or resolved depending on business workflow
                     updated_at: new Date().toISOString()
-                }).eq('id', id);
+                }).eq('id', parseInt(id, 10));
             }
         }
 

@@ -273,11 +273,9 @@ export async function GET(request: Request) {
 
       if (profile?.assigned_regions && profile.assigned_regions.length > 0) {
         query = query.in('customer_province', profile.assigned_regions);
-      } else {
-        // Jika petugas tidak punya wilayah assign, dia tidak bisa melihat apa-apa
-        // (Bisa juga dibiarkan kosong data-nya)
-        return NextResponse.json({ success: true, data: [] });
       }
+      // Jika kosong, query dibiarkan tanpa filter in(), sehingga RLS di DB yang akan mengambil alih.
+      // (Berdasarkan update RLS: array kosong berarti boleh lihat semua)
     }
 
     const { data, error } = await query;

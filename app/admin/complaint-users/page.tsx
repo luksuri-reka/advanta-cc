@@ -354,7 +354,8 @@ export default function ComplaintUsersPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900"><main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
+      <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
@@ -589,7 +590,7 @@ export default function ComplaintUsersPage() {
                   </div>
 
                   {/* UI Multi-select Wilayah Penugasan */}
-                  {formData.department === 'customer_service' && (
+                  {formData.department && !['admin', 'management', 'sales'].includes(formData.department) && (
                     <div className="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                       <div className="flex items-center gap-3 mb-4">
                         <MapPinIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />

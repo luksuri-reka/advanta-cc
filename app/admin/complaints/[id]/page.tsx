@@ -1095,8 +1095,12 @@ export default function ComplaintDetailPage() {
     );
   }
 
+  const isSuperAdmin = user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin');
+  const isManagement = user?.department === 'management';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900"><Toaster position="top-right" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
+      <Toaster position="top-right" />
 
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -2060,127 +2064,129 @@ export default function ComplaintDetailPage() {
               )}
 
               {/* Info Penugasan */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-5">
-                  Penugasan & Departemen
-                </h3>
+              {(isSuperAdmin || isManagement) && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-5">
+                    Penugasan & Departemen
+                  </h3>
 
-                <div className="space-y-4">
-                  {/* Observasi */}
-                  {complaint.assignee_observasi_user ? (
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-8 w-8 text-cyan-500 dark:text-cyan-400" />
-                      <div>
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Observasi</dt>
-                        <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_observasi_user.name}</dd>
+                  <div className="space-y-4">
+                    {/* Observasi */}
+                    {complaint.assignee_observasi_user ? (
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-8 w-8 text-cyan-500 dark:text-cyan-400" />
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Observasi</dt>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_observasi_user.name}</dd>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
-                      <div>
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Observasi</dt>
-                        <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Observasi</dt>
+                          <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Investigasi 1 */}
-                  {complaint.assignee_investigasi_1_user ? (
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />
-                      <div>
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 1</dt>
-                        <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_investigasi_1_user.name}</dd>
+                    {/* Investigasi 1 */}
+                    {complaint.assignee_investigasi_1_user ? (
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 1</dt>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_investigasi_1_user.name}</dd>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
-                      <div>
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 1</dt>
-                        <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 1</dt>
+                          <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Investigasi 2 */}
-                  {complaint.assignee_investigasi_2_user ? (
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />
-                      <div>
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 2</dt>
-                        <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_investigasi_2_user.name}</dd>
+                    {/* Investigasi 2 */}
+                    {complaint.assignee_investigasi_2_user ? (
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 2</dt>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_investigasi_2_user.name}</dd>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
-                      <div>
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 2</dt>
-                        <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 2</dt>
+                          <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Lab Testing */}
-                  {complaint.assignee_lab_testing_user ? (
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-8 w-8 text-teal-500 dark:text-teal-400" />
-                      <div>
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Lab Testing</dt>
-                        <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_lab_testing_user.name}</dd>
+                    {/* Lab Testing */}
+                    {complaint.assignee_lab_testing_user ? (
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-8 w-8 text-teal-500 dark:text-teal-400" />
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Lab Testing</dt>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_lab_testing_user.name}</dd>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
-                      <div>
-                        <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Lab Testing</dt>
-                        <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Lab Testing</dt>
+                          <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  {complaint.assigned_at && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Terakhir Ditugaskan</dt>
-                      <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(complaint.assigned_at)}</dd>
-                    </div>
-                  )}
-                  {complaint.assigned_by_user && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ditugaskan Oleh</dt>
-                      <dd className="mt-1 text-sm text-gray-900 dark:text-white">{complaint.assigned_by_user.name}</dd>
-                    </div>
-                  )}
-                </div>
-
-                {complaint.internal_notes && (
-                  <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Catatan Internal</dt>
-                    <dd className="text-sm text-gray-700 dark:text-gray-300 italic bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                      "{complaint.internal_notes}"
-                    </dd>
-                  </div>
-                )}
-
-                {(complaint.status !== 'resolved' && complaint.status !== 'closed') && (
-                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
-                    {hasPermission('canAssignComplaints') && (
-                      <button
-                        onClick={() => setShowAssignmentModal(true)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-500 transition-colors"
-                      >
-                        <UserPlusIcon className="h-5 w-5" />
-                        Penugasan
-                      </button>
                     )}
                   </div>
-                )}
-              </div>
+
+                  <div className="mt-4 space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    {complaint.assigned_at && (
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Terakhir Ditugaskan</dt>
+                        <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(complaint.assigned_at)}</dd>
+                      </div>
+                    )}
+                    {complaint.assigned_by_user && (
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ditugaskan Oleh</dt>
+                        <dd className="mt-1 text-sm text-gray-900 dark:text-white">{complaint.assigned_by_user.name}</dd>
+                      </div>
+                    )}
+                  </div>
+
+                  {complaint.internal_notes && (
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Catatan Internal</dt>
+                      <dd className="text-sm text-gray-700 dark:text-gray-300 italic bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                        "{complaint.internal_notes}"
+                      </dd>
+                    </div>
+                  )}
+
+                  {(complaint.status !== 'resolved' && complaint.status !== 'closed') && (
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                      {hasPermission('canAssignComplaints') && (
+                        <button
+                          onClick={() => setShowAssignmentModal(true)}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-500 transition-colors"
+                        >
+                          <UserPlusIcon className="h-5 w-5" />
+                          Penugasan
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
             </div>
           </div>

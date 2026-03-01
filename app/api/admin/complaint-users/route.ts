@@ -195,6 +195,7 @@ export async function PATCH(request: Request) {
     if (body.complaint_permissions) updateData.complaint_permissions = body.complaint_permissions;
     if (body.max_assigned_complaints !== undefined) updateData.max_assigned_complaints = body.max_assigned_complaints;
     if (body.is_active !== undefined) updateData.is_active = body.is_active;
+    if (body.assigned_regions !== undefined) updateData.assigned_regions = body.assigned_regions;
 
     const { data, error } = await adminClient
       .from('user_complaint_profiles')

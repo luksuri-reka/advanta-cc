@@ -70,16 +70,17 @@ export default function Navbar({ user }: { user: DisplayUser | null }) {
   const totalNotifications = stats.unreadCount;
   const customerCareBadge = stats.unreadCount > 0 ? stats.unreadCount : undefined;
 
-  // Cek apakah user adalah Customer Service
-  const isCustomerService = user?.roles?.includes('customer_service') || user?.roles?.includes('Customer Service') || user?.department === 'customer_service';
+  // Role helpers
+  const roles = user?.roles || [];
+  const isSuperAdmin = roles.includes('Superadmin') || roles.includes('superadmin');
 
   const navigation: NavItem[] = [
-    (!isCustomerService ? {
+    (isSuperAdmin ? {
       name: 'Dashboard',
       href: '/admin',
       icon: HomeIcon
     } : null),
-    (!isCustomerService ? {
+    (isSuperAdmin ? {
       name: 'Manajemen',
       icon: Squares2X2Icon,
       children: [
@@ -127,7 +128,7 @@ export default function Navbar({ user }: { user: DisplayUser | null }) {
         }
       ].filter(item => !item.requiresPermission || hasComplaintPermission(item.requiresPermission)),
     },
-    (!isCustomerService ? {
+    (isSuperAdmin ? {
       name: 'Master Data',
       icon: ChartBarIcon,
       children: [

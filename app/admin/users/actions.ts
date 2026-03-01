@@ -46,14 +46,14 @@ export async function createUser(formData: UserFormData) {
       department: formData.department,
       complaint_permissions: formData.complaint_permissions,
     },
-    app_metadata: { 
+    app_metadata: {
       role: formData.role,
       roles: [formData.role] // Add roles array for compatibility
     }
   });
 
-  if (authError) { 
-    return { error: authError }; 
+  if (authError) {
+    return { error: authError };
   }
 
   // Create user complaint profile
@@ -87,7 +87,7 @@ export async function updateUser(userId: string, formData: UserFormData) {
       department: formData.department,
       complaint_permissions: formData.complaint_permissions,
     },
-    app_metadata: { 
+    app_metadata: {
       role: formData.role,
       roles: [formData.role] // Add roles array for compatibility
     }
@@ -103,19 +103,42 @@ export async function updateUser(userId: string, formData: UserFormData) {
     return { error: authError };
   }
 
-  // Update user complaint profile
-  const { error: profileError } = await supabase
+  // Update user complaint profile safely without overwriting other fields
+  const { data: existingProfile } = await supabase
     .from('user_complaint_profiles')
-    .upsert({
-      user_id: userId,
-      full_name: formData.name,
-      department: formData.department,
-      complaint_permissions: formData.complaint_permissions,
-      updated_at: new Date().toISOString()
-    });
+    .select('user_id')
+    .eq('user_id', userId)
+    .single();
 
-  if (profileError) {
-    console.warn('Failed to update user complaint profile:', profileError);
+  if (existingProfile) {
+    const { error: profileError } = await supabase
+      .from('user_complaint_profiles')
+      .update({
+        full_name: formData.name,
+        department: formData.department,
+        complaint_permissions: formData.complaint_permissions,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+
+    if (profileError) {
+      console.warn('Failed to update user complaint profile:', profileError);
+    }
+  } else {
+    const { error: profileError } = await supabase
+      .from('user_complaint_profiles')
+      .insert({
+        user_id: userId,
+        full_name: formData.name,
+        department: formData.department,
+        complaint_permissions: formData.complaint_permissions,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (profileError) {
+      console.warn('Failed to insert user complaint profile:', profileError);
+    }
   }
 
   revalidatePath('/admin/users');
@@ -124,7 +147,7 @@ export async function updateUser(userId: string, formData: UserFormData) {
 
 export async function deleteUser(userId: string) {
   const supabase = await createSupabaseServerClient();
-  
+
   // Delete user complaint profile first
   await supabase
     .from('user_complaint_profiles')
@@ -136,7 +159,7 @@ export async function deleteUser(userId: string) {
   if (error) {
     return { error };
   }
-  
+
   revalidatePath('/admin/users');
   return { data };
 }

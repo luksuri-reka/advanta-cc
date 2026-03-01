@@ -34,10 +34,10 @@ export async function sendWhatsAppMessage(targetNumber: string, message: string)
         return false;
     }
 
-    const token = process.env.FONNTE_TOKEN;
+    const token = process.env.FONNTE_API_TOKEN || process.env.FONNTE_TOKEN;
 
     if (!token) {
-        console.warn('❌ Cannot send WA: FONNTE_TOKEN is not defined in environment variables');
+        console.warn('❌ Cannot send WA: FONNTE_API_TOKEN is not defined in environment variables');
         return false;
     }
 
