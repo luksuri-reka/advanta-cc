@@ -1,262 +1,154 @@
 /**
- * Export utilities for LPJ Maret presentation
- *
- * Root cause fixes:
- * - JPG blank: Reveal.js menyimpan konten slide di dalam CSS transforms + overflow:hidden
- *   sehingga html2canvas tidak bisa "melihat" konten yang sesungguhnya.
- *   Fix: clone setiap section ke container offscreen yang bersih (tanpa transforms),
- *   dengan background yang diambil dari data-background-gradient, lalu capture dari situ.
- *
- * - PPTX tidak match UI: PPTX dibuat ulang dengan cara embed screenshot (data URL)
- *   langsung sebagai gambar full-slide → pixel-perfect, 100% sama dengan browser.
+ * Export utilities untuk 3D Viewer Presentation
+ * Solusi Super Presisi: Menunggu Font & Tailwind, Fix Glassmorphism, & Lock Resolusi
  */
 
-// ─── Shared: capture satu slide ke base64 JPEG data URL ──────────────────────
-async function captureSlideAsDataUrl(
-    deckEl: HTMLDivElement,
-    sectionEl: HTMLElement,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    html2canvas: (el: HTMLElement, opts: object) => Promise<HTMLCanvasElement>
-): Promise<string | null> {
+async function captureSlideUrl(slideNumber: number): Promise<string | null> {
+    return new Promise((resolve) => {
+        const iframe = document.createElement('iframe');
 
-    // Ambil background dari atribut data- (Reveal.js tidak set inline style di <section>)
-    const bgGradient = sectionEl.getAttribute('data-background-gradient');
-    const bgColor = sectionEl.getAttribute('data-background-color') || '#060612';
-    const background = bgGradient ?? bgColor;
+        // Letakkan iframe dengan opacity sangat kecil agar tetap dirender sempurna oleh browser
+        iframe.style.cssText = 'position:fixed; top:0; left:0; width:1920px; height:1080px; border:none; opacity:0.01; z-index:-9999; pointer-events:none;';
+        iframe.src = `/lpj-maret/v2/slide${slideNumber}.html`;
+        document.body.appendChild(iframe);
 
-    // ── Container offscreen ───────────────────────────────────────────────────
-    // Struktur: div[container] > div.reveal > div.slides > section.present
-    // agar semua selector CSS (.reveal h2, .reveal .card, dsb.) tetap match pada clone.
-    const container = document.createElement('div');
-    container.style.cssText = [
-        'position:fixed',
-        'left:-99999px',
-        'top:0',
-        'width:1200px',
-        'height:700px',
-        'overflow:hidden',
-        `background:${background}`,
-        'font-family:Inter,sans-serif',
-        'z-index:-9999',
-        'pointer-events:none',
-    ].join(';');
+        iframe.onload = async () => {
+            try {
+                const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                if (!doc) {
+                    document.body.removeChild(iframe);
+                    return resolve(null);
+                }
 
-    const revealWrap = document.createElement('div');
-    revealWrap.className = 'reveal';
-    revealWrap.style.cssText = 'position:absolute;inset:0;overflow:hidden;';
+                // 1. TUNGGU TAILWIND SELESAI (Beri waktu ekstra 2 detik)
+                await new Promise(r => setTimeout(r, 2000));
 
-    const slidesWrap = document.createElement('div');
-    slidesWrap.className = 'slides';
-    // Reset semua transform Reveal — posisikan langsung di 0,0
-    slidesWrap.style.cssText = [
-        'position:absolute',
-        'top:0',
-        'left:0',
-        'width:1200px',
-        'height:700px',
-        'transform:none',
-        'margin:0',
-        'padding:0',
-    ].join(';');
+                // 2. TUNGGU FONT SELESAI LOADING (Agar layout teks tidak berantakan)
+                if (doc.fonts) {
+                    await doc.fonts.ready;
+                }
 
-    // Clone section dan hapus class Reveal (past/future) agar tidak ada style residual
-    const clone = sectionEl.cloneNode(true) as HTMLElement;
-    clone.classList.remove('past', 'future');
-    clone.classList.add('present');
-    clone.style.cssText = [
-        'display:block',
-        'position:absolute',
-        'top:0',
-        'left:0',
-        'width:1200px',
-        'height:700px',
-        'padding:40px 60px',
-        'box-sizing:border-box',
-        'overflow:hidden',
-        'opacity:1',
-        'visibility:visible',
-        'transform:none',
-    ].join(';');
+                // 3. SUNTIKAN CSS "ANTI-RUSAK" KHUSUS HTML2CANVAS
+                const styleInject = doc.createElement('style');
+                styleInject.innerHTML = `
+                    /* Kunci ukuran mutlak agar tidak ada yang bergeser */
+                    html, body {
+                        width: 1920px !important;
+                        height: 1080px !important;
+                        min-width: 1920px !important;
+                        min-height: 1080px !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        overflow: hidden !important;
+                    }
+                    .slide-container {
+                        width: 1920px !important;
+                        height: 1080px !important;
+                        min-width: 1920px !important;
+                        min-height: 1080px !important;
+                    }
+                    
+                    /* Matikan semua animasi agar hasil foto tidak blur/berbayang */
+                    * {
+                        animation: none !important;
+                        transition: none !important;
+                    }
 
-    slidesWrap.appendChild(clone);
-    revealWrap.appendChild(slidesWrap);
-    container.appendChild(revealWrap);
-    document.body.appendChild(container);
+                    /* FIX EFEK KACA (GLASSMORPHISM) */
+                    /* html2canvas gagal merender backdrop-filter (blur).
+                       Sebagai gantinya, kita matikan blur-nya dan kita beri warna solid 
+                       biru dongker (slate-800) agar terlihat 99% mirip aslinya */
+                    .card-glass, .feature-card, .auto-card, .phase-card, .budget-card, 
+                    .highlight-box, .mini-banner, .conclusion-card, .qa-box, .cta-section {
+                        backdrop-filter: none !important;
+                        -webkit-backdrop-filter: none !important;
+                        background-color: rgba(30, 41, 59, 0.95) !important; /* Warna pekat pengganti efek kaca */
+                    }
+                    
+                    /* Pastikan overlay background cukup gelap */
+                    .overlay {
+                        background-color: rgba(15, 23, 42, 0.95) !important;
+                    }
+                `;
+                doc.head.appendChild(styleInject);
 
-    // Tunggu browser layout + font render. 1.6s cukup untuk animasi progress-fill (1.4s)
-    await new Promise<void>(r => setTimeout(r, 1600));
+                // Beri waktu 500ms agar browser mengaplikasikan CSS suntikan di atas
+                await new Promise(r => setTimeout(r, 500));
 
-    // ── Fix 1: Override semua animated element ke final state ──────────────────
-    // progress-bar-fill: hentikan animasi dan langsung set ke nilai --w akhir
-    clone.querySelectorAll<HTMLElement>('.progress-bar-fill').forEach(bar => {
-        const w = bar.style.getPropertyValue('--w')
-            || getComputedStyle(bar).getPropertyValue('--w').trim()
-            || '0%';
-        bar.style.cssText += `;animation:none;width:${w}`;
-    });
+                const html2canvas = (await import('html2canvas')).default;
 
-    // ── Fix 2: Freeze semua animasi lain (glow-pulse, ping, float-in, dsb.) ────
-    // Ambil computed values dulu, baru hentikan animasi → hasil freeze di current frame
-    clone.querySelectorAll<HTMLElement>('*').forEach(el => {
-        const cs = getComputedStyle(el);
-        if (cs.animationName && cs.animationName !== 'none') {
-            // Beku di posisi saat ini dengan animation-play-state: paused
-            el.style.animationPlayState = 'paused';
-            el.style.animationDelay = '-9999s'; // paksa ke frame akhir
-        }
-    });
-
-    // ── Fix 3: Force computed font-size ke inline agar vw/clamp konsisten ──────
-    // html2canvas menghitung ulang clamp() berdasarkan windowWidth yang kita pass.
-    // Agar hasilnya sama persis dengan browser, kita override font-size ke nilai
-    // yang sudah di-compute oleh browser (dalam px) sebelum container di-move.
-    clone.querySelectorAll<HTMLElement>('h1,h2,h3,p,li,span,div').forEach(el => {
-        const computed = getComputedStyle(el).fontSize;
-        if (computed && !el.style.fontSize) {
-            el.style.fontSize = computed;
-        }
-    });
-
-    try {
-        const canvas = await html2canvas(container, {
-            backgroundColor: null,   // biarkan background CSS yang bekerja
-            scale: 2,                 // 2× resolusi (1200→2400px) untuk kualitas tajam
-            useCORS: true,
-            allowTaint: true,
-            logging: false,
-            width: 1200,
-            height: 700,
-            windowWidth: 1200,
-            windowHeight: 700,
-            onclone: (_doc: Document, el: HTMLElement) => {
-                // Pastikan semua animasi di-freeze juga pada cloned document
-                el.querySelectorAll('.progress-bar-fill').forEach(bar => {
-                    const barEl = bar as HTMLElement;
-                    const w = barEl.style.getPropertyValue('--w') || '0%';
-                    barEl.style.cssText += `;animation:none;width:${w}`;
+                const canvas = await html2canvas(doc.body, {
+                    width: 1920,
+                    height: 1080,
+                    windowWidth: 1920,
+                    windowHeight: 1080,
+                    scale: 1.5, // Kualitas HD
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false,
+                    backgroundColor: '#0f172a'
                 });
-            },
-        });
 
-        return canvas.toDataURL('image/jpeg', 0.94);
-    } catch (err) {
-        console.error('[CAPTURE] html2canvas error:', err);
-        return null;
-    } finally {
-        document.body.removeChild(container);
-    }
+                document.body.removeChild(iframe);
+                resolve(canvas.toDataURL('image/jpeg', 0.95));
+            } catch (err) {
+                console.error(`Gagal capture slide ${slideNumber}:`, err);
+                if (document.body.contains(iframe)) document.body.removeChild(iframe);
+                resolve(null);
+            }
+        };
+    });
 }
 
-// ─── JPG Export → ZIP ────────────────────────────────────────────────────────
-export async function exportAllSlidesAsJpg(
-    deckEl: HTMLDivElement,
-    revealApi: { slide: (h: number) => void; getTotalSlides: () => number }
-): Promise<Blob | null> {
-    console.log('[JPG EXPORT] Memulai export JPG (ZIP)...');
-    try {
-        const html2canvas = (await import('html2canvas')).default;
-        const JSZip = (await import('jszip')).default;
+// ─── 1. EXPORT KE JPG (DALAM FILE ZIP) ───
+export async function exportToJpgZip(totalSlides: number): Promise<Blob | null> {
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+    const folder = zip.folder('LPJ-Compfeed-Slides')!;
 
-        // Ambil semua section horizontal (top-level)
-        const sections = Array.from(
-            deckEl.querySelectorAll<HTMLElement>('.slides > section')
-        );
-        const total = sections.length;
-        console.log(`[JPG EXPORT] Total ${total} slides terdeteksi.`);
-
-        const zip = new JSZip();
-        const folder = zip.folder('LPJ-Compfeed-Slides')!;
-
-        for (let i = 0; i < total; i++) {
-            console.log(`[JPG EXPORT] Merender slide ${i + 1}/${total}...`);
-
-            const dataUrl = await captureSlideAsDataUrl(deckEl, sections[i], html2canvas);
-            if (!dataUrl) {
-                console.warn(`[JPG EXPORT] Slide ${i + 1} gagal dirender, dilewati.`);
-                continue;
-            }
-
-            // Konversi data URL → Blob via fetch (cara paling reliable)
+    for (let i = 1; i <= totalSlides; i++) {
+        const dataUrl = await captureSlideUrl(i);
+        if (dataUrl) {
             const res = await fetch(dataUrl);
             const blob = await res.blob();
-            console.log(`[JPG EXPORT] Slide ${i + 1} OK — ${blob.size} bytes`);
-            folder.file(`slide-${String(i + 1).padStart(2, '0')}.jpg`, blob);
+            folder.file(`Slide-${String(i).padStart(2, '0')}.jpg`, blob);
         }
-
-        console.log('[JPG EXPORT] Mengompres ke ZIP...');
-        const zipRaw = await zip.generateAsync({ type: 'blob' });
-        console.log(`[JPG EXPORT] ZIP selesai. Ukuran: ${zipRaw.size} bytes`);
-
-        if (zipRaw.size < 1000) {
-            console.error('[JPG EXPORT] ZIP terlalu kecil — tidak ada slide berhasil dirender.');
-            return null;
-        }
-
-        return new Blob([zipRaw], { type: 'application/zip' });
-    } catch (e) {
-        console.error('[ERROR] Gagal export JPG:', e);
-        return null;
     }
+    return await zip.generateAsync({ type: 'blob' });
 }
 
-// ─── PPTX Export → Screenshot-based (pixel-perfect match UI) ─────────────────
-// Strategi: setiap slide di-screenshot lalu di-embed sebagai gambar full-slide.
-// Hasilnya identik 100% dengan tampilan di browser — tidak ada gap desain.
-export async function exportAsPptx(
-    deckEl: HTMLDivElement,
-    revealApi: { slide: (h: number) => void; getTotalSlides: () => number }
-): Promise<Blob | null> {
-    console.log('[PPTX EXPORT] Memulai export PPTX (screenshot-based)...');
-    try {
-        const html2canvas = (await import('html2canvas')).default;
-        const PptxGenJSMod = await import('pptxgenjs');
-        const pptxgenjs = PptxGenJSMod.default;
+// ─── 2. EXPORT KE PPTX (POWERPOINT) ───
+export async function exportToPptx(totalSlides: number): Promise<Blob | null> {
+    const PptxGenJS = (await import('pptxgenjs')).default;
+    const pptx = new PptxGenJS();
 
-        const sections = Array.from(
-            deckEl.querySelectorAll<HTMLElement>('.slides > section')
-        );
-        const total = sections.length;
-        console.log(`[PPTX EXPORT] Total ${total} slides terdeteksi.`);
+    pptx.layout = 'LAYOUT_16x9';
 
-        const prs = new pptxgenjs();
-        prs.defineLayout({ name: 'WIDE', width: 13.33, height: 7.5 });
-        prs.layout = 'WIDE';
-
-        for (let i = 0; i < total; i++) {
-            console.log(`[PPTX EXPORT] Merender slide ${i + 1}/${total}...`);
-
-            const dataUrl = await captureSlideAsDataUrl(deckEl, sections[i], html2canvas);
-            if (!dataUrl) {
-                console.warn(`[PPTX EXPORT] Slide ${i + 1} gagal dirender, dilewati.`);
-                continue;
-            }
-
-            const slide = prs.addSlide();
-            // Embed screenshot sebagai gambar full-slide → pixel-perfect
+    for (let i = 1; i <= totalSlides; i++) {
+        const dataUrl = await captureSlideUrl(i);
+        if (dataUrl) {
+            const slide = pptx.addSlide();
             slide.addImage({
                 data: dataUrl,
-                x: 0, y: 0,
-                w: '100%', h: '100%',
-                sizing: { type: 'cover', w: 13.33, h: 7.5 },
+                x: 0, y: 0, w: '100%', h: '100%',
+                sizing: { type: 'cover', w: 13.33, h: 7.5 }
             });
-
-            console.log(`[PPTX EXPORT] Slide ${i + 1} di-embed ke PPTX.`);
         }
-
-        console.log('[PPTX EXPORT] Menulis file PPTX...');
-        const pptxRaw = (await prs.write({ outputType: 'blob' })) as Blob;
-        console.log(`[PPTX EXPORT] Selesai. Ukuran: ${pptxRaw.size} bytes`);
-
-        if (pptxRaw.size < 5000) {
-            console.error('[PPTX EXPORT] File terlalu kecil — kemungkinan gagal digenerate.');
-            return null;
-        }
-
-        return new Blob([pptxRaw], {
-            type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        });
-    } catch (e) {
-        console.error('[ERROR] Gagal export PPTX:', e);
-        return null;
     }
+    return (await pptx.write({ outputType: 'blob' })) as Blob;
+}
+
+// ─── 3. EXPORT KE PDF ───
+export async function exportToPdf(totalSlides: number): Promise<Blob | null> {
+    const jsPDF = (await import('jspdf')).jsPDF;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1920, 1080] });
+
+    for (let i = 1; i <= totalSlides; i++) {
+        const dataUrl = await captureSlideUrl(i);
+        if (dataUrl) {
+            if (i > 1) pdf.addPage([1920, 1080], 'landscape');
+            pdf.addImage(dataUrl, 'JPEG', 0, 0, 1920, 1080);
+        }
+    }
+    return pdf.output('blob');
 }

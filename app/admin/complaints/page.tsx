@@ -125,6 +125,8 @@ export default function AdminComplaintsPage() {
       if (response.ok) {
         const data = await response.json();
         setComplaints(data.data || []);
+      } else if (response.status === 401) {
+        router.replace('/admin/login');
       } else {
         console.error('Failed to load complaints');
       }
@@ -134,6 +136,7 @@ export default function AdminComplaintsPage() {
       setLoading(false);
     }
   };
+
 
   const hasComplaintPermission = (permission: string) => {
     if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
@@ -468,7 +471,8 @@ export default function AdminComplaintsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900"><main className="mx-auto max-w-7xl py-4 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
+      <main className="mx-auto max-w-7xl py-4 px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <ArchiveBoxIcon className="h-6 w-6 text-emerald-600" />

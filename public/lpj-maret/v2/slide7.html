@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Alokasi Anggaran & Justifikasi Fiscal Year</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            background-color: #0f172a;
+            font-family: 'Inter', sans-serif;
+            color: #f8fafc;
+        }
+
+        .slide-container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background-image: url("https://page.gensparksite.com/slides_images/56b6f5fba306d081e8d64c8dda52b03b.webp");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.96);
+            z-index: 1;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 5vh 5vw;
+        }
+
+        .middle-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 1rem 0;
+        }
+
+        .header-section {
+            border-left: 6px solid #10b981;
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        @media (min-width: 768px) {
+            .header-section {
+                padding-left: 30px;
+                margin-bottom: 25px;
+            }
+        }
+
+        .mono-text {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .finance-pill {
+            background-color: rgba(16, 185, 129, 0.15);
+            border: 1px solid #10b981;
+            color: #34d399;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+
+        @media (min-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1.2fr 1fr;
+                gap: 40px;
+            }
+        }
+
+        /* Budget Card Setup */
+        .budget-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+        }
+
+        .budget-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            /* Mengisi ruang sisa agar banner bawah selalu rata */
+        }
+
+        @media (min-width: 768px) {
+            .budget-card {
+                padding: 24px;
+            }
+        }
+
+        .total-budget-box {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f59e0b;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        @media (min-width: 640px) {
+            .total-budget-box {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20px;
+            }
+        }
+
+        .breakdown-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .breakdown-item {
+                padding: 16px;
+            }
+        }
+
+        .breakdown-completed {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .breakdown-urgent {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.5);
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+        }
+
+        .breakdown-addon {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.4);
+            border-style: dashed;
+        }
+
+        .term-badge {
+            font-size: 0.65rem;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            display: inline-block;
+        }
+
+        @media (min-width: 768px) {
+            .term-badge {
+                font-size: 0.75rem;
+            }
+        }
+
+        .badge-green {
+            background: #065f46;
+            color: #34d399;
+        }
+
+        .badge-yellow {
+            background: #78350f;
+            color: #fbbf24;
+        }
+
+        .badge-blue {
+            background: #1e3a8a;
+            color: #93c5fd;
+        }
+
+        .price-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-left: auto;
+        }
+
+        @media (min-width: 768px) {
+            .price-tag {
+                font-size: 1.25rem;
+            }
+        }
+
+        .icon-circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 768px) {
+            .icon-circle {
+                width: 24px;
+                height: 24px;
+                font-size: 0.8rem;
+                margin-right: 15px;
+            }
+        }
+
+        .check-circle {
+            background: #10b981;
+            color: white;
+        }
+
+        .alert-circle {
+            background: #f59e0b;
+            color: black;
+        }
+
+        .plus-circle {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* Justification Column Setup */
+        .justification-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+            padding-left: 0;
+            border-left: none;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        @media (min-width: 1024px) {
+            .justification-column {
+                padding-left: 20px;
+                border-left: 1px dashed rgba(255, 255, 255, 0.1);
+                padding-top: 0;
+                border-top: none;
+            }
+        }
+
+        .highlight-box {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid #f59e0b;
+            padding: 20px;
+            border-radius: 12px;
+            position: relative;
+            flex: 1;
+            /* Mengisi ruang sisa */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        @media (min-width: 768px) {
+            .highlight-box {
+                padding: 24px;
+            }
+        }
+
+        .highlight-box::before {
+            content: '"';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            font-size: 3rem;
+            color: #f59e0b;
+            opacity: 0.3;
+            font-family: serif;
+        }
+
+        .urgent-tag {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-3px);
+            }
+        }
+
+        /* Mini Banner Styles (Kiri & Kanan) */
+        .mini-banner {
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.2);
+            margin-top: auto;
+            /* Memaksa ke paling bawah kolom */
+        }
+
+        .banner-blue {
+            border: 1px solid #3b82f6;
+        }
+
+        .banner-red {
+            border: 1px solid #ef4444;
+            background: rgba(239, 68, 68, 0.08);
+            /* Sedikit hint merah */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="slide-container">
+        <div class="overlay"></div>
+        <div class="content-wrapper">
+
+            <div class="header-section">
+                <p class="mono-text finance-pill"><i class="fa-solid fa-coins mr-2"></i>BUDGETING, ADDITIONAL PAYMENT &
+                    URGENT PAYMENT</p>
+                <h1
+                    class="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight text-white mb-2">
+                    Alokasi Anggaran & <br class="hidden md:block" />
+                    <span class="text-amber-400">Justifikasi Fiscal Year</span>
+                </h1>
+                <p class="text-base md:text-lg text-slate-400 max-w-3xl">
+                    Transparansi penggunaan dana proyek dan pengajuan percepatan termin berdasarkan delivery value
+                    nyata.
+                </p>
+            </div>
+
+            <div class="middle-content">
+                <div class="main-grid">
+
+                    <div class="budget-column">
+                        <div class="budget-card">
+                            <h3 class="text-lg md:text-xl font-bold mb-4 text-slate-200 flex items-center">
+                                <i class="fa-solid fa-file-invoice-dollar text-emerald-400 mr-3"></i>
+                                Rincian Pembayaran
+                            </h3>
+
+                            <div class="total-budget-box">
+                                <div>
+                                    <p
+                                        class="text-[10px] md:text-xs text-amber-200 uppercase font-bold tracking-wider mb-1">
+                                        Total Anggaran Sistem Inti</p>
+                                    <p class="text-xs md:text-sm text-slate-400">Pagu: Rp 3.500.000,- / bln × 12 bln</p>
+                                </div>
+                                <p class="text-xl md:text-2xl font-extrabold text-white mono-text">Rp 42.000.000,-</p>
+                            </div>
+
+                            <div class="breakdown-item breakdown-completed">
+                                <div class="icon-circle check-circle"><i class="fa-solid fa-check"></i></div>
+                                <div class="flex-1">
+                                    <span class="term-badge badge-green">TERMIN 1 (50%)</span>
+                                    <p class="text-slate-300 font-bold text-sm md:text-base">Re-engineering, Migrasi DB,
+                                        dll</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="price-tag text-emerald-400">Rp 21.000.000,-</p>
+                                    <p class="text-[0.6rem] text-emerald-600 font-bold mt-1 uppercase">PAID / SETTLED
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="breakdown-item breakdown-urgent">
+                                <div class="icon-circle alert-circle"><i class="fa-solid fa-exclamation"></i></div>
+                                <div class="flex-1">
+                                    <span class="term-badge badge-yellow">TERMIN 2 (50%)</span>
+                                    <p class="text-white font-bold text-sm md:text-base">Modul Survey & Maintenance</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="price-tag text-amber-400">Rp 21.000.000,-</p>
+                                    <p class="text-[0.6rem] text-red-400 font-bold mt-1 uppercase">URGENT PAYMENT</p>
+                                </div>
+                            </div>
+
+                            <div class="breakdown-item breakdown-addon">
+                                <div class="icon-circle plus-circle"><i class="fa-solid fa-plus"></i></div>
+                                <div class="flex-1">
+                                    <span class="term-badge badge-blue">ADD-ON SERVICES</span>
+                                    <p class="text-white font-bold text-sm md:text-base">Integrasi WA API & Setup Server
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="price-tag text-blue-400">Rp 10.000.000,-</p>
+                                    <p class="text-[0.6rem] text-red-400 font-bold mt-1 uppercase">URGENT PAYMENT</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mini-banner banner-blue">
+                            <i class="fa-solid fa-wallet text-3xl md:text-4xl text-blue-500"></i>
+                            <div>
+                                <p class="text-[10px] md:text-xs text-blue-300 font-bold uppercase tracking-wider mb-1">
+                                    Total Investasi Proyek Keseluruhan</p>
+                                <p class="text-xl md:text-2xl lg:text-3xl font-extrabold text-white mono-text">Rp
+                                    52.000.000,-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="justification-column">
+                        <div class="highlight-box">
+                            <div class="urgent-tag">MARCH 2026</div>
+                            <h3 class="font-bold text-amber-500 text-base md:text-lg mb-4 flex items-center">
+                                <i class="fa-solid fa-lightbulb mr-2"></i> Justifikasi Pengajuan
+                            </h3>
+
+                            <ul class="space-y-4">
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-check-circle text-amber-500 mr-3 mt-1 text-sm"></i>
+                                    <p class="text-slate-300 text-xs md:text-sm leading-relaxed">
+                                        Progres core system telah mencapai <strong class="text-white">>80%</strong>
+                                        berkat akselerasi pengerjaan, menyerahkan nilai fungsional lebih cepat dari
+                                        jadwal.
+                                    </p>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-calendar-check text-amber-500 mr-3 mt-1 text-sm"></i>
+                                    <p class="text-slate-300 text-xs md:text-sm leading-relaxed">
+                                        Sesuai siklus <strong class="text-white">tutup buku Fiscal Year bulan Maret
+                                            2026</strong>, pencairan diajukan saat ini demi kepatuhan administrasi.
+                                    </p>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-handshake text-amber-500 mr-3 mt-1 text-sm"></i>
+                                    <p class="text-slate-300 text-xs md:text-sm leading-relaxed">
+                                        Tanggung jawab vendor (Modul Survey & maintenance di <strong
+                                            class="text-white">April - Sept 2026) tetap berjalan penuh</strong> tanpa
+                                        penagihan core budget tambahan.
+                                    </p>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="mini-banner banner-red">
+                            <i class="fa-solid fa-file-invoice-dollar text-3xl md:text-4xl text-red-500"></i>
+                            <div>
+                                <p class="text-[10px] md:text-xs text-red-300 font-bold uppercase tracking-wider mb-1">
+                                    Total Subtotal Kekurangan <br class="sm:hidden" />(Termin 2 + Add-on)</p>
+                                <p class="text-xl md:text-2xl lg:text-3xl font-extrabold text-white mono-text">Rp
+                                    31.000.000,-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-end border-t border-slate-700/50 pt-6 mt-auto">
+                <div class="flex items-center text-slate-600 text-sm mono-text mb-2 sm:mb-0">
+                    <span class="mr-4">PT LUKSURI REKA DIGITAL SOLUTIONS</span>
+                    <span class="hidden sm:inline">•</span>
+                    <span class="ml-4">Project Progress & Financial Accountability Review</span>
+                </div>
+                <div class="text-left sm:text-right w-full sm:w-auto">
+                    <p class="text-slate-600 text-sm">March 02, 2026 | Slide 7 / 8</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+
+</html>

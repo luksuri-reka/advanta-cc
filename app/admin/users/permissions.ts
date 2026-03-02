@@ -18,4 +18,5 @@ export const departments = [
   'quality_assurance',
   'technical',
   'management',
+  'lab_testing',
 ];

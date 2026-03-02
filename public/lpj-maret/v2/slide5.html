@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Pembaruan Sistem Inti: Otomatisasi & Resolusi Komplain</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            /* Responsif mengikuti layar penuh */
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            background-color: #0f172a;
+            font-family: 'Inter', sans-serif;
+            color: #f8fafc;
+        }
+
+        .slide-container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background-image: url("https://page.gensparksite.com/slides_images/56b6f5fba306d081e8d64c8dda52b03b.webp");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.96);
+            z-index: 1;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 5vh 5vw;
+        }
+
+        /* CONTAINER BARU: Untuk mengisi ruang tengah */
+        .middle-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 2rem 0;
+        }
+
+        .header-section {
+            border-left: 6px solid #f59e0b;
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .header-section {
+                padding-left: 30px;
+                margin-bottom: 30px;
+            }
+        }
+
+        .mono-text {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .process-pill {
+            background-color: rgba(245, 158, 11, 0.15);
+            border: 1px solid #f59e0b;
+            color: #fbbf24;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Workflow Diagram Styles (Responsive) */
+        .workflow-container {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .workflow-container {
+                padding: 24px;
+                margin-bottom: 30px;
+            }
+        }
+
+        .workflow-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+        }
+
+        .steps-wrapper {
+            display: flex;
+            flex-direction: column;
+            /* Default HP: vertikal */
+            gap: 15px;
+            position: relative;
+            padding: 0;
+        }
+
+        @media (min-width: 768px) {
+            .steps-wrapper {
+                flex-direction: row;
+                /* Laptop: horizontal */
+                justify-content: space-between;
+                align-items: center;
+                gap: 0;
+                padding: 0 20px;
+            }
+        }
+
+        /* Connecting Line */
+        .steps-line {
+            display: none;
+            /* Sembunyikan di HP */
+        }
+
+        @media (min-width: 768px) {
+            .steps-line {
+                display: block;
+                position: absolute;
+                top: 40px;
+                /* Tengah ikon 80px */
+                left: 60px;
+                right: 60px;
+                height: 2px;
+                background-color: #334155;
+                z-index: 0;
+            }
+        }
+
+        .step-item {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: row;
+            /* HP: ikon kiri, teks kanan */
+            align-items: center;
+            width: 100%;
+            text-align: left;
+        }
+
+        @media (min-width: 768px) {
+            .step-item {
+                flex-direction: column;
+                /* Laptop: ikon atas, teks bawah */
+                width: 180px;
+                text-align: center;
+            }
+        }
+
+        .step-icon-box {
+            width: 50px;
+            /* Lebih kecil di HP */
+            height: 50px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background-color: #0f172a;
+            border: 2px solid #475569;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            /* Spasi ke teks di HP */
+            margin-bottom: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+
+        @media (min-width: 768px) {
+            .step-icon-box {
+                width: 80px;
+                /* Normal di Laptop */
+                height: 80px;
+                font-size: 1.75rem;
+                margin-right: 0;
+                margin-bottom: 12px;
+            }
+        }
+
+        .step-1 .step-icon-box {
+            border-color: #f87171;
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.1);
+        }
+
+        .step-2 .step-icon-box {
+            border-color: #fbbf24;
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .step-3 .step-icon-box {
+            border-color: #60a5fa;
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+        }
+
+        .step-4 .step-icon-box {
+            border-color: #34d399;
+            color: #34d399;
+            background: rgba(52, 211, 153, 0.1);
+        }
+
+        .step-text-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .step-label {
+            font-weight: 700;
+            color: #fff;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+
+        @media (min-width: 768px) {
+            .step-label {
+                margin-bottom: 4px;
+            }
+        }
+
+        .step-desc {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        /* Bottom Grid: Automation Tools */
+        .automation-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            /* Default HP: 1 Kolom */
+            gap: 20px;
+            flex: 1;
+        }
+
+        @media (min-width: 1024px) {
+            .automation-grid {
+                grid-template-columns: 1fr 1fr;
+                /* Laptop: 2 Kolom */
+                gap: 30px;
+            }
+        }
+
+        .auto-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 768px) {
+            .auto-card {
+                padding: 24px;
+            }
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1.2rem;
+        }
+
+        .qr-visual {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: auto;
+        }
+
+        .qr-mock {
+            width: 50px;
+            height: 50px;
+            flex-shrink: 0;
+            background-color: white;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        @media (min-width: 768px) {
+            .qr-mock {
+                width: 60px;
+                height: 60px;
+            }
+        }
+
+        .notif-visual {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .msg-bubble {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #cbd5e1;
+        }
+
+        .wa-icon {
+            color: #25d366;
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .email-icon {
+            color: #fca5a5;
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="slide-container">
+        <div class="overlay"></div>
+        <div class="content-wrapper">
+
+            <div class="header-section">
+                <p class="mono-text process-pill"><i class="fa-solid fa-gears mr-2"></i>AUTOMATION & WORKFLOW</p>
+                <h1
+                    class="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight text-white mb-2">
+                    Pembaruan Sistem Inti: <br class="hidden md:block" />
+                    <span class="text-amber-500">Otomatisasi</span> & <span class="text-blue-400">Resolusi
+                        Komplain</span>
+                </h1>
+                <p class="text-base md:text-lg text-slate-400 max-w-3xl">
+                    Transformasi proses manual menjadi alur kerja digital yang transparan, real-time, dan responsif.
+                </p>
+            </div>
+
+            <div class="middle-content">
+
+                <div class="workflow-container">
+                    <h3 class="workflow-title">
+                        <i class="fa-solid fa-diagram-project mr-3 text-amber-500"></i> Integrated Complaint Workflow
+                    </h3>
+                    <div class="steps-wrapper">
+                        <div class="steps-line"></div>
+
+                        <div class="step-item step-1">
+                            <div class="step-icon-box">
+                                <i class="fa-solid fa-file-circle-exclamation"></i>
+                            </div>
+                            <div class="step-text-container">
+                                <p class="step-label">1. Pelaporan</p>
+                                <p class="step-desc">Input data komplain pelanggan via dashboard sales.</p>
+                            </div>
+                        </div>
+
+                        <div class="step-item step-2">
+                            <div class="step-icon-box">
+                                <i class="fa-solid fa-magnifying-glass-location"></i>
+                            </div>
+                            <div class="step-text-container">
+                                <p class="step-label">2. Observasi</p>
+                                <p class="step-desc">Tim lapangan melakukan pengecekan fisik & upload bukti.</p>
+                            </div>
+                        </div>
+
+                        <div class="step-item step-3">
+                            <div class="step-icon-box">
+                                <i class="fa-solid fa-flask-vial"></i>
+                            </div>
+                            <div class="step-text-container">
+                                <p class="step-label">3. Uji Lab</p>
+                                <p class="step-desc">Analisis sampel di laboratorium (jika diperlukan).</p>
+                            </div>
+                        </div>
+
+                        <div class="step-item step-4">
+                            <div class="step-icon-box">
+                                <i class="fa-solid fa-handshake-simple"></i>
+                            </div>
+                            <div class="step-text-container">
+                                <p class="step-label">4. Resolusi</p>
+                                <p class="step-desc">Approval solusi & penerbitan surat resmi ke klien.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="automation-grid">
+                    <div class="auto-card">
+                        <div class="card-header">
+                            <div class="header-icon bg-blue-500/20 text-blue-400">
+                                <i class="fa-solid fa-qrcode"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-base md:text-lg">QR Generator Otomatis</h4>
+                                <p class="text-[10px] md:text-xs text-slate-400 mono-text">MODULE: PACKAGING</p>
+                            </div>
+                        </div>
+                        <p class="text-xs md:text-sm text-slate-300 mb-4 leading-relaxed">
+                            Sistem secara otomatis men-generate unique QR Code untuk setiap bags/kemasan saat lot number
+                            di-input. Mempercepat proses tracking inventory di gudang.
+                        </p>
+                        <div class="qr-visual">
+                            <div class="qr-mock flex items-center justify-center">
+                                <i class="fa-solid fa-qrcode text-black text-2xl md:text-3xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-[10px] md:text-xs text-slate-400 mb-1">Generated Output:</p>
+                                <p class="text-xs md:text-sm font-mono text-blue-300 font-bold break-all">
+                                    LOT-2026-ADV-089</p>
+                                <p class="text-[0.65rem] text-slate-500">Auto-linked to DB #8922</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="auto-card">
+                        <div class="card-header">
+                            <div class="header-icon bg-emerald-500/20 text-emerald-400">
+                                <i class="fa-solid fa-bell"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-base md:text-lg">Smart Notifications</h4>
+                                <p class="text-[10px] md:text-xs text-slate-400 mono-text">INTEGRATION: WA & SMTP</p>
+                            </div>
+                        </div>
+                        <p class="text-xs md:text-sm text-slate-300 mb-4 leading-relaxed">
+                            Stakeholder tidak perlu login terus. Notifikasi status real-time dikirim otomatis ke
+                            perangkat masing-masing via WhatsApp dan Email Resmi.
+                        </p>
+                        <div class="notif-visual">
+                            <div class="msg-bubble border-l-2 border-emerald-500">
+                                <i class="fa-brands fa-whatsapp wa-icon"></i>
+                                <div>
+                                    <p class="font-bold text-[10px] md:text-xs text-emerald-400">WhatsApp Bot • Now</p>
+                                    <p class="text-[10px] md:text-xs text-slate-300 leading-tight mt-1">"Halo, Status
+                                        Komplain #CMP-01 berubah menjadi: <b>Observasi Selesai</b>."</p>
+                                </div>
+                            </div>
+                            <div class="msg-bubble border-l-2 border-red-400">
+                                <i class="fa-solid fa-envelope email-icon"></i>
+                                <div>
+                                    <p class="font-bold text-[10px] md:text-xs text-red-300">System Alert • 5m ago</p>
+                                    <p class="text-[10px] md:text-xs text-slate-300 leading-tight mt-1">New Lab Result
+                                        Available for verification.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-end border-t border-slate-700/50 pt-6 mt-auto">
+                <div class="flex items-center text-slate-600 text-sm mono-text mb-2 sm:mb-0">
+                    <span class="mr-4">PT LUKSURI REKA DIGITAL SOLUTIONS</span>
+                    <span class="hidden sm:inline">•</span>
+                    <span class="sm:ml-4">Project Progress & Financial Accountability Review</span>
+                </div>
+                <div class="text-left sm:text-right w-full sm:w-auto">
+                    <p class="text-slate-600 text-sm">March 02, 2026 | Slide 5 / 8</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+
+</html>
