@@ -189,8 +189,10 @@ export default function AdminComplaintsPage() {
       const dataToExport = complaints.map(item => ({
         'No. Tiket': item.complaint_number,
         'Tanggal Masuk': formatDate(item.created_at),
+        'Tanggal Selesai': item.resolved_at ? formatDate(item.resolved_at) : '-',
+        'Umur Tiket (Hari)': calculateAge(item.created_at, item.resolved_at),
         'Status': getStatusLabel(item.status),
-        'Prioritas': item.priority || '-',
+        // 'Prioritas': item.priority || '-',
         'Departemen': item.department || '-',
         'Nama Pelanggan': item.customer_name,
         'Email': item.customer_email,
@@ -200,27 +202,46 @@ export default function AdminComplaintsPage() {
         'Alamat Lengkap': item.customer_address || '-',
         'Subjek': item.subject,
         'Deskripsi': item.description || '-',
-        'Kategori': item.complaint_type || '-',
+        // 'Kategori Keluhan': item.complaint_type || '-',
         'Jenis Kasus (Tags)': item.complaint_case_type_names?.join(', ') || '-',
         'Nama Produk': item.related_product_name || '-',
         'Nomor Lot': item.lot_number || '-',
         'Quantity Bermasalah': item.problematic_quantity || '-',
-        'Serial Number': item.related_product_serial || '-',
-        'Tanggal Selesai': item.resolved_at ? formatDate(item.resolved_at) : '-',
+        'Serial Number Produk': item.related_product_serial || '-',
         'Ringkasan Solusi': item.resolution_summary || '-',
-        'Rating Kepuasan': item.customer_satisfaction_rating || '-'
+        'Rating Kepuasan (1-5)': item.customer_satisfaction_rating ?? '-',
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
       const wscols = [
-        { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 15 },
-        { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-        { wch: 30 }, { wch: 25 }, { wch: 40 },
+        { wch: 18 },  // No. Tiket
+        { wch: 20 },  // Tanggal Masuk
+        { wch: 20 },  // Tanggal Selesai
+        { wch: 16 },  // Umur Tiket (Hari)
+        { wch: 18 },  // Status
+        // { wch: 12 },  // Prioritas
+        { wch: 16 },  // Departemen
+        { wch: 25 },  // Nama Pelanggan
+        { wch: 28 },  // Email
+        { wch: 16 },  // No. Telepon
+        { wch: 20 },  // Provinsi
+        { wch: 18 },  // Kota
+        { wch: 35 },  // Alamat Lengkap
+        { wch: 30 },  // Subjek
+        { wch: 45 },  // Deskripsi
+        // { wch: 20 },  // Kategori Keluhan
+        { wch: 30 },  // Jenis Kasus (Tags)
+        { wch: 25 },  // Nama Produk
+        { wch: 18 },  // Nomor Lot
+        { wch: 18 },  // Quantity Bermasalah
+        { wch: 22 },  // Serial Number Produk
+        { wch: 40 },  // Ringkasan Solusi
+        { wch: 18 },  // Rating Kepuasan
       ];
       worksheet['!cols'] = wscols;
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Keluhan");
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Keluhan');
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       XLSX.writeFile(workbook, `Rekap_Complaint_${timestamp}.xlsx`);
