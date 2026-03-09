@@ -74,7 +74,8 @@ export default function AdminComplaintsPage() {
   const [filters, setFilters] = useState({
     status: '',
     search: '',
-    age: ''
+    age: '',
+    product: ''
   });
 
   // STATE SORTING
@@ -316,6 +317,15 @@ export default function AdminComplaintsPage() {
     };
   }, [complaints]);
 
+  // Daftar nama produk unik untuk dropdown filter
+  const uniqueProductNames = useMemo(() => {
+    const names = new Set<string>();
+    complaints.forEach(c => {
+      if (c.related_product_name) names.add(c.related_product_name);
+    });
+    return Array.from(names).sort();
+  }, [complaints]);
+
   const productStats = useMemo(() => {
     const stats: Record<string, { observation: number; investigation: number; lab_test: number; closed: number; total: number }> = {};
     complaints.forEach(c => {
@@ -381,6 +391,7 @@ export default function AdminComplaintsPage() {
       return (
         ageMatch &&
         (filters.status === '' || c.status === filters.status) &&
+        (filters.product === '' || (c.related_product_name || '') === filters.product) &&
         (filters.search === '' ||
           c.complaint_number.toLowerCase().includes(filters.search.toLowerCase()) ||
           c.customer_name.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -711,6 +722,18 @@ export default function AdminComplaintsPage() {
                 <option value="decision">Keputusan</option>
                 <option value="resolved">Selesai</option>
                 <option value="closed">Ditutup</option>
+              </select>
+
+              <select
+                name="product"
+                value={filters.product}
+                onChange={handleFilterChange}
+                className="rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3 text-sm dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">Semua Produk</option>
+                {uniqueProductNames.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
               </select>
 
               <select
