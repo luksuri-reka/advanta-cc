@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getProfile, logout } from '../../../utils/auth';
+import { supabase } from '../../../utils/supabase';
 import type { User } from '@supabase/supabase-js';
 import {
   ArrowLeftIcon,
@@ -69,6 +70,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
     complaint.assignee_investigasi_1,
     complaint.assignee_investigasi_2,
     complaint.assignee_lab_testing,
+    complaint.assignee_approval,
     complaint.assigned_to // Fallback legacy
   ].filter(Boolean);
 
@@ -195,7 +197,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
     }
   };
 
-  if (!isAssignedToMe) return null;
+  if (!isAssignedToMe && !isSuperAdmin && !isManagement) return null;
 
   return (
     <>
@@ -387,19 +389,160 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                   )}
                 </div>
               ) : (
-                // 3. Status Approved atau Rejected
-                <div className={`p-4 rounded-xl border ${approvalData.status === 'approved' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                  <p className={`text-sm font-bold mb-1 ${approvalData.status === 'approved' ? 'text-emerald-800' : 'text-red-800'}`}>
-                    Penggantian telah di-{approvalData.status}
-                  </p>
-                  <p className={`text-xs ${approvalData.status === 'approved' ? 'text-emerald-600' : 'text-red-600'}`}>
-                    Item: {approvalData.replacement_item}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Diputuskan oleh: {approvalData.approved_user?.full_name || 'Admin'}
-                  </p>
+                // 3. Status Approved atau Rejected — tampilkan info + tombol lanjutan
+                <div className="space-y-3">
+                  {/* Info card */}
+                  <div className={`p-4 rounded-xl border ${approvalData.status === 'approved' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                    <p className={`text-sm font-bold mb-1 ${approvalData.status === 'approved' ? 'text-emerald-800' : 'text-red-800'}`}>
+                      Penggantian telah di-{approvalData.status}
+                    </p>
+                    <p className={`text-xs ${approvalData.status === 'approved' ? 'text-emerald-600' : 'text-red-600'}`}>
+                      Item: {approvalData.replacement_item}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Diputuskan oleh: {approvalData.approved_user?.full_name || 'Admin'}
+                    </p>
+                  </div>
+
+                  {/* Tombol lanjutan — hanya untuk super admin / management */}
+                  {(isSuperAdmin || isManagement) && (
+                    <div className="space-y-2 pt-1">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                        Proses Selanjutnya
+                      </p>
+
+                      {approvalData.status === 'approved' ? (
+                        <>
+                          {/* Approved → kirim ke customer atau selesaikan langsung */}
+                          <button
+                            onClick={() => handleQuickStatus(
+                              'pending_response',
+                              `Penggantian produk telah disetujui. Kami akan segera menindaklanjuti pengiriman item pengganti: ${approvalData.replacement_item}. Mohon konfirmasi penerimaan Anda.`
+                            )}
+                            disabled={updating}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                          >
+                            <PaperAirplaneIcon className="h-4 w-4" />
+                            Kirim Notifikasi ke Customer
+                          </button>
+                          <button
+                            onClick={() => handleQuickStatus(
+                              'resolved',
+                              `Komplain telah diselesaikan. Penggantian produk: ${approvalData.replacement_item} telah disetujui dan dikonfirmasi.`
+                            )}
+                            disabled={updating}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                          >
+                            <CheckCircleIcon className="h-4 w-4" />
+                            Selesaikan Komplain
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {/* Rejected → kembali investigasi atau tutup */}
+                          <button
+                            onClick={() => handleQuickStatus(
+                              'investigation',
+                              `Permohonan penggantian ditolak. Tim investigasi akan melakukan kajian ulang.`
+                            )}
+                            disabled={updating}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                          >
+                            <BeakerIcon className="h-4 w-4" />
+                            Kembali ke Investigasi
+                          </button>
+                          <button
+                            onClick={() => handleQuickStatus(
+                              'resolved',
+                              `Komplain diselesaikan. Permohonan penggantian ditolak berdasarkan hasil investigasi.`
+                            )}
+                            disabled={updating}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                          >
+                            <CheckCircleIcon className="h-4 w-4" />
+                            Selesaikan Komplain
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* === STATUS: PENDING RESPONSE - MENUNGGU RESPON CUSTOMER === */}
+          {complaint.status === 'pending_response' && (
+            <div className="col-span-1 sm:col-span-2 p-5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Menunggu Respon Customer</h4>
+
+              {(() => {
+                // Cek balasan terakhir (non-internal)
+                const publicResponses = complaint.complaint_responses?.filter(r => !r.is_internal) || [];
+                // Sort ascending (terlama -> terbaru)
+                const sortedPublic = [...publicResponses].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                const lastResponse = sortedPublic.length > 0 ? sortedPublic[sortedPublic.length - 1] : null;
+
+                // Jika pesan terakhir bukan dari admin (berarti dari customer)
+                const isLastFromCustomer = lastResponse && (!lastResponse.admin_name || lastResponse.admin_name.trim() === '');
+
+                if (isLastFromCustomer) {
+                  return (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-emerald-100 dark:bg-emerald-800 rounded-lg text-emerald-600 dark:text-emerald-300 mt-0.5">
+                            <ChatBubbleLeftRightIcon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-sm border-b border-emerald-200 dark:border-emerald-800 pb-2 mb-2 font-bold text-emerald-800 dark:text-emerald-300">
+                              Customer Telah Membalas!
+                            </p>
+                            <p className="text-sm text-emerald-700 dark:text-emerald-400 italic line-clamp-2">
+                              "{lastResponse.message}"
+                            </p>
+                            <span className="text-xs text-emerald-600 dark:text-emerald-500 mt-2 block">
+                              {new Date(lastResponse.created_at).toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tombol lanjutan hanya untuk super admin / assigned */}
+                      {(isSuperAdmin || isManagement || isAssignedToMe) && (
+                        <button
+                          onClick={() => handleQuickStatus(
+                            'resolved',
+                            `Komplain Diselesaikan — Penggantian diproses.`
+                          )}
+                          disabled={updating}
+                          className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                        >
+                          <CheckCircleIcon className="h-5 w-5" />
+                          Selesaikan Komplain
+                        </button>
+                      )}
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="flex flex-col items-center justify-center p-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-xl text-center">
+                      <div className="animate-pulse mb-3 p-3 bg-blue-100 dark:bg-blue-800 rounded-full">
+                        <svg className="h-6 w-6 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-1">
+                        Menunggu Balasan Customer
+                      </p>
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        Sistem sedang menunggu konfirmasi penerimaan dari customer lewat Riwayat Komunikasi.
+                        Admin juga tetap bisa membalas manual.
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
             </div>
           )}
 
@@ -606,6 +749,7 @@ interface Complaint {
   assignee_investigasi_1?: string;
   assignee_investigasi_2?: string;
   assignee_lab_testing?: string;
+  assignee_approval?: string;
 
   department?: string;
 
@@ -641,6 +785,7 @@ interface Complaint {
   assignee_investigasi_1_user?: RelatedUser;
   assignee_investigasi_2_user?: RelatedUser;
   assignee_lab_testing_user?: RelatedUser;
+  assignee_approval_user?: RelatedUser;
 
   resolved_by_user?: RelatedUser;
   escalated_by_user?: RelatedUser;
@@ -727,6 +872,7 @@ export default function ComplaintDetailPage() {
   const [assigneeInvestigasi1, setAssigneeInvestigasi1] = useState('');
   const [assigneeInvestigasi2, setAssigneeInvestigasi2] = useState('');
   const [assigneeLabTesting, setAssigneeLabTesting] = useState('');
+  const [assigneeApproval, setAssigneeApproval] = useState('');
 
   const [assignmentNotes, setAssignmentNotes] = useState('');
 
@@ -746,10 +892,24 @@ export default function ComplaintDetailPage() {
       try {
         const profile: User | null = await getProfile();
         if (profile) {
+          // Fetch department dari user_complaint_profiles agar isManagement bekerja benar
+          let department: string | undefined;
+          try {
+            const { data: profileData } = await supabase
+              .from('user_complaint_profiles')
+              .select('department')
+              .eq('user_id', profile.id)
+              .maybeSingle();
+            department = profileData?.department || undefined;
+          } catch (_) {
+            // Ignore error — department tetap undefined
+          }
+
           setUser({
             id: profile.id,
             name: profile.user_metadata?.name || 'Admin',
             roles: profile.app_metadata?.roles || ['Superadmin'],
+            department,
             complaint_permissions: profile.user_metadata?.complaint_permissions || {}
           });
         }
@@ -759,6 +919,7 @@ export default function ComplaintDetailPage() {
       }
     })();
   }, []);
+
 
   useEffect(() => {
     if (user) {
@@ -868,7 +1029,7 @@ export default function ComplaintDetailPage() {
   };
 
   const handleAssignComplaint = async () => {
-    if (!assigneeObservasi && !assigneeInvestigasi1 && !assigneeInvestigasi2 && !assigneeLabTesting) {
+    if (!assigneeObservasi && !assigneeInvestigasi1 && !assigneeInvestigasi2 && !assigneeLabTesting && !assigneeApproval) {
       toast.error('Gagal, pilih setidaknya satu petugas untuk departemen.');
       return;
     }
@@ -883,6 +1044,7 @@ export default function ComplaintDetailPage() {
           assignee_investigasi_1: assigneeInvestigasi1,
           assignee_investigasi_2: assigneeInvestigasi2,
           assignee_lab_testing: assigneeLabTesting,
+          assignee_approval: assigneeApproval,
           notes: assignmentNotes,
         }),
       });
@@ -895,6 +1057,7 @@ export default function ComplaintDetailPage() {
       setAssigneeInvestigasi1('');
       setAssigneeInvestigasi2('');
       setAssigneeLabTesting('');
+      setAssigneeApproval('');
       setAssignmentNotes('');
       loadComplaint();
     } catch (err: any) {
@@ -2146,6 +2309,25 @@ export default function ComplaintDetailPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Approval (Management) */}
+                    {complaint.assignee_approval_user ? (
+                      <div className="flex items-center gap-3 pt-2 border-t border-indigo-100 dark:border-indigo-900/30">
+                        <ShieldCheckIcon className="h-8 w-8 text-indigo-500 dark:text-indigo-400" />
+                        <div>
+                          <dt className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Petugas Approval</dt>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_approval_user.name}</dd>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 pt-2 border-t border-indigo-100 dark:border-indigo-900/30">
+                        <ShieldCheckIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                        <div>
+                          <dt className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Petugas Approval</dt>
+                          <dd className="text-sm font-semibold text-gray-400 dark:text-gray-500 italic">Belum Ditugaskan</dd>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4 space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -2296,6 +2478,30 @@ export default function ComplaintDetailPage() {
                 </select>
               </div>
 
+              {/* Approval (Management) Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-1">
+                  Petugas Approval <span className="text-xs font-normal text-gray-500 dark:text-gray-400">(Khusus Management)</span>
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  Petugas ini yang berwenang menyetujui/menolak penggantian produk.
+                </p>
+                <select
+                  value={assigneeApproval}
+                  onChange={(e) => setAssigneeApproval(e.target.value)}
+                  className="mt-1 w-full rounded-xl border-indigo-300 dark:border-indigo-600 dark:bg-gray-700 dark:text-white focus:ring-indigo-500 focus:border-indigo-500 text-base px-4 py-3"
+                >
+                  <option value="">-- Pilih Petugas Approval --</option>
+                  {adminUsers
+                    .filter(admin => admin.department === 'management')
+                    .map((admin) => (
+                      <option key={admin.user_id} value={admin.user_id}>
+                        {admin.full_name} - {formatDepartment(admin.department)}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
               <div>
                 <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Catatan Penugasan (Internal)
@@ -2320,7 +2526,7 @@ export default function ComplaintDetailPage() {
               </button>
               <button
                 onClick={handleAssignComplaint}
-                disabled={isAssigning || (!assigneeObservasi && !assigneeInvestigasi1 && !assigneeInvestigasi2 && !assigneeLabTesting)}
+                disabled={isAssigning || (!assigneeObservasi && !assigneeInvestigasi1 && !assigneeInvestigasi2 && !assigneeLabTesting && !assigneeApproval)}
                 className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isAssigning ? (

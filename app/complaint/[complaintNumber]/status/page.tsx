@@ -601,17 +601,9 @@ export default function ComplaintStatusPage() {
                                 <div className="flex items-center gap-2 mb-2">
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold uppercase rounded-full shadow-sm">
                                     <ShieldCheckIcon className="h-3 w-3" />
-                                    Admin
+                                    Tim Support Advanta
                                   </span>
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-semibold rounded-md border border-green-300 dark:border-green-700">
-                                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                    </svg>
-                                    Public
-                                  </span>
-                                  <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                                    {response.admin_name}
-                                  </span>
+                                  {/* Hapus label 'Public' karena ini halaman customer, buat lebih rapi */}
                                   <span className="text-xs text-gray-600 dark:text-gray-400 ml-auto">
                                     {formatDateShort(response.created_at)}
                                   </span>

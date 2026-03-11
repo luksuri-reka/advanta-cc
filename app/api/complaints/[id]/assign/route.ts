@@ -22,6 +22,7 @@ export async function POST(
       assignee_investigasi_1,
       assignee_investigasi_2,
       assignee_lab_testing,
+      assignee_approval,
       notes
     } = body;
 
@@ -63,6 +64,7 @@ export async function POST(
     if (assignee_investigasi_1 !== undefined) payload.assignee_investigasi_1 = assignee_investigasi_1 || null;
     if (assignee_investigasi_2 !== undefined) payload.assignee_investigasi_2 = assignee_investigasi_2 || null;
     if (assignee_lab_testing !== undefined) payload.assignee_lab_testing = assignee_lab_testing || null;
+    if (assignee_approval !== undefined) payload.assignee_approval = assignee_approval || null;
 
     // Hapus logika single assignee_to dan department
     // Update complaint
@@ -83,7 +85,8 @@ export async function POST(
       assignee_observasi,
       assignee_investigasi_1,
       assignee_investigasi_2,
-      assignee_lab_testing
+      assignee_lab_testing,
+      assignee_approval
     ].filter(Boolean);
 
     if (validAssignees.length > 0) {
@@ -113,6 +116,7 @@ export async function POST(
               if (uuid === assignee_observasi) return 'Observasi Lapangan';
               if (uuid === assignee_investigasi_1 || uuid === assignee_investigasi_2) return 'Investigasi';
               if (uuid === assignee_lab_testing) return 'Lab Testing';
+              if (uuid === assignee_approval) return 'Approval / Manajemen';
               return 'Penanganan Komplain';
             };
 

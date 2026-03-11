@@ -1,5 +1,6 @@
 // app/api/complaints/route.ts
 import { createClient } from '@/app/utils/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
 // Tambahkan helper function
@@ -216,16 +217,24 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const complaintNumber = searchParams.get('complaint_number');
 
     if (complaintNumber) {
+      // Gunakan service role key untuk bypass RLS (karena ini request public tanpa session user)
+      const supabaseAdmin = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() { return [] },
+            setAll() { }
+          }
+        }
+      );
+
       // 🔥 UPDATE: Tambahkan observations di sini
-      const { data: complaint, error } = await supabase
+      const { data: complaint, error } = await supabaseAdmin
         .from('complaints')
         .select('*')
         .eq('complaint_number', complaintNumber)
@@ -236,14 +245,14 @@ export async function GET(request: Request) {
       }
 
       // Ambil responses
-      const { data: responses } = await supabase
+      const { data: responses } = await supabaseAdmin
         .from('complaint_responses')
         .select('*')
         .eq('complaint_id', complaint.id)
         .order('created_at', { ascending: true });
 
       // 🔥 TAMBAHKAN: Ambil observations
-      const { data: observations } = await supabase
+      const { data: observations } = await supabaseAdmin
         .from('complaint_observations')
         .select('*')
         .eq('complaint_id', complaint.id);
@@ -258,7 +267,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: [enrichedData] });
     }
 
-    // List all complaints (tidak perlu observations di sini)
+    // List all complaints (membutuhkan Auth)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const roles = user?.app_metadata?.roles || [];
     const isSuperAdmin = roles.includes('Superadmin') || roles.includes('superadmin');
 

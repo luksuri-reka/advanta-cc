@@ -82,7 +82,8 @@ export async function GET(
       assigneeObservasi,
       assigneeInvestigasi1,
       assigneeInvestigasi2,
-      assigneeLabTesting
+      assigneeLabTesting,
+      assigneeApproval
     ] = await Promise.all([
       getUserProfile(supabase, complaint.assigned_to),
       getUserProfile(supabase, complaint.assigned_by),
@@ -92,7 +93,8 @@ export async function GET(
       getUserProfile(supabase, complaint.assignee_observasi),
       getUserProfile(supabase, complaint.assignee_investigasi_1),
       getUserProfile(supabase, complaint.assignee_investigasi_2),
-      getUserProfile(supabase, complaint.assignee_lab_testing)
+      getUserProfile(supabase, complaint.assignee_lab_testing),
+      getUserProfile(supabase, complaint.assignee_approval)
     ]);
 
     // 7. Gabungkan Semua Data
@@ -110,7 +112,8 @@ export async function GET(
       assignee_observasi_user: assigneeObservasi,
       assignee_investigasi_1_user: assigneeInvestigasi1,
       assignee_investigasi_2_user: assigneeInvestigasi2,
-      assignee_lab_testing_user: assigneeLabTesting
+      assignee_lab_testing_user: assigneeLabTesting,
+      assignee_approval_user: assigneeApproval
     };
 
     return NextResponse.json({ success: true, data: enrichedData });
