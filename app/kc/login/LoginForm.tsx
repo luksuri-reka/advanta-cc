@@ -5,22 +5,74 @@ import { kcLogin } from './actions';
 
 const initialState = { error: null as string | null };
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'kc-theme';
+
+function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
+    return (
+        <button
+            onClick={onToggle}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: isDark ? '1px solid rgba(139,92,246,0.25)' : '1px solid rgba(124,58,237,0.2)',
+                background: isDark ? 'rgba(139,92,246,0.1)' : 'rgba(124,58,237,0.08)',
+                cursor: 'pointer',
+                color: isDark ? '#a78bfa' : '#7c3aed',
+                transition: 'all 0.2s',
+                zIndex: 20,
+            }}
+        >
+            {isDark ? (
+                /* Sun icon */
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="5" />
+                    <path strokeLinecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+            ) : (
+                /* Moon icon */
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                </svg>
+            )}
+        </button>
+    );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function LoginForm() {
     const [state, formAction, isPending] = useActionState(kcLogin, initialState);
     const [showPassword, setShowPassword] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [emailFocused, setEmailFocused] = useState(false);
     const [passFocused, setPassFocused] = useState(false);
+    const [isDark, setIsDark] = useState(true);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
         setMounted(true);
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved !== null) setIsDark(saved === 'dark');
     }, []);
 
-    // Animated particles canvas
+    const toggleTheme = () => {
+        const next = !isDark;
+        setIsDark(next);
+        localStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light');
+    };
+
+    // Animated particles canvas (dark mode only)
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas || !isDark) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
@@ -47,14 +99,11 @@ export default function LoginForm() {
                 p.y += p.vy;
                 if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
                 if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
                 ctx.fillStyle = `rgba(139, 92, 246, ${p.alpha})`;
                 ctx.fill();
             }
-
-            // Draw connecting lines
             for (let i = 0; i < particles.length; i++) {
                 for (let j = i + 1; j < particles.length; j++) {
                     const dx = particles[i].x - particles[j].x;
@@ -79,49 +128,103 @@ export default function LoginForm() {
             canvas.height = canvas.offsetHeight;
         };
         window.addEventListener('resize', handleResize);
-
         return () => {
             cancelAnimationFrame(animId);
             window.removeEventListener('resize', handleResize);
         };
-    }, []);
+    }, [isDark]);
+
+    // ── Theme tokens ───────────────────────────────────────────────────────────
+    const t = isDark ? {
+        bg: 'linear-gradient(135deg, #0a0a1a 0%, #0f0c29 40%, #1a0533 70%, #0d1117 100%)',
+        card: 'rgba(15, 12, 41, 0.75)',
+        cardBorder: 'rgba(139, 92, 246, 0.25)',
+        cardShadow: '0 25px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.1), inset 0 1px 0 rgba(255,255,255,0.05)',
+        title: '#ffffff',
+        subtitle: '#94a3b8',
+        inputBg: 'rgba(255,255,255,0.04)',
+        inputBorder: 'rgba(255,255,255,0.08)',
+        inputBorderFocus: 'rgba(139, 92, 246, 0.6)',
+        inputText: '#ffffff',
+        inputPlaceholder: 'rgba(71,85,105,0.8)',
+        divider: 'rgba(255,255,255,0.06)',
+        footerText: '#334155',
+        footerSub: '#1e293b',
+    } : {
+        bg: 'linear-gradient(135deg, #f0f4ff 0%, #e8eeff 40%, #f5f0ff 70%, #f8faff 100%)',
+        card: 'rgba(255,255,255,0.92)',
+        cardBorder: 'rgba(124, 58, 237, 0.2)',
+        cardShadow: '0 25px 50px rgba(124,58,237,0.12), 0 0 0 1px rgba(124,58,237,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+        title: '#1e1b4b',
+        subtitle: '#64748b',
+        inputBg: 'rgba(124,58,237,0.03)',
+        inputBorder: 'rgba(124,58,237,0.15)',
+        inputBorderFocus: 'rgba(124, 58, 237, 0.5)',
+        inputText: '#1e1b4b',
+        inputPlaceholder: 'rgba(148,163,184,0.8)',
+        divider: 'rgba(124,58,237,0.08)',
+        footerText: '#94a3b8',
+        footerSub: '#c4b5fd',
+    };
+
+    const inputFocusShadow = isDark
+        ? '0 0 0 3px rgba(139, 92, 246, 0.12), inset 0 1px 0 rgba(255,255,255,0.05)'
+        : '0 0 0 3px rgba(124, 58, 237, 0.08)';
 
     return (
         <div className="relative w-full min-h-screen flex items-center justify-center overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #0f0c29 40%, #1a0533 70%, #0d1117 100%)' }}>
+            style={{ background: t.bg, transition: 'background 0.4s ease' }}>
 
-            {/* Animated Canvas Background */}
-            <canvas
-                ref={canvasRef}
-                className="absolute inset-0 w-full h-full"
-                style={{ opacity: 0.7 }}
-            />
+            {/* Canvas particles (dark only) */}
+            {isDark && (
+                <canvas
+                    ref={canvasRef}
+                    className="absolute inset-0 w-full h-full"
+                    style={{ opacity: 0.7 }}
+                />
+            )}
 
-            {/* Glowing Orbs */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-20 blur-3xl"
-                    style={{ background: 'radial-gradient(circle, #7c3aed, transparent)' }} />
-                <div className="absolute -bottom-32 -right-16 w-80 h-80 rounded-full opacity-20 blur-3xl"
-                    style={{ background: 'radial-gradient(circle, #2563eb, transparent)' }} />
-                <div className="absolute top-1/2 left-1/4 w-64 h-64 rounded-full opacity-10 blur-3xl"
-                    style={{ background: 'radial-gradient(circle, #db2777, transparent)' }} />
-            </div>
+            {/* Light mode soft blobs */}
+            {!isDark && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-30 blur-3xl"
+                        style={{ background: 'radial-gradient(circle, #c4b5fd, transparent)' }} />
+                    <div className="absolute -bottom-32 -right-16 w-80 h-80 rounded-full opacity-25 blur-3xl"
+                        style={{ background: 'radial-gradient(circle, #93c5fd, transparent)' }} />
+                </div>
+            )}
+
+            {/* Dark mode glowing orbs */}
+            {isDark && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-20 blur-3xl"
+                        style={{ background: 'radial-gradient(circle, #7c3aed, transparent)' }} />
+                    <div className="absolute -bottom-32 -right-16 w-80 h-80 rounded-full opacity-20 blur-3xl"
+                        style={{ background: 'radial-gradient(circle, #2563eb, transparent)' }} />
+                    <div className="absolute top-1/2 left-1/4 w-64 h-64 rounded-full opacity-10 blur-3xl"
+                        style={{ background: 'radial-gradient(circle, #db2777, transparent)' }} />
+                </div>
+            )}
 
             {/* Main Card */}
             <div
                 className={`relative z-10 w-full max-w-md mx-4 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                 style={{
-                    background: 'rgba(15, 12, 41, 0.75)',
+                    background: t.card,
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                    border: `1px solid ${t.cardBorder}`,
                     borderRadius: '24px',
-                    boxShadow: '0 25px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.1), inset 0 1px 0 rgba(255,255,255,0.05)',
+                    boxShadow: t.cardShadow,
+                    transition: 'background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease',
                 }}
             >
                 {/* Top gradient stripe */}
                 <div className="absolute top-0 left-0 right-0 h-px rounded-t-3xl"
                     style={{ background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.8), rgba(59,130,246,0.8), transparent)' }} />
+
+                {/* Theme Toggle */}
+                <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
                 <div className="px-8 py-10">
                     {/* Logo Badge */}
@@ -139,7 +242,6 @@ export default function LoginForm() {
                             </div>
                         </div>
 
-                        {/* Badge */}
                         <div className="flex items-center gap-2 px-3 py-1 rounded-full mb-3 text-xs font-semibold"
                             style={{
                                 background: 'rgba(139, 92, 246, 0.15)',
@@ -150,8 +252,8 @@ export default function LoginForm() {
                             KrosCek API System
                         </div>
 
-                        <h1 className="text-2xl font-bold text-white mb-1 tracking-tight">Developer Portal</h1>
-                        <p className="text-sm" style={{ color: '#94a3b8' }}>Masuk untuk mengakses KrosCek API Docs</p>
+                        <h1 className="text-2xl font-bold mb-1 tracking-tight" style={{ color: t.title }}>Developer Portal</h1>
+                        <p className="text-sm" style={{ color: t.subtitle }}>Masuk untuk mengakses KrosCek API Docs</p>
                     </div>
 
                     {/* Form */}
@@ -177,11 +279,12 @@ export default function LoginForm() {
                                     onFocus={() => setEmailFocused(true)}
                                     onBlur={() => setEmailFocused(false)}
                                     disabled={isPending}
-                                    className="w-full pl-11 pr-4 py-3.5 rounded-xl text-sm text-white placeholder-slate-600 outline-none transition-all duration-300 disabled:opacity-50"
+                                    className="w-full pl-11 pr-4 py-3.5 rounded-xl text-sm outline-none transition-all duration-300 disabled:opacity-50"
                                     style={{
-                                        background: 'rgba(255,255,255,0.04)',
-                                        border: emailFocused ? '1px solid rgba(139, 92, 246, 0.6)' : '1px solid rgba(255,255,255,0.08)',
-                                        boxShadow: emailFocused ? '0 0 0 3px rgba(139, 92, 246, 0.12), inset 0 1px 0 rgba(255,255,255,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                                        background: t.inputBg,
+                                        border: emailFocused ? `1px solid ${t.inputBorderFocus}` : `1px solid ${t.inputBorder}`,
+                                        boxShadow: emailFocused ? inputFocusShadow : isDark ? 'inset 0 1px 0 rgba(255,255,255,0.03)' : 'none',
+                                        color: t.inputText,
                                     }}
                                 />
                             </div>
@@ -208,11 +311,12 @@ export default function LoginForm() {
                                     onFocus={() => setPassFocused(true)}
                                     onBlur={() => setPassFocused(false)}
                                     disabled={isPending}
-                                    className="w-full pl-11 pr-12 py-3.5 rounded-xl text-sm text-white placeholder-slate-600 outline-none transition-all duration-300 disabled:opacity-50"
+                                    className="w-full pl-11 pr-12 py-3.5 rounded-xl text-sm outline-none transition-all duration-300 disabled:opacity-50"
                                     style={{
-                                        background: 'rgba(255,255,255,0.04)',
-                                        border: passFocused ? '1px solid rgba(139, 92, 246, 0.6)' : '1px solid rgba(255,255,255,0.08)',
-                                        boxShadow: passFocused ? '0 0 0 3px rgba(139, 92, 246, 0.12), inset 0 1px 0 rgba(255,255,255,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                                        background: t.inputBg,
+                                        border: passFocused ? `1px solid ${t.inputBorderFocus}` : `1px solid ${t.inputBorder}`,
+                                        boxShadow: passFocused ? inputFocusShadow : isDark ? 'inset 0 1px 0 rgba(255,255,255,0.03)' : 'none',
+                                        color: t.inputText,
                                     }}
                                 />
                                 <button
@@ -235,9 +339,9 @@ export default function LoginForm() {
                             </div>
                         </div>
 
-                        {/* Error Alert */}
+                        {/* Error */}
                         {state?.error && (
-                            <div className="flex items-start gap-3 p-3.5 rounded-xl text-sm animate-slide-in-bottom"
+                            <div className="flex items-start gap-3 p-3.5 rounded-xl text-sm"
                                 style={{
                                     background: 'rgba(239, 68, 68, 0.1)',
                                     border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -250,7 +354,7 @@ export default function LoginForm() {
                             </div>
                         )}
 
-                        {/* Submit Button */}
+                        {/* Submit */}
                         <div className={`pt-2 transition-all duration-700 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                             <button
                                 type="submit"
@@ -261,17 +365,11 @@ export default function LoginForm() {
                                     boxShadow: isPending ? 'none' : '0 4px 24px rgba(124, 58, 237, 0.5)',
                                     transform: isPending ? 'scale(0.98)' : 'scale(1)',
                                 }}
-                                onMouseEnter={e => {
-                                    if (!isPending) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(124, 58, 237, 0.7)';
-                                }}
-                                onMouseLeave={e => {
-                                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 24px rgba(124, 58, 237, 0.5)';
-                                }}
+                                onMouseEnter={e => { if (!isPending) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(124, 58, 237, 0.7)'; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 24px rgba(124, 58, 237, 0.5)'; }}
                             >
-                                {/* Shine effect */}
                                 <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"
                                     style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
-
                                 <div className="relative flex items-center justify-center gap-2.5">
                                     {isPending ? (
                                         <>
@@ -299,14 +397,14 @@ export default function LoginForm() {
 
                     {/* Footer */}
                     <div className="mt-8 pt-6 text-center"
-                        style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div className="flex items-center justify-center gap-2 text-xs" style={{ color: '#334155' }}>
+                        style={{ borderTop: `1px solid ${t.divider}` }}>
+                        <div className="flex items-center justify-center gap-2 text-xs" style={{ color: t.footerText }}>
                             <svg className="w-3.5 h-3.5" style={{ color: '#7c3aed' }} fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                             </svg>
                             Koneksi terenkripsi — Akses hanya untuk developer
                         </div>
-                        <p className="mt-2 text-xs" style={{ color: '#1e293b' }}>
+                        <p className="mt-2 text-xs" style={{ color: t.footerSub }}>
                             © 2025 KrosCek · Advanta Seeds Indonesia
                         </p>
                     </div>
