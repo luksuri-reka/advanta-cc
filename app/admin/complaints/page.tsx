@@ -22,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import ModernDashboard from './ModernDashboard';
+import FiscalYearSidebar from './FiscalYearSidebar';
 
 // Interface sesuai Database
 interface Complaint {
@@ -84,6 +85,32 @@ export default function AdminComplaintsPage() {
     key: 'created_at',
     direction: 'desc'
   });
+
+  // STATE SIDEBAR
+  const [sidebarFilters, setSidebarFilters] = useState<{
+    fiscalYear: string | null;
+    quarter: string | null;
+    status: string | null;
+  }>({ fiscalYear: null, quarter: null, status: null });
+
+  const handleSidebarFilterChange = (fy: string | null, quarter: string | null, status: string | null) => {
+    setSidebarFilters({ fiscalYear: fy, quarter: quarter, status: status });
+  };
+
+  const getFiscalYearInfo = (dateString: string) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0 is Jan, 3 is Apr
+    const isFYNext = month >= 3; 
+    const baseYear = isFYNext ? year : year - 1;
+    const fyLabel = `FY${baseYear.toString().slice(-2)}`;
+    let quarter = '';
+    if (month >= 3 && month <= 5) quarter = 'Q1';
+    else if (month >= 6 && month <= 8) quarter = 'Q2';
+    else if (month >= 9 && month <= 11) quarter = 'Q3';
+    else quarter = 'Q4';
+    return { fyLabel, quarter };
+  };
 
   useEffect(() => {
     (async () => {
@@ -410,8 +437,32 @@ export default function AdminComplaintsPage() {
         else if (filters.age === '>14') ageMatch = ageInDays > 14;
       }
 
+      let sidebarMatch = true;
+      if (sidebarFilters.fiscalYear || sidebarFilters.quarter || sidebarFilters.status) {
+        const info = getFiscalYearInfo(c.created_at);
+        
+        if (sidebarFilters.fiscalYear && info.fyLabel !== sidebarFilters.fiscalYear) {
+          sidebarMatch = false;
+        }
+        if (sidebarFilters.quarter && info.quarter !== sidebarFilters.quarter) {
+          sidebarMatch = false;
+        }
+        if (sidebarMatch && sidebarFilters.status) {
+          const statusGroups: Record<string, string[]> = {
+            'Pending': ['submitted', 'pending_response'],
+            'In Progress': ['acknowledged', 'observation', 'investigating', 'investigation', 'decision'],
+            'Resolved': ['resolved', 'closed']
+          };
+          const allowedStatuses = statusGroups[sidebarFilters.status] || [];
+          if (!allowedStatuses.includes(c.status)) {
+            sidebarMatch = false;
+          }
+        }
+      }
+
       return (
         ageMatch &&
+        sidebarMatch &&
         (filters.status === '' || c.status === filters.status) &&
         (filters.product === '' || (c.related_product_name || '') === filters.product) &&
         (filters.search === '' ||
@@ -459,7 +510,7 @@ export default function AdminComplaintsPage() {
       });
     }
     return data;
-  }, [complaints, filters, sortConfig]);
+  }, [complaints, filters, sortConfig, sidebarFilters]);
 
   const SortIcon = ({ colKey }: { colKey: string }) => {
     if (sortConfig.key !== colKey) return <BarsArrowUpIcon className="h-3 w-3 text-gray-400 opacity-50" />;
@@ -513,11 +564,25 @@ export default function AdminComplaintsPage() {
           </h1>
         </div>
 
-        <ModernDashboard />
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Left Column - Sidebar */}
+          <div className="w-full lg:w-72 flex-shrink-0">
+             <FiscalYearSidebar 
+               complaints={complaints}
+               selectedFY={sidebarFilters.fiscalYear} 
+               selectedQuarter={sidebarFilters.quarter} 
+               selectedStatus={sidebarFilters.status}
+               onFilterChange={handleSidebarFilterChange}
+             />
+          </div>
 
-        {/* --- FILTERS & TABLE & EXPORT --- */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          {/* Filter Bar with Export Button */}
+          {/* Right Column - Main Content */}
+          <div className="flex-1 min-w-0 w-full space-y-6">
+            <ModernDashboard />
+
+            {/* --- FILTERS & TABLE & EXPORT --- */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+              {/* Filter Bar with Export Button */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-grow">
@@ -609,7 +674,7 @@ export default function AdminComplaintsPage() {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
-                  <tr><td colSpan={6} className="text-center py-8"><ArrowPathIcon className="h-5 w-5 animate-spin mx-auto" /></td></tr>
+                  <tr><td colSpan={7} className="text-center py-8"><ArrowPathIcon className="h-5 w-5 animate-spin mx-auto" /></td></tr>
                 ) : sortedAndFilteredComplaints.length > 0 ? (
                   sortedAndFilteredComplaints.map((complaint) => (
                     <tr key={complaint.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -662,10 +727,12 @@ export default function AdminComplaintsPage() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={6} className="text-center py-8 text-sm text-gray-500">Tidak ada data ditemukan.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8 text-sm text-gray-500">Tidak ada data ditemukan.</td></tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
           </div>
         </div>
       </main>
