@@ -8,11 +8,13 @@ import {
   DocumentMagnifyingGlassIcon,
   PhotoIcon,
   XMarkIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  MagnifyingGlassPlusIcon
 } from '@heroicons/react/24/outline';
 import { useDropzone } from 'react-dropzone';
 import { toast, Toaster } from 'react-hot-toast';
 import { createBrowserClient } from '@supabase/ssr';
+import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
 
 export default function ObservationFormPage() {
   const params = useParams();
@@ -283,6 +285,23 @@ export default function ObservationFormPage() {
     }));
   };
 
+  // 🖼️ Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const obsLightboxImages: LightboxImage[] = formData.evidence_files
+    .map((src) => {
+      let base64Data = src;
+      let fileNameStr = '';
+      if (src.includes('|')) { const sep = src.indexOf('|'); fileNameStr = src.substring(0, sep); base64Data = src.substring(sep + 1); }
+      const isBase64 = base64Data.startsWith('data:image/');
+      const isHttp = base64Data.startsWith('http');
+      const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+      const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+      return isVisualImage ? { src: displayUrl, alt: fileNameStr || 'Bukti Observasi', fileName: fileNameStr || src.split('/').pop() } : null;
+    })
+    .filter(Boolean) as LightboxImage[];
+
   const RadioField = ({ name, label, required = false }: { name: string; label: string; required?: boolean }) => (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -322,6 +341,16 @@ export default function ObservationFormPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
       <Toaster position="top-right" />
+
+      {/* 🖼️ Lightbox for Observation Evidence */}
+      {lightboxOpen && obsLightboxImages.length > 0 && (
+        <ImageLightbox
+          images={obsLightboxImages}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxOpen(false)}
+          accentColor="cyan"
+        />
+      )}
 
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -542,21 +571,20 @@ export default function ObservationFormPage() {
                         base64Data = src.substring(separatorIndex + 1);
                       }
 
-                      // Gunakan proxy URL untuk file http agar preview aman di sisi client juga (meski ini admin)
                       const isBase64 = base64Data.startsWith('data:image/');
                       const isHttp = base64Data.startsWith('http');
                       const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
-
-                      // Check if it's visually an image
                       const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                      const lbIndex = obsLightboxImages.findIndex(img => img.src === displayUrl);
 
                       return (
-                        <div key={index} className="relative group rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 aspect-square bg-gray-50 flex flex-col items-center justify-center p-2 text-center">
+                        <div key={index} className="relative group rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 aspect-square bg-gray-50 flex flex-col items-center justify-center p-2 text-center cursor-pointer"
+                          onClick={() => isVisualImage && lbIndex >= 0 && (setLightboxIndex(lbIndex), setLightboxOpen(true))}>
                           {isVisualImage ? (
                             <img
                               src={displayUrl}
                               alt={`Preview ${index + 1}`}
-                              className="w-full h-full object-cover absolute inset-0"
+                              className="w-full h-full object-cover absolute inset-0 transition-transform duration-300 group-hover:scale-105"
                             />
                           ) : (
                             <div className="flex flex-col items-center justify-center w-full h-full p-2 z-10">
@@ -566,13 +594,24 @@ export default function ObservationFormPage() {
                               </span>
                             </div>
                           )}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center z-20 gap-2">
+                            {isVisualImage && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); lbIndex >= 0 && (setLightboxIndex(lbIndex), setLightboxOpen(true)); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors text-xs"
+                              >
+                                <MagnifyingGlassPlusIcon className="w-4 h-4" />
+                                Preview
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={(e) => { e.preventDefault(); removeAttachment(index); }}
-                              className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg transform hover:scale-110 transition-transform"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeAttachment(index); }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-xs"
                             >
                               <XMarkIcon className="w-4 h-4" />
+                              Hapus
                             </button>
                           </div>
                         </div>

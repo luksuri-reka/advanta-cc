@@ -22,10 +22,12 @@ import {
   CubeIcon,
   ChevronDownIcon,
   SparklesIcon,
-  XMarkIcon
+  XMarkIcon,
+  MagnifyingGlassPlusIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useDropzone } from 'react-dropzone';
+import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
 
 interface ComplaintFormData {
   customer_name: string;
@@ -420,6 +422,15 @@ export default function ComplaintForm() {
     }));
   };
 
+  // 🖼️ Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const openAttachmentPreview = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -699,6 +710,16 @@ export default function ComplaintForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950/30">
+
+      {/* 🖼️ Lightbox Preview untuk Lampiran */}
+      {lightboxOpen && formData.attachments.length > 0 && (
+        <ImageLightbox
+          images={formData.attachments.map((src, i) => ({ src, alt: `Lampiran ${i + 1}`, fileName: `lampiran-${i + 1}.jpg` }))}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxOpen(false)}
+          accentColor="emerald"
+        />
+      )}
 
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
@@ -1340,22 +1361,32 @@ export default function ComplaintForm() {
                   {formData.attachments.length > 0 && (
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                       {formData.attachments.map((imgSrc, idx) => (
-                        <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-[4/3]">
+                        <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-[4/3] cursor-pointer"
+                          onClick={() => openAttachmentPreview(idx)}>
                           <img
                             src={imgSrc}
                             alt={`Preview ${idx + 1}`}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                           />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openAttachmentPreview(idx); }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors text-xs"
+                            >
+                              <MagnifyingGlassPlusIcon className="w-4 h-4" />
+                              Preview
+                            </button>
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 removeAttachment(idx);
                               }}
-                              className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transform scale-0 group-hover:scale-100 transition-transform"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-xs"
                             >
-                              <XMarkIcon className="w-5 h-5" />
+                              <XMarkIcon className="w-4 h-4" />
+                              Hapus
                             </button>
                           </div>
                         </div>

@@ -35,13 +35,15 @@ import {
   ScaleIcon,   // 🔥 BARU: Import Icon Timbangan
   ClipboardDocumentCheckIcon,
   DocumentTextIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  MagnifyingGlassPlusIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
 import ObservationSummaryCard from '@/app/components/ObservationSummaryCard';
 import InvestigationSummaryCard from '@/app/components/InvestigationSummaryCard';
 import LabTestingSummaryCard from '@/app/components/LabTestingSummaryCard';
+import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
 
 interface QuickActionsProps {
   complaint: Complaint;
@@ -100,6 +102,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
             admin_id: userId,
             admin_name: user?.name || 'Admin',
             is_internal: false,
+            skip_notification: true, // 🔥 BARU: prevent double notification
           }),
         });
       }
@@ -887,6 +890,22 @@ export default function ComplaintDetailPage() {
   // 🔥 Approval State
   const [approvalData, setApprovalData] = useState<any>(null);
 
+  // 🖼️ Lightbox State
+  const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [showLightbox, setShowLightbox] = useState(false);
+
+  const openLightbox = (images: LightboxImage[], index: number = 0) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setShowLightbox(true);
+  };
+
+  const closeLightbox = () => {
+    setShowLightbox(false);
+    setLightboxImages([]);
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -1265,6 +1284,17 @@ export default function ComplaintDetailPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Toaster position="top-right" />
 
+      {/* 🖼️ Lightbox Global */}
+      {showLightbox && (
+        <ImageLightbox
+          images={lightboxImages}
+          initialIndex={lightboxIndex}
+          onClose={closeLightbox}
+          accentColor="emerald"
+        />
+      )}
+
+
       <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -1338,66 +1368,87 @@ export default function ComplaintDetailPage() {
                 />
 
                 {/* OBSERVATION EVIDENCE FILES */}
-                {complaint.complaint_observations[0].evidence_files && complaint.complaint_observations[0].evidence_files.length > 0 && (
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-                    <dt className="text-sm font-medium text-cyan-600 dark:text-cyan-400 flex items-center gap-2 mb-4">
-                      <DocumentTextIcon className="w-5 h-5 text-cyan-500" />
-                      Dokumentasi Observasi
-                    </dt>
-                    <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {complaint.complaint_observations[0].evidence_files.map((src: string, index: number) => {
-                        let fileNameStr = `File Observasi ${index + 1}`;
-                        let base64Data = src;
+                {complaint.complaint_observations[0].evidence_files && complaint.complaint_observations[0].evidence_files.length > 0 && (() => {
+                  const obsImages: LightboxImage[] = complaint.complaint_observations[0].evidence_files
+                    .map((src: string, idx: number) => {
+                      let fileNameStr = `File Observasi ${idx + 1}`;
+                      let base64Data = src;
+                      if (src.includes('|')) {
+                        const sep = src.indexOf('|');
+                        fileNameStr = src.substring(0, sep);
+                        base64Data = src.substring(sep + 1);
+                      }
+                      const isBase64 = base64Data.startsWith('data:image/');
+                      const isHttp = base64Data.startsWith('http');
+                      const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+                      const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                      return isVisualImage ? { src: displayUrl, alt: fileNameStr, fileName: isHttp ? src.split('/').pop() : fileNameStr } : null;
+                    })
+                    .filter(Boolean) as LightboxImage[];
 
-                        if (src.includes('|')) {
-                          const separatorIndex = src.indexOf('|');
-                          fileNameStr = src.substring(0, separatorIndex);
-                          base64Data = src.substring(separatorIndex + 1);
-                        }
+                  return (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                      <dt className="text-sm font-medium text-cyan-600 dark:text-cyan-400 flex items-center gap-2 mb-4">
+                        <DocumentTextIcon className="w-5 h-5 text-cyan-500" />
+                        Dokumentasi Observasi
+                        <span className="ml-auto text-xs text-gray-400 font-normal">Klik gambar untuk preview</span>
+                      </dt>
+                      <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {complaint.complaint_observations[0].evidence_files.map((src: string, index: number) => {
+                          let fileNameStr = `File Observasi ${index + 1}`;
+                          let base64Data = src;
+                          if (src.includes('|')) {
+                            const sep = src.indexOf('|');
+                            fileNameStr = src.substring(0, sep);
+                            base64Data = src.substring(sep + 1);
+                          }
+                          const isBase64 = base64Data.startsWith('data:image/');
+                          const isHttp = base64Data.startsWith('http');
+                          const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+                          const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                          const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
+                          const lbIndex = obsImages.findIndex(img => img.src === displayUrl);
 
-                        const isBase64 = base64Data.startsWith('data:image/');
-                        const isHttp = base64Data.startsWith('http');
-                        const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
-
-                        const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
-                        const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
-
-                        return (
-                          <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square">
-                            {isVisualImage ? (
-                              <img
-                                src={displayUrl}
-                                alt={finalFileName}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center p-4 h-full">
-                                <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
-                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">
-                                  {finalFileName}
-                                </span>
+                          return (
+                            <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square cursor-pointer"
+                              onClick={() => isVisualImage && lbIndex >= 0 && openLightbox(obsImages, lbIndex)}>
+                              {isVisualImage ? (
+                                <img src={displayUrl} alt={finalFileName} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center p-4 h-full">
+                                  <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">{finalFileName}</span>
+                                </div>
+                              )}
+                              {/* Hover overlay */}
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center z-10 backdrop-blur-sm gap-2">
+                                {isVisualImage && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); lbIndex >= 0 && openLightbox(obsImages, lbIndex); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors text-xs"
+                                  >
+                                    <MagnifyingGlassPlusIcon className="w-4 h-4" />
+                                    Preview
+                                  </button>
+                                )}
+                                <a
+                                  href={displayUrl}
+                                  download={finalFileName || `obs-${complaint.complaint_number}-${index + 1}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors text-xs"
+                                >
+                                  <ArrowDownTrayIcon className="w-4 h-4" />
+                                  Unduh
+                                </a>
                               </div>
-                            )}
-
-                            {/* Hover overlay for download */}
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
-                              <a
-                                href={displayUrl}
-                                download={finalFileName || `obs-${complaint.complaint_number}-${index + 1}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors shadow-lg text-xs"
-                              >
-                                <ArrowDownTrayIcon className="w-4 h-4" />
-                                Unduh
-                              </a>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </dd>
-                  </div>
-                )}
+                          );
+                        })}
+                      </dd>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1409,66 +1460,69 @@ export default function ComplaintDetailPage() {
                 />
 
                 {/* INVESTIGATION EVIDENCE FILES */}
-                {complaint.complaint_investigations[0].evidence_files && complaint.complaint_investigations[0].evidence_files.length > 0 && (
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-                    <dt className="text-sm font-medium text-purple-600 dark:text-purple-400 flex items-center gap-2 mb-4">
-                      <DocumentTextIcon className="w-5 h-5 text-purple-500" />
-                      Dokumentasi Investigasi
-                    </dt>
-                    <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {complaint.complaint_investigations[0].evidence_files.map((src: string, index: number) => {
-                        let fileNameStr = `File Evidence ${index + 1}`;
-                        let base64Data = src;
+                {complaint.complaint_investigations[0].evidence_files && complaint.complaint_investigations[0].evidence_files.length > 0 && (() => {
+                  const invImages: LightboxImage[] = complaint.complaint_investigations[0].evidence_files
+                    .map((src: string, idx: number) => {
+                      let fileNameStr = `File Evidence ${idx + 1}`;
+                      let base64Data = src;
+                      if (src.includes('|')) { const sep = src.indexOf('|'); fileNameStr = src.substring(0, sep); base64Data = src.substring(sep + 1); }
+                      const isBase64 = base64Data.startsWith('data:image/');
+                      const isHttp = base64Data.startsWith('http');
+                      const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+                      const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                      return isVisualImage ? { src: displayUrl, alt: fileNameStr, fileName: isHttp ? src.split('/').pop() : fileNameStr } : null;
+                    }).filter(Boolean) as LightboxImage[];
 
-                        if (src.includes('|')) {
-                          const separatorIndex = src.indexOf('|');
-                          fileNameStr = src.substring(0, separatorIndex);
-                          base64Data = src.substring(separatorIndex + 1);
-                        }
+                  return (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                      <dt className="text-sm font-medium text-purple-600 dark:text-purple-400 flex items-center gap-2 mb-4">
+                        <DocumentTextIcon className="w-5 h-5 text-purple-500" />
+                        Dokumentasi Investigasi
+                        <span className="ml-auto text-xs text-gray-400 font-normal">Klik gambar untuk preview</span>
+                      </dt>
+                      <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {complaint.complaint_investigations[0].evidence_files.map((src: string, index: number) => {
+                          let fileNameStr = `File Evidence ${index + 1}`;
+                          let base64Data = src;
+                          if (src.includes('|')) { const sep = src.indexOf('|'); fileNameStr = src.substring(0, sep); base64Data = src.substring(sep + 1); }
+                          const isBase64 = base64Data.startsWith('data:image/');
+                          const isHttp = base64Data.startsWith('http');
+                          const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+                          const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                          const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
+                          const lbIndex = invImages.findIndex(img => img.src === displayUrl);
 
-                        const isBase64 = base64Data.startsWith('data:image/');
-                        const isHttp = base64Data.startsWith('http');
-                        const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
-
-                        const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
-                        const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
-
-                        return (
-                          <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square">
-                            {isVisualImage ? (
-                              <img
-                                src={displayUrl}
-                                alt={finalFileName}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center p-4 h-full">
-                                <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
-                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">
-                                  {finalFileName}
-                                </span>
+                          return (
+                            <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square cursor-pointer"
+                              onClick={() => isVisualImage && lbIndex >= 0 && openLightbox(invImages, lbIndex)}>
+                              {isVisualImage ? (
+                                <img src={displayUrl} alt={finalFileName} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center p-4 h-full">
+                                  <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">{finalFileName}</span>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center z-10 backdrop-blur-sm gap-2">
+                                {isVisualImage && (
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); lbIndex >= 0 && openLightbox(invImages, lbIndex); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors text-xs">
+                                    <MagnifyingGlassPlusIcon className="w-4 h-4" />Preview
+                                  </button>
+                                )}
+                                <a href={displayUrl} download={finalFileName || `evidence-${complaint.complaint_number}-${index + 1}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors text-xs">
+                                  <ArrowDownTrayIcon className="w-4 h-4" />Unduh
+                                </a>
                               </div>
-                            )}
-
-                            {/* Hover overlay for download */}
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
-                              <a
-                                href={displayUrl}
-                                download={finalFileName || `evidence-${complaint.complaint_number}-${index + 1}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors shadow-lg text-xs"
-                              >
-                                <ArrowDownTrayIcon className="w-4 h-4" />
-                                Unduh
-                              </a>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </dd>
-                  </div>
-                )}
+                          );
+                        })}
+                      </dd>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1480,66 +1534,69 @@ export default function ComplaintDetailPage() {
                 />
 
                 {/* LAB TESTING EVIDENCE FILES */}
-                {complaint.complaint_lab_testing[0].evidence_files && complaint.complaint_lab_testing[0].evidence_files.length > 0 && (
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-                    <dt className="text-sm font-medium text-teal-600 dark:text-teal-400 flex items-center gap-2 mb-4">
-                      <BeakerIcon className="w-5 h-5 text-teal-500" />
-                      Dokumentasi Lab Testing
-                    </dt>
-                    <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {complaint.complaint_lab_testing[0].evidence_files.map((src: string, index: number) => {
-                        let fileNameStr = `File Lab ${index + 1}`;
-                        let base64Data = src;
+                {complaint.complaint_lab_testing[0].evidence_files && complaint.complaint_lab_testing[0].evidence_files.length > 0 && (() => {
+                  const labImages: LightboxImage[] = complaint.complaint_lab_testing[0].evidence_files
+                    .map((src: string, idx: number) => {
+                      let fileNameStr = `File Lab ${idx + 1}`;
+                      let base64Data = src;
+                      if (src.includes('|')) { const sep = src.indexOf('|'); fileNameStr = src.substring(0, sep); base64Data = src.substring(sep + 1); }
+                      const isBase64 = base64Data.startsWith('data:image/');
+                      const isHttp = base64Data.startsWith('http');
+                      const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+                      const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                      return isVisualImage ? { src: displayUrl, alt: fileNameStr, fileName: isHttp ? src.split('/').pop() : fileNameStr } : null;
+                    }).filter(Boolean) as LightboxImage[];
 
-                        if (src.includes('|')) {
-                          const separatorIndex = src.indexOf('|');
-                          fileNameStr = src.substring(0, separatorIndex);
-                          base64Data = src.substring(separatorIndex + 1);
-                        }
+                  return (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                      <dt className="text-sm font-medium text-teal-600 dark:text-teal-400 flex items-center gap-2 mb-4">
+                        <BeakerIcon className="w-5 h-5 text-teal-500" />
+                        Dokumentasi Lab Testing
+                        <span className="ml-auto text-xs text-gray-400 font-normal">Klik gambar untuk preview</span>
+                      </dt>
+                      <dd className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {complaint.complaint_lab_testing[0].evidence_files.map((src: string, index: number) => {
+                          let fileNameStr = `File Lab ${index + 1}`;
+                          let base64Data = src;
+                          if (src.includes('|')) { const sep = src.indexOf('|'); fileNameStr = src.substring(0, sep); base64Data = src.substring(sep + 1); }
+                          const isBase64 = base64Data.startsWith('data:image/');
+                          const isHttp = base64Data.startsWith('http');
+                          const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
+                          const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
+                          const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
+                          const lbIndex = labImages.findIndex(img => img.src === displayUrl);
 
-                        const isBase64 = base64Data.startsWith('data:image/');
-                        const isHttp = base64Data.startsWith('http');
-                        const displayUrl = isBase64 || !isHttp ? base64Data : `/api/public/images?url=${btoa(base64Data)}`;
-
-                        const isVisualImage = isBase64 || (isHttp && base64Data.match(/\.(jpeg|jpg|png|gif)$/i));
-                        const finalFileName = isHttp ? src.split('/').pop() : fileNameStr;
-
-                        return (
-                          <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square">
-                            {isVisualImage ? (
-                              <img
-                                src={displayUrl}
-                                alt={finalFileName}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center p-4 h-full">
-                                <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
-                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">
-                                  {finalFileName}
-                                </span>
+                          return (
+                            <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex flex-col justify-between aspect-square cursor-pointer"
+                              onClick={() => isVisualImage && lbIndex >= 0 && openLightbox(labImages, lbIndex)}>
+                              {isVisualImage ? (
+                                <img src={displayUrl} alt={finalFileName} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center p-4 h-full">
+                                  <DocumentTextIcon className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-full px-2 text-center">{finalFileName}</span>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center z-10 backdrop-blur-sm gap-2">
+                                {isVisualImage && (
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); lbIndex >= 0 && openLightbox(labImages, lbIndex); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors text-xs">
+                                    <MagnifyingGlassPlusIcon className="w-4 h-4" />Preview
+                                  </button>
+                                )}
+                                <a href={displayUrl} download={finalFileName || `lab-${complaint.complaint_number}-${index + 1}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-medium transition-colors text-xs">
+                                  <ArrowDownTrayIcon className="w-4 h-4" />Unduh
+                                </a>
                               </div>
-                            )}
-
-                            {/* Hover overlay for download */}
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-sm">
-                              <a
-                                href={displayUrl}
-                                download={finalFileName || `lab-${complaint.complaint_number}-${index + 1}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors shadow-lg text-xs"
-                              >
-                                <ArrowDownTrayIcon className="w-4 h-4" />
-                                Unduh
-                              </a>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </dd>
-                  </div>
-                )}
+                          );
+                        })}
+                      </dd>
+                    </div>
+                  );
+                })()}
               </div>
             )}
             {/* Left Column: Details */}
@@ -1750,54 +1807,63 @@ export default function ComplaintDetailPage() {
                     </div>
 
                     {/* ATTACHMENTS */}
-                    {complaint.attachments && complaint.attachments.length > 0 && (
-                      <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Lampiran Komplain Awal</dt>
-                        <dd className="mt-2 space-y-4">
-                          {complaint.attachments.map((url, index) => {
-                            // Cek apakah lampiran adalah base64 image
-                            const isBase64Image = url.startsWith('data:image/');
-                            // Terapkan URL proxy yang sama (encoded base64) agar domain supabase tidak bocor
-                            const proxyUrl = isBase64Image
-                              ? url
-                              : `/api/public/images?url=${btoa(url)}`;
+                    {complaint.attachments && complaint.attachments.length > 0 && (() => {
+                      // Build LightboxImage list for the initial attachments
+                      const complainAttachImages: LightboxImage[] = complaint.attachments!
+                        .map((url, i) => {
+                          const isBase64Image = url.startsWith('data:image/');
+                          const proxyUrl = isBase64Image ? url : `/api/public/images?url=${btoa(url)}`;
+                          return { src: proxyUrl, alt: `Lampiran ${i + 1}`, fileName: url.split('/').pop() || `lampiran-${i + 1}.jpg` };
+                        });
 
-                            return isBase64Image || proxyUrl ? (
-                              <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video max-w-sm">
-                                <img
-                                  src={proxyUrl}
-                                  alt={`Lampiran ${index + 1}`}
-                                  className="w-full h-full object-contain bg-white dark:bg-slate-900"
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <a
-                                    href={proxyUrl}
-                                    download={`lampiran-${complaint.complaint_number}-${index + 1}.jpg`}
-                                    className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-lg font-medium transition-colors shadow-lg"
-                                  >
-                                    Unduh Gambar
-                                  </a>
+                      return (
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            Lampiran Komplain Awal
+                            <span className="text-xs text-gray-400 font-normal">— Klik gambar untuk preview</span>
+                          </dt>
+                          <dd className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            {complaint.attachments!.map((url, index) => {
+                              const isBase64Image = url.startsWith('data:image/');
+                              const proxyUrl = isBase64Image ? url : `/api/public/images?url=${btoa(url)}`;
+                              const fileName = url.split('/').pop() || `lampiran-${complaint.complaint_number}-${index + 1}.jpg`;
+
+                              return (
+                                <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-square cursor-pointer"
+                                  onClick={() => openLightbox(complainAttachImages, index)}>
+                                  <img
+                                    src={proxyUrl}
+                                    alt={`Lampiran ${index + 1}`}
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  />
+                                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 backdrop-blur-sm">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); openLightbox(complainAttachImages, index); }}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors text-xs"
+                                    >
+                                      <MagnifyingGlassPlusIcon className="w-4 h-4" />
+                                      Preview
+                                    </button>
+                                    <a
+                                      href={proxyUrl}
+                                      download={fileName}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-xs"
+                                    >
+                                      <ArrowDownTrayIcon className="w-4 h-4" />
+                                      Unduh
+                                    </a>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <a
-                                href={proxyUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                key={index}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors w-fit"
-                              >
-                                <PaperClipIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                                <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 truncate max-w-[200px]">
-                                  {url.split('/').pop() || `Lampiran ${index + 1}`}
-                                </span>
-                                <LinkIcon className="h-4 w-4 text-gray-400 ml-2" />
-                              </a>
-                            );
-                          })}
-                        </dd>
-                      </div>
-                    )}
+                              );
+                            })}
+                          </dd>
+                        </div>
+                      );
+                    })()}
+
+
 
 
                   </div>

@@ -16,7 +16,8 @@ export async function POST(
       message,
       admin_name,
       admin_id,
-      is_internal // 👈 BACA INI (sesuai skema database)
+      is_internal, // 👈 BACA INI (sesuai skema database)
+      skip_notification // 🔥 BARU
     } = body;
 
     // Get user (bisa 'null' jika pelanggan yang post)
@@ -78,7 +79,7 @@ export async function POST(
 
     // --- PERBAIKAN 5: Kirim notifikasi HANYA jika BUKAN internal ---
     // (PENTING: 'admin_id' null berarti dari pelanggan, JANGAN kirim notif)
-    if (is_internal === false && admin_id !== null) {
+    if (is_internal === false && admin_id !== null && !skip_notification) {
 
       const { data: complaint } = await supabase
         .from('complaints')
