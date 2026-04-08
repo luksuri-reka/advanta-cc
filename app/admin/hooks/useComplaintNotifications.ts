@@ -60,11 +60,12 @@ export function useComplaintNotifications(hasPermission: boolean) {
 
       const response = await fetch('/api/complaints?limit=100');
       if (!response.ok) {
-        if (response.status === 401) {
-          // Silent fail on 401, stop loading to avoid console spam when logged out
+        if (response.status === 401 || response.status === 403) {
+          // Silent fail — user belum/sudah tidak login, tidak perlu log
+          setIsLoading(false);
           return;
         }
-        throw new Error('Failed to fetch complaints');
+        throw new Error(`Failed to fetch complaints: ${response.status}`);
       }
 
       const result = await response.json();
@@ -96,8 +97,7 @@ export function useComplaintNotifications(hasPermission: boolean) {
       });
 
     } catch (error) {
-      console.error('Failed to load complaint stats:', error);
-      // Opsional: Reset stats jika error/biarkan nilai terakhir
+      // Silent fail — jangan spam console
     } finally {
       setIsLoading(false);
     }

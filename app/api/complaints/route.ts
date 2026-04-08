@@ -275,7 +275,23 @@ export async function GET(request: Request) {
     const roles = user?.app_metadata?.roles || [];
     const isSuperAdmin = roles.includes('Superadmin') || roles.includes('superadmin');
 
+    // Baca optional query params
+    const limit = searchParams.get('limit');
+    const statusFilter = searchParams.get('status');
+    const priorityFilter = searchParams.get('priority');
+
     let query = supabase.from('complaints').select('*').order('created_at', { ascending: false });
+
+    // Apply optional filters
+    if (statusFilter) {
+      query = query.eq('status', statusFilter);
+    }
+    if (priorityFilter) {
+      query = query.eq('priority', priorityFilter);
+    }
+    if (limit) {
+      query = query.limit(parseInt(limit, 10));
+    }
 
     if (!isSuperAdmin) {
       const { data: profile } = await supabase
