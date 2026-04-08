@@ -481,7 +481,7 @@ export default function ProductionClient({
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
       <Toaster position="top-center" />
-<main className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto w-full py-10 px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>

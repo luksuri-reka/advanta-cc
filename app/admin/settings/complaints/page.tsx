@@ -533,7 +533,7 @@ export default function ComplaintSettingsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
-<main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto w-full py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
             <CogIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
@@ -837,7 +837,7 @@ export default function ComplaintSettingsPage() {
 
                 {showCategoryForm && editingCategory && (
                   <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-7xl w-full my-8 border-2 border-gray-200 dark:border-gray-700">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full w-full my-8 border-2 border-gray-200 dark:border-gray-700">
                       <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-700 dark:to-emerald-800 px-8 py-6 rounded-t-2xl border-b-4 border-emerald-800 dark:border-emerald-900">
                         <h3 className="text-2xl font-bold text-white flex items-center gap-3">
                           <TagIcon className="h-7 w-7" />

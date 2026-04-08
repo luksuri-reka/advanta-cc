@@ -197,7 +197,7 @@ export default function BagClient({
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-center" reverseOrder={false} />
-<main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto w-full py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between pb-6 border-b border-gray-200">
           <div className="min-w-0 flex-1">

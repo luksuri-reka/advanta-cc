@@ -1295,7 +1295,7 @@ export default function ComplaintDetailPage() {
       )}
 
 
-      <main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <Link

@@ -49,11 +49,11 @@ const statusColumns = [
 ];
 
 const closeColumns = [
-  { key: 'closedTotal', label: 'Total Closed Complaint', bg: 'bg-orange-100/50 text-orange-900' },
-  { key: 'validMfg', label: 'Valid Manufacturing', bg: 'bg-orange-200/60 text-orange-900' },
-  { key: 'validNonMfg', label: 'Valid Non Manufacturing', bg: 'bg-orange-100/50 text-orange-900' },
-  { key: 'nonValid', label: 'Non Valid Complaint', bg: 'bg-green-200/50 text-green-900' },
-  { key: 'notComplaint', label: 'Not A Complaint', bg: 'bg-purple-200/40 text-purple-900' }
+  { key: 'closedTotal', label: 'Total Closed Complaint', bg: 'bg-emerald-100/50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100' },
+  { key: 'validMfg', label: 'Valid Manufacturing', bg: 'bg-emerald-100/50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100' },
+  { key: 'validNonMfg', label: 'Valid Non Manufacturing', bg: 'bg-emerald-100/50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100' },
+  { key: 'nonValid', label: 'Non Valid Complaint', bg: 'bg-emerald-100/50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100' },
+  { key: 'notComplaint', label: 'Not A Complaint', bg: 'bg-emerald-100/50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100' }
 ];
 
 const complaintTypesList = ['Germination & Vigor', 'Seed damage', 'Packaging', 'Small Plant', 'Delivery *)'] as const;

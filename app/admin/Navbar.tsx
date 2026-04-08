@@ -145,7 +145,7 @@ export default function Navbar({ user }: { user: DisplayUser | null }) {
     <Disclosure as="nav" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl shadow-lg border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-50">
       {({ open }) => (
         <>
-          <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
+          <div className="mx-auto w-full px-3 sm:px-4 lg:px-6">
             <div className="flex h-16 lg:h-20 justify-between items-center">
 
               {/* Logo & Brand */}

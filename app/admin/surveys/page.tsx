@@ -282,7 +282,7 @@ export default function SurveysPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-<main className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8">
+<main className="mx-auto w-full py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
