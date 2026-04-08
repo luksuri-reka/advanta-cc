@@ -707,6 +707,8 @@ interface RelatedUser {
   id: string;
   name: string;
   department?: string;
+  job_title?: string;
+  assigned_regions?: string[];
 }
 
 // --- INTERFACE COMPLAINT ---
@@ -811,6 +813,7 @@ interface AdminUser {
   email: string;
   job_title?: string;
   is_active: boolean;
+  assigned_regions?: string[];
 }
 
 interface DisplayUser {
@@ -1226,6 +1229,16 @@ export default function ComplaintDetailPage() {
   const formatDepartment = (dept?: string) => {
     if (!dept) return '-';
     return dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const formatUserDisplay = (user: any) => {
+    if (!user) return 'N/A';
+    const name = user.full_name || user.name || 'Admin';
+    const dept = user.department ? formatDepartment(user.department) : null;
+    const job = user.job_title;
+    const regions = user.assigned_regions?.length > 0 ? user.assigned_regions.join(', ') : null;
+    
+    return [name, dept, job, regions].filter(Boolean).join(' - ');
   };
 
   const formatDateShort = (dateString?: string) => {
@@ -2302,7 +2315,7 @@ export default function ComplaintDetailPage() {
                         <UserIcon className="h-8 w-8 text-cyan-500 dark:text-cyan-400" />
                         <div>
                           <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Observasi</dt>
-                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_observasi_user.name}</dd>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{formatUserDisplay(complaint.assignee_observasi_user)}</dd>
                         </div>
                       </div>
                     ) : (
@@ -2321,7 +2334,7 @@ export default function ComplaintDetailPage() {
                         <UserIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />
                         <div>
                           <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 1</dt>
-                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_investigasi_1_user.name}</dd>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{formatUserDisplay(complaint.assignee_investigasi_1_user)}</dd>
                         </div>
                       </div>
                     ) : (
@@ -2340,7 +2353,7 @@ export default function ComplaintDetailPage() {
                         <UserIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />
                         <div>
                           <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Investigasi 2</dt>
-                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_investigasi_2_user.name}</dd>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{formatUserDisplay(complaint.assignee_investigasi_2_user)}</dd>
                         </div>
                       </div>
                     ) : (
@@ -2359,7 +2372,7 @@ export default function ComplaintDetailPage() {
                         <UserIcon className="h-8 w-8 text-teal-500 dark:text-teal-400" />
                         <div>
                           <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Tim Lab Testing</dt>
-                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_lab_testing_user.name}</dd>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{formatUserDisplay(complaint.assignee_lab_testing_user)}</dd>
                         </div>
                       </div>
                     ) : (
@@ -2378,7 +2391,7 @@ export default function ComplaintDetailPage() {
                         <ShieldCheckIcon className="h-8 w-8 text-indigo-500 dark:text-indigo-400" />
                         <div>
                           <dt className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Petugas Approval</dt>
-                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{complaint.assignee_approval_user.name}</dd>
+                          <dd className="text-sm font-semibold text-gray-900 dark:text-white">{formatUserDisplay(complaint.assignee_approval_user)}</dd>
                         </div>
                       </div>
                     ) : (
@@ -2471,7 +2484,7 @@ export default function ComplaintDetailPage() {
                     .filter(admin => admin.department === 'observasi' || admin.department === 'admin')
                     .map((admin) => (
                       <option key={admin.user_id} value={admin.user_id}>
-                        {admin.full_name} - {formatDepartment(admin.department)}
+                        {formatUserDisplay(admin)}
                       </option>
                     ))}
                 </select>
@@ -2492,7 +2505,7 @@ export default function ComplaintDetailPage() {
                     .filter(admin => admin.department === 'investigasi_1' || admin.department === 'admin')
                     .map((admin) => (
                       <option key={admin.user_id} value={admin.user_id}>
-                        {admin.full_name} - {formatDepartment(admin.department)}
+                        {formatUserDisplay(admin)}
                       </option>
                     ))}
                 </select>
@@ -2513,7 +2526,7 @@ export default function ComplaintDetailPage() {
                     .filter(admin => admin.department === 'investigasi_2' || admin.department === 'admin')
                     .map((admin) => (
                       <option key={admin.user_id} value={admin.user_id}>
-                        {admin.full_name} - {formatDepartment(admin.department)}
+                        {formatUserDisplay(admin)}
                       </option>
                     ))}
                 </select>
@@ -2534,7 +2547,7 @@ export default function ComplaintDetailPage() {
                     .filter(admin => admin.department === 'lab_testing' || admin.department === 'admin')
                     .map((admin) => (
                       <option key={admin.user_id} value={admin.user_id}>
-                        {admin.full_name} - {formatDepartment(admin.department)}
+                        {formatUserDisplay(admin)}
                       </option>
                     ))}
                 </select>
@@ -2558,7 +2571,7 @@ export default function ComplaintDetailPage() {
                     .filter(admin => admin.department === 'management')
                     .map((admin) => (
                       <option key={admin.user_id} value={admin.user_id}>
-                        {admin.full_name} - {formatDepartment(admin.department)}
+                        {formatUserDisplay(admin)}
                       </option>
                     ))}
                 </select>

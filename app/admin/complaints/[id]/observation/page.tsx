@@ -623,15 +623,14 @@ export default function ObservationFormPage() {
             </div>
           </div>
 
-          {/* SECTION 5: PROPOSE REPLACEMENT - HANYA jika Valid */}
-          {formData.observation_result === 'Valid' && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="px-6 py-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
-                <h2 className="font-bold text-amber-900 dark:text-amber-200">5. Propose Direct Replacement</h2>
-                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                  Karena komplain diterima, tentukan usulan penggantian benih
-                </p>
-              </div>
+          {/* SECTION 5: PROPOSE REPLACEMENT (Opsional jika Invalid) */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-6 py-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
+              <h2 className="font-bold text-amber-900 dark:text-amber-200">5. Propose Direct Replacement</h2>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                Tentukan usulan penggantian benih (Wajib jika Valid, Opsional jika Invalid)
+              </p>
+            </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -672,8 +671,6 @@ export default function ObservationFormPage() {
                 </div>
               )}
             </div>
-          )}
-
           {/* Pesan jika ditolak */}
           {formData.observation_result === 'Invalid' && (
             <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800 p-6">
@@ -688,7 +685,7 @@ export default function ObservationFormPage() {
                     Komplain Ditolak
                   </h3>
                   <p className="text-sm text-red-700 dark:text-red-300">
-                    Tidak ada penggantian benih karena masalah disebabkan faktor eksternal atau budidaya.
+                    Masalah disebabkan faktor eksternal atau budidaya. Jika butuh kebijakan khusus (penggantian benih), Anda dapat mengisinya di atas.
                   </p>
                 </div>
               </div>

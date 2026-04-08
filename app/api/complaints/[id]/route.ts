@@ -10,7 +10,7 @@ async function getUserProfile(supabase: SupabaseClient, userId: string | null) {
   try {
     const { data, error } = await supabase
       .from('user_complaint_profiles')
-      .select('user_id, full_name, department')
+      .select('user_id, full_name, department, job_title, assigned_regions')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -19,7 +19,9 @@ async function getUserProfile(supabase: SupabaseClient, userId: string | null) {
     return {
       id: data.user_id,
       name: data.full_name || 'Admin',
-      department: data.department
+      department: data.department,
+      job_title: data.job_title,
+      assigned_regions: data.assigned_regions
     };
   } catch (err) {
     return null;
