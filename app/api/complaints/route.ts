@@ -147,6 +147,74 @@ export async function POST(request: Request) {
       console.error('Error WhatsApp notification:', notificationError.message);
     }
 
+    // 🔥 ADMIN WhatsApp — Panggil Fonnte LANGSUNG (bypass internal route)
+    try {
+      const adminWaNumbers = process.env.ADMIN_WA_NUMBERS;
+      const fonnteToken = process.env.FONNTE_API_TOKEN;
+
+      if (adminWaNumbers && fonnteToken) {
+        // Normalisasi tiap nomor: 08x → 628x
+        const normalizePhone = (num: string): string => {
+          const cleaned = num.trim().replace(/\D/g, '');
+          if (cleaned.startsWith('62')) return cleaned;
+          if (cleaned.startsWith('0')) return '62' + cleaned.slice(1);
+          if (cleaned.startsWith('8')) return '62' + cleaned;
+          return cleaned;
+        };
+
+        const finalAdminTarget = adminWaNumbers
+          .split(',')
+          .map(normalizePhone)
+          .filter(Boolean)
+          .join(',');
+
+        const adminUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://advantaindonesia.com'}/admin/complaints/${complaint.id}`;
+        const adminMessage = `🚨 *KOMPLAIN BARU MASUK* 🚨
+
+Ada laporan komplain baru dari pelanggan.
+
+👤 *Nama:* ${body.customer_name}
+📞 *No. WA:* ${formattedPhone}
+📋 *No. Komplain:* ${complaintNumber}
+📌 *Kategori:* ${body.complaint_category_name || '-'}
+⚠️ *Subjek:* ${body.subject || '-'}
+
+Silakan segera cek dashboard admin untuk menindaklanjuti:
+🔗 ${adminUrl}
+
+---
+*Sistem Notifikasi Advanta*`;
+
+        const adminPayload = new URLSearchParams();
+        adminPayload.append('target', finalAdminTarget);
+        adminPayload.append('message', adminMessage);
+        adminPayload.append('countryCode', '62');
+
+        console.log(`📱 [Admin WA] Mengirim ke: ${finalAdminTarget}`);
+
+        const fonnteResponse = await fetch('https://api.fonnte.com/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': fonnteToken,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: adminPayload.toString(),
+        });
+
+        const fonnteResult = await fonnteResponse.json();
+        if (!fonnteResponse.ok || fonnteResult.status === false) {
+          console.error('❌ Gagal kirim WA Admin via Fonnte:', fonnteResult);
+        } else {
+          console.log('✅ Notifikasi WA Admin berhasil dikirim:', fonnteResult);
+        }
+      } else {
+        if (!adminWaNumbers) console.warn('⚠️ ADMIN_WA_NUMBERS tidak disetting di .env');
+        if (!fonnteToken) console.warn('⚠️ FONNTE_API_TOKEN tidak disetting di .env');
+      }
+    } catch (adminError: any) {
+      console.error('❌ Error kirim WA Admin:', adminError.message);
+    }
+
     // Email notification
     if (body.customer_email) {
       try {

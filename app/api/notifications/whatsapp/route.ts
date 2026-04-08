@@ -8,18 +8,21 @@ export async function POST(request: Request) {
     const {
       type,
       customer_phone,
+      target_phone,
       customer_name,
       complaint_number,
       survey_id,
       product_name,
       serial,
       rating,
-      new_status
+      new_status,
+      category_name,
+      subject
     } = body;
 
     // Validasi input
-    if (!type || !customer_phone) {
-      return NextResponse.json({ error: 'Missing required parameters (type, customer_phone)' }, { status: 400 });
+    if (!type || (!customer_phone && !target_phone)) {
+      return NextResponse.json({ error: 'Missing required parameters (type, phone)' }, { status: 400 });
     }
 
     // Ambil Token dari environment
@@ -199,9 +202,32 @@ Silakan cek dashboard admin untuk detail lebih lanjut.`;
       return NextResponse.json({ error: 'Invalid notification type' }, { status: 400 });
     }
 
-    // Siapkan payload untuk Fonnte
+    // Normalisasi nomor: 08xxx → 628xxx, 8xxx → 628xxx
+    // Mendukung multiple nomor dipisah koma (untuk ADMIN_WA_NUMBERS)
+    const normalizePhone = (num: string): string => {
+      const cleaned = num.trim().replace(/\D/g, '');
+      if (cleaned.startsWith('62')) return cleaned;
+      if (cleaned.startsWith('0')) return '62' + cleaned.slice(1);
+      if (cleaned.startsWith('8')) return '62' + cleaned;
+      return cleaned;
+    };
+
+    const rawTarget = (target_phone || customer_phone || '').toString().trim();
+    if (!rawTarget) {
+      return NextResponse.json({ error: 'No valid phone target resolved' }, { status: 400 });
+    }
+
+    // Normalisasi tiap nomor (comma-separated)
+    const finalTarget = rawTarget
+      .split(',')
+      .map(normalizePhone)
+      .filter(Boolean)
+      .join(',');
+
+    console.log(`📱 [WA] Sending type="${type}" to: ${finalTarget}`);
+
     const payload = new URLSearchParams();
-    payload.append('target', customer_phone);
+    payload.append('target', finalTarget);
     payload.append('message', messageText);
     payload.append('countryCode', '62');
 
@@ -227,7 +253,7 @@ Silakan cek dashboard admin untuk detail lebih lanjut.`;
 
     console.log('✅ WhatsApp message sent successfully:', {
       type,
-      customer_phone,
+      target: finalTarget,
       complaint_number
     });
 
