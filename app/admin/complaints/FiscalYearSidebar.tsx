@@ -83,13 +83,22 @@ export default function FiscalYearSidebar({
   }, [complaints]);
 
   const [expandedFY, setExpandedFY] = useState<string | null>(selectedFY);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Set default expanded FY when data loads if nothing is selected
+  // Set default expanded FY AND actually apply the filter when data loads if nothing is selected
   useEffect(() => {
-    if (!expandedFY && fiscalYearsData.length > 0 && !selectedFY) {
-      setExpandedFY(fiscalYearsData[0].id);
+    if (!hasInitialized && fiscalYearsData.length > 0) {
+      setHasInitialized(true);
+      if (!selectedFY) {
+        setExpandedFY(fiscalYearsData[0].id);
+        
+        // Use a small timeout to ensure parent component is ready before dispatching the filter
+        setTimeout(() => {
+          onFilterChange(fiscalYearsData[0].id, null, null);
+        }, 0);
+      }
     }
-  }, [fiscalYearsData, expandedFY, selectedFY]);
+  }, [fiscalYearsData, hasInitialized, selectedFY, onFilterChange]);
 
   const toggleFY = (fyId: string) => {
     if (expandedFY === fyId) {

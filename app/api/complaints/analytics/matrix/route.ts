@@ -55,10 +55,15 @@ export async function GET(request: Request) {
     }
 
     // 1. Fetch complaints and their investigations
-    const { data: complaints, error } = await supabase
+    const { data: rawComplaints, error } = await supabase
       .from('complaints')
       .select(`
         id,
+        complaint_number,
+        customer_name,
+        customer_email,
+        customer_city,
+        subject,
         status,
         customer_province,
         related_product_name,
@@ -67,6 +72,7 @@ export async function GET(request: Request) {
         complaint_case_type_names,
         complaint_type,
         created_at,
+        resolved_at,
         complaint_investigations (
           is_valid,
           investigation_result,
@@ -81,6 +87,84 @@ export async function GET(request: Request) {
       console.error('Database Error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Apply URL parameters filtering
+    const { searchParams } = new URL(request.url);
+    const fy = searchParams.get('fy');
+    const quarter = searchParams.get('q');
+    const sbStatus = searchParams.get('sbStatus');
+    const pStatus = searchParams.get('status');
+    const product = searchParams.get('product');
+    const age = searchParams.get('age');
+    const search = searchParams.get('search')?.toLowerCase();
+
+    let complaints = rawComplaints || [];
+
+    const getFiscalYearInfo = (dateString: string) => {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const isFYNext = month >= 3; 
+      const baseYear = isFYNext ? year : year - 1;
+      const fyLabel = `FY${baseYear.toString().slice(-2)}`;
+      let q = '';
+      if (month >= 3 && month <= 5) q = 'Q1';
+      else if (month >= 6 && month <= 8) q = 'Q2';
+      else if (month >= 9 && month <= 11) q = 'Q3';
+      else q = 'Q4';
+      return { fyLabel, quarter: q };
+    };
+
+    const calculateAge = (createdAt: string, resolvedAt?: string) => {
+      const startDate = new Date(createdAt).getTime();
+      const endDate = resolvedAt ? new Date(resolvedAt).getTime() : new Date().getTime();
+      return Math.max(0, Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)));
+    };
+
+    complaints = complaints.filter(c => {
+      let ageMatch = true;
+      if (age) {
+        const ageInDays = calculateAge(c.created_at, c.resolved_at);
+        if (age === '0-3') ageMatch = ageInDays >= 0 && ageInDays <= 3;
+        else if (age === '4-7') ageMatch = ageInDays >= 4 && ageInDays <= 7;
+        else if (age === '8-14') ageMatch = ageInDays >= 8 && ageInDays <= 14;
+        else if (age === '>14') ageMatch = ageInDays > 14;
+      }
+
+      let sidebarMatch = true;
+      if (fy || quarter || sbStatus) {
+        const info = getFiscalYearInfo(c.created_at);
+        if (fy && info.fyLabel !== fy) sidebarMatch = false;
+        if (quarter && info.quarter !== quarter) sidebarMatch = false;
+        
+        if (sidebarMatch && sbStatus) {
+          const statusGroups: Record<string, string[]> = {
+            'Pending': ['submitted', 'pending_response'],
+            'In Progress': ['acknowledged', 'observation', 'investigating', 'investigation', 'decision'],
+            'Resolved': ['resolved', 'closed']
+          };
+          const allowedStatuses = statusGroups[sbStatus] || [];
+          if (!allowedStatuses.includes(c.status)) {
+            sidebarMatch = false;
+          }
+        }
+      }
+
+      return (
+        ageMatch &&
+        sidebarMatch &&
+        (!pStatus || c.status === pStatus) &&
+        (!product || (c.related_product_name || '') === product) &&
+        (!search ||
+          (c.complaint_number || '').toLowerCase().includes(search) ||
+          (c.customer_name || '').toLowerCase().includes(search) ||
+          (c.customer_email || '').toLowerCase().includes(search) ||
+          (c.subject || '').toLowerCase().includes(search) ||
+          (c.customer_province || '').toLowerCase().includes(search) ||
+          (c.customer_city || '').toLowerCase().includes(search)
+        )
+      );
+    });
 
     // Initialize accumulators
     const hybridMap: Record<string, any> = {};      // Crop -> { hybrids: Map<Hybrid, Metrics> }

@@ -578,7 +578,10 @@ export default function AdminComplaintsPage() {
 
           {/* Right Column - Main Content */}
           <div className="flex-1 min-w-0 w-full space-y-6">
-            <ModernDashboard />
+            <ModernDashboard 
+              filters={filters} 
+              sidebarFilters={sidebarFilters} 
+            />
 
             {/* --- FILTERS & TABLE & EXPORT --- */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">

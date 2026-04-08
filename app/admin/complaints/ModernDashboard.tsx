@@ -111,7 +111,21 @@ const CustomizedContent = (props: any) => {
   );
 };
 
-export default function ModernDashboard() {
+interface DashboardProps {
+  filters?: {
+    status: string;
+    search: string;
+    age: string;
+    product: string;
+  };
+  sidebarFilters?: {
+    fiscalYear: string | null;
+    quarter: string | null;
+    status: string | null;
+  };
+}
+
+export default function ModernDashboard({ filters, sidebarFilters }: DashboardProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('Count');
   const [activeTab, setActiveTab] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,7 +139,17 @@ export default function ModernDashboard() {
     const fetchMatrixData = async () => {
       try {
         setIsLoading(true);
-        const res = await fetch('/api/complaints/analytics/matrix');
+        const queryParams = new URLSearchParams();
+        if (sidebarFilters?.fiscalYear) queryParams.append('fy', sidebarFilters.fiscalYear);
+        if (sidebarFilters?.quarter) queryParams.append('q', sidebarFilters.quarter);
+        if (sidebarFilters?.status) queryParams.append('sbStatus', sidebarFilters.status);
+        
+        if (filters?.status) queryParams.append('status', filters.status);
+        if (filters?.product) queryParams.append('product', filters.product);
+        if (filters?.age) queryParams.append('age', filters.age);
+        if (filters?.search) queryParams.append('search', filters.search);
+
+        const res = await fetch(`/api/complaints/analytics/matrix?${queryParams.toString()}`);
         const json = await res.json();
         if (json.success) {
           setHybridMatrixData(json.data.hybridMatrixData);
@@ -139,7 +163,7 @@ export default function ModernDashboard() {
       }
     };
     fetchMatrixData();
-  }, []);
+  }, [filters, sidebarFilters]);
 
   const getMetric = (obj: any) => viewMode === 'Count' ? obj.count : obj.qty;
   const unit = viewMode === 'Count' ? '' : 'Kg';
