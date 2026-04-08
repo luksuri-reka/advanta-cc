@@ -20,6 +20,7 @@ import {
   XMarkIcon // Pastikan XMarkIcon di-import
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import AdminSpinner from '../components/AdminSpinner';
 
 interface DisplayUser {
   name: string;
@@ -335,10 +336,7 @@ export default function ComplaintUsersPage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
+        <AdminSpinner text="Memuat akses user..." size="lg" />
       </div>
     );
   }
@@ -399,7 +397,9 @@ export default function ComplaintUsersPage() {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-16 text-gray-500 dark:text-gray-400">Memuat data...</td>
+                    <td colSpan={7} className="text-center py-16">
+                      <AdminSpinner text="Memuat data user..." size="sm" />
+                    </td>
                   </tr>
                 ) : users.length === 0 ? (
                   <tr>

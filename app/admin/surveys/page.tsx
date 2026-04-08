@@ -23,6 +23,7 @@ import {
   ChartPieIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import AdminSpinner from '../components/AdminSpinner';
 
 interface DisplayUser {
   name: string;
@@ -275,7 +276,7 @@ export default function SurveysPage() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 dark:border-emerald-400"></div>
+        <AdminSpinner text="Inisialisasi modul survey..." size="lg" />
       </div>
     );
   }
@@ -455,8 +456,7 @@ export default function SurveysPage() {
 
           {isLoading ? (
             <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 dark:border-emerald-400 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-slate-300">Memuat data survey...</p>
+              <AdminSpinner text="Memuat data survey..." size="md" />
             </div>
           ) : filteredSurveys.length === 0 ? (
             <div className="p-12 text-center">

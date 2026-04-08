@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import ModernDashboard from './ModernDashboard';
 import FiscalYearSidebar from './FiscalYearSidebar';
+import AdminSpinner from '../components/AdminSpinner';
 
 // Interface sesuai Database
 interface Complaint {
@@ -534,10 +535,7 @@ export default function AdminComplaintsPage() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
-        </div>
+        <AdminSpinner text="Memuat dashboard..." size="lg" />
       </div>
     );
   }
@@ -677,7 +675,7 @@ export default function AdminComplaintsPage() {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-8"><ArrowPathIcon className="h-5 w-5 animate-spin mx-auto" /></td></tr>
+                  <tr><td colSpan={7} className="text-center py-8"><AdminSpinner text="Memuat daftar keluhan..." size="sm" /></td></tr>
                 ) : sortedAndFilteredComplaints.length > 0 ? (
                   sortedAndFilteredComplaints.map((complaint) => (
                     <tr key={complaint.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">

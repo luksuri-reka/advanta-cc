@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getProfile, logout } from '../../utils/auth';
 import type { User } from '@supabase/supabase-js';
 import Link from 'next/link';
+import AdminSpinner from '../components/AdminSpinner';
 import {
   ArrowLeftIcon,
   ChartBarIcon,
@@ -192,10 +193,7 @@ export default function AnalyticsPage() {
   if (loading && !analytics) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading analytics...</p>
-        </div>
+        <AdminSpinner text="Loading analytics..." size="lg" />
       </div>
     );
   }

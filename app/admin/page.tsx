@@ -31,6 +31,7 @@ import {
   ClockIcon as ClockSolid
 } from '@heroicons/react/24/solid';
 import Link from 'next/link';
+import AdminSpinner from './components/AdminSpinner';
 
 interface DisplayUser {
   name: string;
@@ -227,8 +228,8 @@ export default function AdminDashboardPage() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 dark:border-emerald-400"></div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col items-center justify-center">
+        <AdminSpinner text="Memuat dashboard..." size="lg" />
       </div>
     );
   }

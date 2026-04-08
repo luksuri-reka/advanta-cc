@@ -44,6 +44,7 @@ import ObservationSummaryCard from '@/app/components/ObservationSummaryCard';
 import InvestigationSummaryCard from '@/app/components/InvestigationSummaryCard';
 import LabTestingSummaryCard from '@/app/components/LabTestingSummaryCard';
 import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
+import AdminSpinner from '../../components/AdminSpinner';
 
 interface QuickActionsProps {
   complaint: Complaint;
@@ -1257,10 +1258,7 @@ export default function ComplaintDetailPage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading user...</p>
-        </div>
+        <AdminSpinner text="Memuat user..." size="lg" />
       </div>
     );
   }
@@ -1327,11 +1325,9 @@ export default function ComplaintDetailPage() {
           </div>
         </div>
 
-        {/* Content */}
         {loading && (
-          <div className="text-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Memuat detail keluhan...</p>
+          <div className="py-20 text-center">
+            <AdminSpinner text="Memuat detail keluhan..." size="md" />
           </div>
         )}
 
