@@ -6,6 +6,7 @@ import {
   ShieldExclamationIcon, CheckBadgeIcon, ShieldCheckIcon, StarIcon,
   ChatBubbleLeftRightIcon, ArrowRightIcon
 } from '@heroicons/react/24/outline';
+import SearchableSelect from './components/SearchableSelect';
 
 // Definisikan tipe props agar Type Safety terjaga
 interface ActionModalProps {
@@ -187,8 +188,15 @@ export default function ActionModal({
                 <span className="text-red-500">*</span>
               </label>
               
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4 z-10">
+              <SearchableSelect
+                options={allProducts.map(p => ({ id: p.id, name: p.name }))}
+                value={selectedProductId}
+                onChange={setSelectedProductId}
+                isLoading={productsLoading}
+                placeholder="🌱 Pilih produk Anda"
+                required={true}
+                disabled={productsLoading}
+                icon={
                   <div className={`p-1.5 rounded-lg transition-all duration-300 ${
                     selectedProductId 
                       ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20' 
@@ -200,50 +208,8 @@ export default function ActionModal({
                         : 'text-slate-400'
                     }`} />
                   </div>
-                </div>
-
-                <div className="relative">
-                  <select
-                    name="product_id"
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                    required
-                    disabled={productsLoading}
-                    className={`block w-full rounded-xl sm:rounded-2xl border-2 py-3.5 sm:py-4 pl-14 sm:pl-16 pr-12 text-sm sm:text-base font-medium transition-all duration-300 appearance-none cursor-pointer ${
-                      selectedProductId
-                        ? 'text-slate-900 dark:text-slate-100 bg-gradient-to-r from-white to-emerald-50/50 dark:from-slate-900 dark:to-emerald-950/30 border-emerald-500 dark:border-emerald-600 ring-4 ring-emerald-500/10 shadow-xl shadow-emerald-500/20'
-                        : 'text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 shadow-lg hover:shadow-xl'
-                    } focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:border-emerald-400 focus:scale-[1.01] disabled:opacity-60 disabled:cursor-not-allowed`}
-                  >
-                    <option value="" className="text-slate-400">
-                      {productsLoading ? '⏳ Memuat produk...' : '🌱 Pilih produk Anda'}
-                    </option>
-                    {allProducts.map((product) => (
-                      <option 
-                        key={product.id} 
-                        value={product.id.toString()}
-                        className="text-slate-900 dark:text-slate-100 py-2"
-                      >
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4">
-                    <div className={`p-1.5 rounded-lg transition-all duration-300 ${
-                      selectedProductId 
-                        ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20' 
-                        : 'bg-slate-100 dark:bg-slate-800'
-                    }`}>
-                      <ChevronDownIcon className={`h-4 sm:h-5 w-4 sm:w-5 transition-all duration-300 ${
-                        selectedProductId 
-                          ? 'text-emerald-600 dark:text-emerald-400' 
-                          : 'text-slate-400'
-                      }`} />
-                    </div>
-                  </div>
-                </div>
-              </div>
+                }
+              />
             </div>
           )}
 

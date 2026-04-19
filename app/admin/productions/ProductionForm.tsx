@@ -6,6 +6,7 @@ import { Dialog, Transition, Tab } from '@headlessui/react';
 import { XMarkIcon, CheckCircleIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { createProduction, updateProduction } from './actions';
+import SearchableSelect from '@/app/components/SearchableSelect';
 
 interface RelationalData {
   id: number;
@@ -347,10 +348,18 @@ export default function ProductionForm({
                               Data Produksi
                             </h3>
                             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-                              <FormSelect label="Nama Produk" name="product_id" formData={formData} onChange={handleChange} required>
-                                <option value="">Pilih Produk</option>
-                                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                              </FormSelect>
+                              <div className="space-y-3">
+                                <label className="block text-sm font-semibold text-gray-800">
+                                  Nama Produk <span className="text-red-500 ml-1">*</span>
+                                </label>
+                                <SearchableSelect 
+                                  options={products.map(p => ({ id: p.id, name: p.name }))}
+                                  value={formData.product_id} 
+                                  onChange={(val) => handleChange({ target: { name: 'product_id', value: val } } as any)} 
+                                  placeholder="Pilih Produk"
+                                  required 
+                                />
+                              </div>
                               
                               <FormInput 
                                 label="Nomor Grup" 

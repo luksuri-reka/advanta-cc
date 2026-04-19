@@ -23,6 +23,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { generateProductionRegisters, getProgress } from './actions';
+import SearchableSelect from '@/app/components/SearchableSelect';
 import XCircleIcon from '@heroicons/react/16/solid/XCircleIcon';
 
 // Types
@@ -623,18 +624,17 @@ export default function GenerateRegistersModal({ isOpen, onClose, productions }:
                 <CpuChipIcon className="h-5 w-5 text-blue-600" />
                 Pilih Data Produksi
               </h4>
-              <select 
-                value={selectedProductionId} 
-                onChange={e => setSelectedProductionId(e.target.value)}
-                className="w-full rounded-xl border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-3 px-4"
-              >
-                <option value="">-- Pilih Produksi --</option>
-                {availableProductions.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.product?.name} - Lot: {p.lot_number} ({p.company?.name})
-                  </option>
-                ))}
-              </select>
+              <div className="mt-2 text-gray-900">
+                <SearchableSelect 
+                  value={selectedProductionId} 
+                  onChange={setSelectedProductionId}
+                  options={availableProductions.map(p => ({
+                    id: p.id,
+                    name: `${p.product?.name} - Lot: ${p.lot_number} (${p.company?.name})`
+                  }))}
+                  placeholder="-- Pilih Produksi --"
+                />
+              </div>
               <p className="text-xs text-gray-500 mt-2">
                 Tersedia {availableProductions.length} dari {productions.length} data produksi
               </p>

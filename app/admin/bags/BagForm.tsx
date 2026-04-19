@@ -6,6 +6,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { createBag, updateBag } from './actions';
+import SearchableSelect from '@/app/components/SearchableSelect';
 
 interface Production {
   id: number;
@@ -40,6 +41,7 @@ export default function BagForm({
   productions 
 }: BagFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [productionId, setProductionId] = useState<string>(bagToEdit?.production_id?.toString() || '');
   const isEditMode = !!bagToEdit;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -119,20 +121,19 @@ export default function BagForm({
                       <label htmlFor="production_id" className="block text-sm font-medium text-gray-700">
                         Produksi <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        name="production_id"
-                        id="production_id"
-                        defaultValue={bagToEdit?.production_id}
-                        required
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                      >
-                        <option value="">Pilih Produksi</option>
-                        {productions.map(prod => (
-                          <option key={prod.id} value={prod.id}>
-                            {prod.product_name} - Lot: {prod.lot_number} ({prod.company_name})
-                          </option>
-                        ))}
-                      </select>
+                      <input type="hidden" name="production_id" value={productionId} />
+                      <div className="mt-1">
+                        <SearchableSelect
+                          options={productions.map(prod => ({
+                            id: prod.id,
+                            name: `${prod.product_name} - Lot: ${prod.lot_number} (${prod.company_name})`
+                          }))}
+                          value={productionId}
+                          onChange={setProductionId}
+                          placeholder="Pilih Produksi"
+                          required
+                        />
+                      </div>
                     </div>
 
                     {/* Type */}
