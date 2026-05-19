@@ -1,5 +1,6 @@
 import { createClient } from '@/app/utils/supabase/server';
 import {
+  getComplaintValidityMatrixKey,
   getComplaintMatrixStage,
   getStatusesForComplaintGroup,
   isClosedComplaintStatus,
@@ -70,6 +71,7 @@ export async function GET(request: Request) {
         customer_city,
         subject,
         status,
+        complaint_validity,
         customer_province,
         related_product_name,
         problematic_quantity,
@@ -202,20 +204,24 @@ export async function GET(request: Request) {
       if (matrixStage) addMetric(matrixStage);
 
       if (isClosedComplaintStatus(status)) {
-        // Logic for Close conclusions
-        let isValid = !!invs?.is_valid;
-        let rootCause = (invs?.root_cause_category || c.complaint_type || '').toLowerCase();
-        let closeSubCategory = 'nonValid';
+        // Prefer final manual validity chosen when closing the complaint.
+        // Fall back to the older investigation heuristic for legacy records.
+        let closeSubCategory = getComplaintValidityMatrixKey(c.complaint_validity) || 'nonValid';
 
-        if (status === 'rejected' || rootCause === 'not_a_complaint') closeSubCategory = 'notComplaint';
-        else if (isValid) {
-          if (rootCause.includes('non') || rootCause.includes('farmer') || rootCause.includes('environment')) {
-            closeSubCategory = 'validNonMfg';
+        if (!c.complaint_validity) {
+          let isValid = !!invs?.is_valid;
+          let rootCause = (invs?.root_cause_category || c.complaint_type || '').toLowerCase();
+
+          if (status === 'rejected' || rootCause === 'not_a_complaint') closeSubCategory = 'notComplaint';
+          else if (isValid) {
+            if (rootCause.includes('non') || rootCause.includes('farmer') || rootCause.includes('environment')) {
+              closeSubCategory = 'validNonMfg';
+            } else {
+              closeSubCategory = 'validMfg';
+            }
           } else {
-            closeSubCategory = 'validMfg';
+            closeSubCategory = 'nonValid';
           }
-        } else {
-          closeSubCategory = 'nonValid';
         }
 
         addMetric(closeSubCategory);

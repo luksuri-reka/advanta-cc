@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { COMPLAINT_VALIDITY_LABELS, type ComplaintValidity } from './complaintStatus';
 
 export type ComplaintReportType = 'observation' | 'investigation' | 'labTesting' | 'approval';
 
@@ -125,6 +126,12 @@ const buildComplaintInfoRows = (complaint: LooseRecord): SheetRow[] => [
   ...sectionRows('Keluhan', [
     ['No. Tiket', complaint.complaint_number],
     ['Status', formatStatus(complaint.status)],
+    [
+      'Validitas Komplain',
+      complaint.complaint_validity
+        ? COMPLAINT_VALIDITY_LABELS[complaint.complaint_validity as ComplaintValidity]
+        : '-'
+    ],
     ['Tanggal Masuk', formatDate(complaint.created_at)],
     ['Tanggal Update', formatDate(complaint.updated_at)],
     ['Tanggal Selesai', formatDate(complaint.resolved_at)],

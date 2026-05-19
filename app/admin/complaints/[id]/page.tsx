@@ -50,6 +50,11 @@ import {
   exportComplaintReportToExcel,
   type ComplaintReportType
 } from '@/app/utils/complaintReportExcel';
+import {
+  COMPLAINT_VALIDITY_LABELS,
+  COMPLAINT_VALIDITY_OPTIONS,
+  type ComplaintValidity
+} from '@/app/utils/complaintStatus';
 
 interface QuickActionsProps {
   complaint: Complaint;
@@ -72,6 +77,9 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
   const [showRequestApprovalModal, setShowRequestApprovalModal] = useState(false);
   const [approvalItem, setApprovalItem] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
+  const [showFinalValidityModal, setShowFinalValidityModal] = useState(false);
+  const [finalValidity, setFinalValidity] = useState<ComplaintValidity | ''>(complaint.complaint_validity || '');
+  const [pendingFinalAction, setPendingFinalAction] = useState<{ status: string; message?: string } | null>(null);
 
   const activeAssignees = [
     complaint.assignee_observasi,
@@ -86,17 +94,21 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
   const isSuperAdmin = user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin');
   const isManagement = user?.department === 'management';
 
-  const handleQuickStatus = async (newStatus: string, message?: string) => {
+  const handleQuickStatus = async (newStatus: string, message?: string, complaintValidity?: ComplaintValidity) => {
     setUpdating(true);
     try {
       const statusResponse = await fetch(`/api/complaints/${complaint.id}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({
+          status: newStatus,
+          ...(complaintValidity ? { complaint_validity: complaintValidity } : {})
+        }),
       });
 
       if (!statusResponse.ok) {
-        throw new Error('Failed to update status');
+        const errorData = await statusResponse.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to update status');
       }
 
       if (message) {
@@ -115,12 +127,29 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
 
       toast.success('Status berhasil diperbarui!');
       onStatusChange();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Quick action failed:', error);
-      toast.error('Gagal memperbarui status');
+      toast.error(error.message || 'Gagal memperbarui status');
     } finally {
       setUpdating(false);
     }
+  };
+
+  const requestFinalStatus = (newStatus: string, message?: string) => {
+    setPendingFinalAction({ status: newStatus, message });
+    setFinalValidity(complaint.complaint_validity || '');
+    setShowFinalValidityModal(true);
+  };
+
+  const handleConfirmFinalStatus = async () => {
+    if (!pendingFinalAction || !finalValidity) {
+      toast.error('Pilih validitas komplain terlebih dahulu');
+      return;
+    }
+
+    await handleQuickStatus(pendingFinalAction.status, pendingFinalAction.message, finalValidity);
+    setShowFinalValidityModal(false);
+    setPendingFinalAction(null);
   };
 
   // 🔥 HANDLER UNTUK REQUEST APPROVAL (NEW)
@@ -435,7 +464,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                             Kirim Notifikasi ke Customer
                           </button>
                           <button
-                            onClick={() => handleQuickStatus(
+                            onClick={() => requestFinalStatus(
                               'resolved',
                               `Komplain telah diselesaikan. Penggantian produk: ${approvalData.replacement_item} telah disetujui dan dikonfirmasi.`
                             )}
@@ -461,7 +490,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                             Kembali ke Investigasi
                           </button>
                           <button
-                            onClick={() => handleQuickStatus(
+                            onClick={() => requestFinalStatus(
                               'resolved',
                               `Komplain diselesaikan. Permohonan penggantian ditolak berdasarkan hasil investigasi.`
                             )}
@@ -520,7 +549,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                       {/* Tombol lanjutan hanya untuk super admin / assigned */}
                       {(isSuperAdmin || isManagement || isAssignedToMe) && (
                         <button
-                          onClick={() => handleQuickStatus(
+                          onClick={() => requestFinalStatus(
                             'resolved',
                             `Komplain Diselesaikan — Penggantian diproses.`
                           )}
@@ -703,6 +732,68 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
           </div>
         </div>
       )}
+
+      {showFinalValidityModal && (
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Validitas Komplain</h3>
+              <button
+                onClick={() => setShowFinalValidityModal(false)}
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Pilih validitas komplain sebelum status diubah menjadi selesai.
+              </p>
+              <div className="space-y-2">
+                {COMPLAINT_VALIDITY_OPTIONS.map((validity) => (
+                  <label
+                    key={validity}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      finalValidity === validity
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="quick_complaint_validity"
+                      value={validity}
+                      checked={finalValidity === validity}
+                      onChange={(e) => setFinalValidity(e.target.value as ComplaintValidity)}
+                      className="h-5 w-5 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {COMPLAINT_VALIDITY_LABELS[validity]}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowFinalValidityModal(false)}
+                className="px-6 py-3 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmFinalStatus}
+                disabled={updating || !finalValidity}
+                className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {updating ? 'Menyimpan...' : 'Simpan & Selesaikan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -751,6 +842,7 @@ interface Complaint {
   attachments?: string[];
   verification_data?: Record<string, any>;
   status: string;
+  complaint_validity?: ComplaintValidity | null;
 
   assigned_to?: string;
   assigned_at?: string;
@@ -895,6 +987,7 @@ export default function ComplaintDetailPage() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedComplaintValidity, setSelectedComplaintValidity] = useState<ComplaintValidity | ''>('');
 
   // 🔥 Approval State
   const [approvalData, setApprovalData] = useState<any>(null);
@@ -960,6 +1053,7 @@ export default function ComplaintDetailPage() {
   useEffect(() => {
     if (complaint) {
       setSelectedStatus(complaint.status);
+      setSelectedComplaintValidity(complaint.complaint_validity || '');
     }
   }, [complaint]);
 
@@ -1160,6 +1254,12 @@ export default function ComplaintDetailPage() {
       return;
     }
 
+    const isFinalStatus = selectedStatus === 'resolved' || selectedStatus === 'closed';
+    if (isFinalStatus && !selectedComplaintValidity) {
+      toast.error('Pilih validitas komplain terlebih dahulu');
+      return;
+    }
+
     setIsUpdatingStatus(true);
     try {
       const response = await fetch(`/api/complaints/${id}/status`, {
@@ -1168,17 +1268,20 @@ export default function ComplaintDetailPage() {
         body: JSON.stringify({
           status: selectedStatus,
           updated_by: user?.id,
+          ...(isFinalStatus ? { complaint_validity: selectedComplaintValidity } : {}),
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update status');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to update status');
       }
 
       setShowStatusModal(false);
       loadComplaint();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating status:', err);
+      toast.error(err.message || 'Gagal memperbarui status');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -2234,6 +2337,15 @@ export default function ComplaintDetailPage() {
                   {getStatusLabel(complaint.status)}
                 </span>
 
+                {complaint.complaint_validity && (
+                  <div className="mt-4">
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Validitas Komplain</dt>
+                    <dd className="mt-1 inline-flex px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                      {COMPLAINT_VALIDITY_LABELS[complaint.complaint_validity]}
+                    </dd>
+                  </div>
+                )}
+
                 {complaint.resolved_at && (
                   <div className="mt-4">
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tgl Selesai</dt>
@@ -2772,6 +2884,38 @@ export default function ComplaintDetailPage() {
                 </div>
               </div>
 
+              {(selectedStatus === 'resolved' || selectedStatus === 'closed') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Validitas Komplain
+                  </label>
+                  <div className="space-y-1.5">
+                    {COMPLAINT_VALIDITY_OPTIONS.map((validity) => (
+                      <label
+                        key={validity}
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          selectedComplaintValidity === validity
+                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-gray-800'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="complaint_validity"
+                          value={validity}
+                          checked={selectedComplaintValidity === validity}
+                          onChange={(e) => setSelectedComplaintValidity(e.target.value as ComplaintValidity)}
+                          className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {COMPLAINT_VALIDITY_LABELS[validity]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {(selectedStatus === 'resolved' || selectedStatus === 'closed') && !complaint.resolved_at && (
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800">
                   <div className="flex items-start gap-2">
@@ -2804,7 +2948,11 @@ export default function ComplaintDetailPage() {
               </button>
               <button
                 onClick={handleUpdateStatus}
-                disabled={isUpdatingStatus || selectedStatus === complaint.status}
+                disabled={
+                  isUpdatingStatus ||
+                  selectedStatus === complaint.status ||
+                  ((selectedStatus === 'resolved' || selectedStatus === 'closed') && !selectedComplaintValidity)
+                }
                 className="
                   flex items-center justify-center gap-2 px-6 py-3 min-w-[140px]
                   font-semibold text-white rounded-xl

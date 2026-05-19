@@ -24,7 +24,11 @@ import Link from 'next/link';
 import ModernDashboard from './ModernDashboard';
 import FiscalYearSidebar from './FiscalYearSidebar';
 import AdminSpinner from '../components/AdminSpinner';
-import { getStatusesForComplaintGroup } from '@/app/utils/complaintStatus';
+import {
+  COMPLAINT_VALIDITY_LABELS,
+  getStatusesForComplaintGroup,
+  type ComplaintValidity
+} from '@/app/utils/complaintStatus';
 
 // Interface sesuai Database
 interface Complaint {
@@ -42,6 +46,7 @@ interface Complaint {
   subject: string;
   description?: string;
   status: string;
+  complaint_validity?: ComplaintValidity | null;
   created_at: string;
   resolved_at?: string;
   related_product_name?: string;
@@ -222,6 +227,7 @@ export default function AdminComplaintsPage() {
         'Tanggal Selesai': item.resolved_at ? formatDate(item.resolved_at) : '-',
         'Umur Tiket (Hari)': calculateAge(item.created_at, item.resolved_at),
         'Status': getStatusLabel(item.status),
+        'Validitas Komplain': item.complaint_validity ? COMPLAINT_VALIDITY_LABELS[item.complaint_validity] : '-',
         // 'Prioritas': item.priority || '-',
         'Departemen': item.department || '-',
         'Nama Pelanggan': item.customer_name,
@@ -249,6 +255,7 @@ export default function AdminComplaintsPage() {
         { wch: 20 },  // Tanggal Selesai
         { wch: 16 },  // Umur Tiket (Hari)
         { wch: 18 },  // Status
+        { wch: 28 },  // Validitas Komplain
         // { wch: 12 },  // Prioritas
         { wch: 16 },  // Departemen
         { wch: 25 },  // Nama Pelanggan

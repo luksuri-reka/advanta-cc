@@ -1,6 +1,12 @@
 // app/api/complaints/[id]/status/route.ts
 import { createClient } from '@/app/utils/supabase/server';
-import { isValidComplaintStatus, normalizeComplaintStatus } from '@/app/utils/complaintStatus';
+import {
+  isClosedComplaintStatus,
+  isValidComplaintStatus,
+  isValidComplaintValidity,
+  normalizeComplaintStatus,
+  normalizeComplaintValidity,
+} from '@/app/utils/complaintStatus';
 import { NextResponse } from 'next/server';
 
 export async function POST(
@@ -18,6 +24,7 @@ export async function POST(
 
     const body = await request.json();
     const status = normalizeComplaintStatus(body.status);
+    const requestedValidity = normalizeComplaintValidity(body.complaint_validity);
 
     if (!isValidComplaintStatus(status)) {
       return NextResponse.json({
@@ -25,9 +32,15 @@ export async function POST(
       }, { status: 400 });
     }
 
+    if (isClosedComplaintStatus(status) && !isValidComplaintValidity(requestedValidity)) {
+      return NextResponse.json({
+        error: 'Validitas komplain wajib dipilih sebelum status diselesaikan'
+      }, { status: 400 });
+    }
+
     const { data: complaint, error: complaintError } = await supabase
       .from('complaints')
-      .select('status, resolved_at, customer_email, customer_phone, complaint_number, customer_name')
+      .select('status, resolved_at, customer_email, customer_phone, complaint_number, customer_name, complaint_validity')
       .eq('id', id)
       .single();
 
@@ -47,6 +60,7 @@ export async function POST(
     const updateData: {
       status: string;
       updated_at: string;
+      complaint_validity?: string | null;
       resolved_at?: string;
       resolved_by?: string;
     } = {
@@ -57,6 +71,10 @@ export async function POST(
     if ((status === 'resolved' || status === 'closed') && !complaint.resolved_at) {
       updateData.resolved_at = new Date().toISOString();
       updateData.resolved_by = user.id;
+    }
+
+    if (isClosedComplaintStatus(status)) {
+      updateData.complaint_validity = requestedValidity;
     }
 
     const { error: updateError } = await supabase
@@ -80,7 +98,9 @@ export async function POST(
         old_value: complaint.status,
         new_value: status,
         created_by: user.id,
-        notes: `Status changed from ${complaint.status} to ${status}`
+        notes: isClosedComplaintStatus(status)
+          ? `Status changed from ${complaint.status} to ${status}; complaint validity: ${requestedValidity}`
+          : `Status changed from ${complaint.status} to ${status}`
       });
 
     // Kirim notifikasi ke customer
