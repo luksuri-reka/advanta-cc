@@ -280,12 +280,12 @@ export default function HomePage() {
             </div>
 
             <Link href="/admin/login" className="ml-auto flex shrink-0 justify-end">
-              <button className="group flex items-center overflow-hidden rounded-xl border border-emerald-300/25 bg-white/10 text-xs font-bold text-white shadow-xl shadow-emerald-950/20 backdrop-blur-md transition-all duration-300 hover:border-emerald-300/50 hover:bg-white/15 hover:shadow-emerald-500/20 active:scale-95 sm:text-sm">
-                <span className="flex items-center gap-1.5 border-r border-white/15 bg-emerald-400/15 px-2.5 py-2 text-[10px] uppercase tracking-wide text-emerald-200 sm:px-3 sm:py-2.5 sm:text-[11px]">
+              <button className="group flex items-center overflow-hidden rounded-xl border border-emerald-200 bg-white text-xs font-bold text-slate-900 shadow-xl shadow-emerald-950/10 transition-all duration-300 hover:border-emerald-300 hover:shadow-emerald-500/20 active:scale-95 dark:border-emerald-300/25 dark:bg-white/10 dark:text-white dark:shadow-emerald-950/20 dark:backdrop-blur-md dark:hover:border-emerald-300/50 dark:hover:bg-white/15 sm:text-sm">
+                <span className="flex items-center gap-1.5 border-r border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[10px] uppercase tracking-wide text-emerald-700 dark:border-white/15 dark:bg-emerald-400/15 dark:text-emerald-200 sm:px-3 sm:py-2.5 sm:text-[11px]">
                   <LockClosedIcon className="h-3.5 w-3.5" />
                   Admin
                 </span>
-                <span className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5">
+                <span className="flex items-center gap-2 bg-emerald-600 px-3 py-2 text-white transition-colors duration-300 group-hover:bg-emerald-500 dark:bg-transparent dark:group-hover:bg-transparent sm:px-4 sm:py-2.5">
                   <span>Login</span>
                   <ArrowRightIcon className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </span>
