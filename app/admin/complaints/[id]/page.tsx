@@ -45,6 +45,11 @@ import InvestigationSummaryCard from '@/app/components/InvestigationSummaryCard'
 import LabTestingSummaryCard from '@/app/components/LabTestingSummaryCard';
 import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
 import AdminSpinner from '../../components/AdminSpinner';
+import {
+  complaintReportLabels,
+  exportComplaintReportToExcel,
+  type ComplaintReportType
+} from '@/app/utils/complaintReportExcel';
 
 interface QuickActionsProps {
   complaint: Complaint;
@@ -1179,6 +1184,21 @@ export default function ComplaintDetailPage() {
     }
   };
 
+  const handleDownloadReportExcel = (reportType: ComplaintReportType) => {
+    if (!complaint) return;
+
+    try {
+      const fileName = exportComplaintReportToExcel({
+        complaint,
+        approvalData,
+        reportType
+      });
+      toast.success(`${complaintReportLabels[reportType]} berhasil diunduh: ${fileName}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal mengunduh report Excel');
+    }
+  };
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('id-ID', {
@@ -1291,6 +1311,20 @@ export default function ComplaintDetailPage() {
   const isSuperAdmin = user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin');
   const isManagement = user?.department === 'management';
 
+  const renderReportDownloadButton = (
+    reportType: ComplaintReportType,
+    colorClass: string
+  ) => (
+    <button
+      type="button"
+      onClick={() => handleDownloadReportExcel(reportType)}
+      className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors ${colorClass}`}
+    >
+      <ArrowDownTrayIcon className="h-5 w-5" />
+      Download Excel
+    </button>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
       <Toaster position="top-right" />
@@ -1375,6 +1409,9 @@ export default function ComplaintDetailPage() {
                 <ObservationSummaryCard
                   data={complaint.complaint_observations[0]}
                 />
+                <div className="flex justify-end">
+                  {renderReportDownloadButton('observation', 'bg-cyan-600 hover:bg-cyan-500 focus:ring-4 focus:ring-cyan-500/20')}
+                </div>
 
                 {/* OBSERVATION EVIDENCE FILES */}
                 {complaint.complaint_observations[0].evidence_files && complaint.complaint_observations[0].evidence_files.length > 0 && (() => {
@@ -1467,6 +1504,9 @@ export default function ComplaintDetailPage() {
                 <InvestigationSummaryCard
                   data={complaint.complaint_investigations[0]}
                 />
+                <div className="flex justify-end">
+                  {renderReportDownloadButton('investigation', 'bg-purple-600 hover:bg-purple-500 focus:ring-4 focus:ring-purple-500/20')}
+                </div>
 
                 {/* INVESTIGATION EVIDENCE FILES */}
                 {complaint.complaint_investigations[0].evidence_files && complaint.complaint_investigations[0].evidence_files.length > 0 && (() => {
@@ -1541,6 +1581,9 @@ export default function ComplaintDetailPage() {
                 <LabTestingSummaryCard
                   data={complaint.complaint_lab_testing[0]}
                 />
+                <div className="flex justify-end">
+                  {renderReportDownloadButton('labTesting', 'bg-teal-600 hover:bg-teal-500 focus:ring-4 focus:ring-teal-500/20')}
+                </div>
 
                 {/* LAB TESTING EVIDENCE FILES */}
                 {complaint.complaint_lab_testing[0].evidence_files && complaint.complaint_lab_testing[0].evidence_files.length > 0 && (() => {
@@ -1606,6 +1649,47 @@ export default function ComplaintDetailPage() {
                     </div>
                   );
                 })()}
+              </div>
+            )}
+
+            {/* Approval Report */}
+            {approvalData && (
+              <div className="lg:col-span-3">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-xl ${
+                        approvalData.status === 'approved'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                          : approvalData.status === 'rejected'
+                            ? 'bg-red-100 dark:bg-red-900/40'
+                            : 'bg-amber-100 dark:bg-amber-900/40'
+                      }`}>
+                        <ClipboardDocumentCheckIcon className={`h-7 w-7 ${
+                          approvalData.status === 'approved'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : approvalData.status === 'rejected'
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-amber-600 dark:text-amber-400'
+                        }`} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Report Approval
+                        </p>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                          Persetujuan Penggantian Produk
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                          Status: <span className="font-semibold">{approvalData.status || '-'}</span>
+                          {approvalData.replacement_item ? ` - Item: ${approvalData.replacement_item}` : ''}
+                        </p>
+                      </div>
+                    </div>
+
+                    {renderReportDownloadButton('approval', 'bg-indigo-600 hover:bg-indigo-500 focus:ring-4 focus:ring-indigo-500/20')}
+                  </div>
+                </div>
               </div>
             )}
             {/* Left Column: Details */}

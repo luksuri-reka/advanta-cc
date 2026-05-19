@@ -18,6 +18,7 @@ import {
   UserIcon,
   EnvelopeIcon,
   PhoneIcon,
+  MapPinIcon,
   ChatBubbleLeftIcon,
   LightBulbIcon,
   ChartPieIcon
@@ -34,8 +35,11 @@ interface DisplayUser {
 interface Survey {
   id: string;
   customer_name: string;
-  customer_email: string;
+  customer_email: string | null;
   customer_phone: string | null;
+  customer_province: string | null;
+  customer_city: string | null;
+  customer_address: string | null;
   verification_serial: string | null;
   survey_type: string;
   ratings: {
@@ -188,7 +192,11 @@ export default function SurveysPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(s => 
         s.customer_name.toLowerCase().includes(query) ||
-        s.customer_email.toLowerCase().includes(query) ||
+        s.customer_email?.toLowerCase().includes(query) ||
+        s.customer_phone?.toLowerCase().includes(query) ||
+        s.customer_province?.toLowerCase().includes(query) ||
+        s.customer_city?.toLowerCase().includes(query) ||
+        s.customer_address?.toLowerCase().includes(query) ||
         s.verification_serial?.toLowerCase().includes(query)
       );
     }
@@ -215,6 +223,9 @@ export default function SurveysPage() {
       'Nama Customer',
       'Email',
       'Telepon',
+      'Provinsi',
+      'Kabupaten/Kota',
+      'Alamat Lengkap',
       'Serial Verifikasi',
       'Kepuasan Keseluruhan',
       'Kualitas Produk',
@@ -228,8 +239,11 @@ export default function SurveysPage() {
     const rows = filteredSurveys.map(s => [
       new Date(s.created_at).toLocaleDateString('id-ID'),
       s.customer_name,
-      s.customer_email,
+      s.customer_email || '-',
       s.customer_phone || '-',
+      s.customer_province || '-',
+      s.customer_city || '-',
+      s.customer_address?.replace(/"/g, '""') || '-',
       s.verification_serial || '-',
       s.ratings?.overall_satisfaction || '-',
       s.ratings?.product_quality || '-',
@@ -271,6 +285,16 @@ export default function SurveysPage() {
         <span className="ml-1 text-sm font-semibold text-gray-700 dark:text-slate-200">{rating.toFixed(1)}</span>
       </div>
     );
+  };
+
+  const formatSurveyLocation = (survey: Survey) => {
+    const cityProvince = [survey.customer_city, survey.customer_province]
+      .filter(Boolean)
+      .join(', ');
+
+    return [cityProvince, survey.customer_address]
+      .filter(Boolean)
+      .join(' - ');
   };
 
   if (!mounted) {
@@ -414,7 +438,7 @@ export default function SurveysPage() {
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-400" />
               <input
                 type="text"
-                placeholder="Cari nama, email, atau serial..."
+                placeholder="Cari nama, email, telepon, lokasi, atau serial..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400"
@@ -490,14 +514,24 @@ export default function SurveysPage() {
                       </div>
                       
                       <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-slate-300">
-                        <div className="flex items-center gap-1">
-                          <EnvelopeIcon className="h-4 w-4" />
-                          {survey.customer_email}
-                        </div>
+                        {survey.customer_email && (
+                          <div className="flex items-center gap-1">
+                            <EnvelopeIcon className="h-4 w-4" />
+                            {survey.customer_email}
+                          </div>
+                        )}
                         {survey.customer_phone && (
                           <div className="flex items-center gap-1">
                             <PhoneIcon className="h-4 w-4" />
                             {survey.customer_phone}
+                          </div>
+                        )}
+                        {formatSurveyLocation(survey) && (
+                          <div className="flex items-center gap-1 min-w-0">
+                            <MapPinIcon className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate max-w-xs" title={formatSurveyLocation(survey)}>
+                              {formatSurveyLocation(survey)}
+                            </span>
                           </div>
                         )}
                         <div className="flex items-center gap-1">
@@ -594,14 +628,29 @@ export default function SurveysPage() {
                       <UserIcon className="h-5 w-5 text-gray-400 dark:text-slate-400" />
                       <span className="font-semibold dark:text-slate-100">{selectedSurvey.customer_name}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <EnvelopeIcon className="h-5 w-5 text-gray-400 dark:text-slate-400" />
-                      <span className="text-sm dark:text-slate-300">{selectedSurvey.customer_email}</span>
-                    </div>
+                    {selectedSurvey.customer_email && (
+                      <div className="flex items-center gap-2">
+                        <EnvelopeIcon className="h-5 w-5 text-gray-400 dark:text-slate-400" />
+                        <span className="text-sm dark:text-slate-300">{selectedSurvey.customer_email}</span>
+                      </div>
+                    )}
                     {selectedSurvey.customer_phone && (
                       <div className="flex items-center gap-2">
                         <PhoneIcon className="h-5 w-5 text-gray-400 dark:text-slate-400" />
                         <span className="text-sm dark:text-slate-300">{selectedSurvey.customer_phone}</span>
+                      </div>
+                    )}
+                    {formatSurveyLocation(selectedSurvey) && (
+                      <div className="flex items-start gap-2">
+                        <MapPinIcon className="h-5 w-5 text-gray-400 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm dark:text-slate-300">
+                          {(selectedSurvey.customer_city || selectedSurvey.customer_province) && (
+                            <p>{[selectedSurvey.customer_city, selectedSurvey.customer_province].filter(Boolean).join(', ')}</p>
+                          )}
+                          {selectedSurvey.customer_address && (
+                            <p className="text-gray-500 dark:text-slate-400">{selectedSurvey.customer_address}</p>
+                          )}
+                        </div>
                       </div>
                     )}
                     <div className="flex items-center gap-2">

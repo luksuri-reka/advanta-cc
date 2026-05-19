@@ -53,6 +53,27 @@ export async function POST(request: Request) {
       }
     }
 
+    if (!body.customer_province || body.customer_province.trim() === '') {
+      return NextResponse.json(
+        { error: 'Provinsi pelanggan wajib diisi' },
+        { status: 400 }
+      );
+    }
+
+    if (!body.customer_city || body.customer_city.trim() === '') {
+      return NextResponse.json(
+        { error: 'Kabupaten/kota pelanggan wajib diisi' },
+        { status: 400 }
+      );
+    }
+
+    if (!body.customer_address || body.customer_address.trim() === '') {
+      return NextResponse.json(
+        { error: 'Alamat lengkap pelanggan wajib diisi' },
+        { status: 400 }
+      );
+    }
+
     try {
       // ... (Bagian validasi rating tetap sama) ...
       const ratingsData = body.ratings || {};
@@ -97,6 +118,9 @@ export async function POST(request: Request) {
         customer_name: body.customer_name.trim(),
         customer_email: body.customer_email ? body.customer_email.trim().toLowerCase() : null,
         customer_phone: body.customer_phone?.trim() || null,
+        customer_province: body.customer_province.trim(),
+        customer_city: body.customer_city.trim(),
+        customer_address: body.customer_address.trim(),
         survey_type: body.survey_type || 'post_verification',
         ratings: Object.keys(preparedRatings).length > 0 ? preparedRatings : null,
         comments: body.comments?.trim() || null,

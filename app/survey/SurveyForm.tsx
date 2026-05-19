@@ -12,7 +12,8 @@ import {
   CheckCircleIcon,
   SparklesIcon,
   PhotoIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import Link from 'next/link';
@@ -22,6 +23,9 @@ interface SurveyFormData {
   customer_name: string;
   customer_email: string;
   customer_phone: string;
+  customer_province: string;
+  customer_city: string;
+  customer_address: string;
   verification_serial?: string;
   related_product_name?: string;
   survey_type: string;
@@ -36,6 +40,17 @@ interface SurveyFormData {
   comments: string;
   suggestions: string;
   would_recommend: boolean | null;
+}
+
+interface Province {
+  id: number;
+  name: string;
+}
+
+interface Regency {
+  id: number;
+  province_id: number;
+  name: string;
 }
 
 export default function SurveyForm() {
@@ -62,15 +77,25 @@ export default function SurveyForm() {
   const customerName = searchParams?.get('name') || '';
   const customerEmail = searchParams?.get('email') || '';
   const customerPhone = searchParams?.get('phone') || '';
+  const customerProvince = searchParams?.get('province') || '';
+  const customerCity = searchParams?.get('city') || '';
+  const customerAddress = searchParams?.get('address') || '';
   
   // ++ TAMBAHKAN: State untuk foto produk ++
   const [productPhoto, setProductPhoto] = useState<string>('');
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const [locationsLoading, setLocationsLoading] = useState(true);
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [regencies, setRegencies] = useState<Regency[]>([]);
   
   const [formData, setFormData] = useState<SurveyFormData>({
     customer_name: customerName,
     customer_email: customerEmail,
     customer_phone: customerPhone,
+    customer_province: customerProvince,
+    customer_city: customerCity,
+    customer_address: customerAddress,
     verification_serial: serial || lot,
     related_product_name: productNameQuery,
     survey_type: 'post_verification',
@@ -89,7 +114,31 @@ export default function SurveyForm() {
 
   useEffect(() => {
     setMounted(true);
+    loadLocations();
   }, []);
+
+  const loadLocations = async () => {
+    try {
+      const [provincesRes, regenciesRes] = await Promise.all([
+        supabase.from('provinces').select('id, name').order('name'),
+        supabase.from('regencies').select('id, province_id, name').order('name')
+      ]);
+
+      if (provincesRes.data) {
+        setProvinces(provincesRes.data);
+      }
+      if (regenciesRes.data) {
+        setRegencies(regenciesRes.data);
+      }
+      if (provincesRes.error || regenciesRes.error) {
+        console.error('Failed to load survey locations:', provincesRes.error?.message || regenciesRes.error?.message);
+      }
+    } catch (error) {
+      console.error('Failed to load survey locations:', error);
+    } finally {
+      setLocationsLoading(false);
+    }
+  };
 
   // ++ UBAH: useEffect untuk fetch nama produk DAN foto ++
   useEffect(() => {
@@ -134,9 +183,21 @@ export default function SurveyForm() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const selectedProvince = provinces.find(province => province.name === formData.customer_province);
+  const availableRegencies = selectedProvince
+    ? regencies.filter(regency => regency.province_id === selectedProvince.id)
+    : [];
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'customer_province' ? { customer_city: '' } : {})
+    }));
+    if (['customer_province', 'customer_city', 'customer_address'].includes(name) && locationError) {
+      setLocationError('');
+    }
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,6 +252,15 @@ export default function SurveyForm() {
         setPhoneError(pError);
         return;
       }
+
+      if (
+        !formData.customer_province.trim() ||
+        !formData.customer_city.trim() ||
+        !formData.customer_address.trim()
+      ) {
+        setLocationError('Lengkapi provinsi, kabupaten/kota, dan alamat lengkap pelanggan.');
+        return;
+      }
     }
 
     setCurrentStep(prev => Math.min(prev + 1, 3));
@@ -224,6 +294,13 @@ export default function SurveyForm() {
       </div>
     </div>
   );
+
+  const isStepOneComplete =
+    formData.customer_name.trim() !== '' &&
+    formData.customer_phone.trim() !== '' &&
+    formData.customer_province.trim() !== '' &&
+    formData.customer_city.trim() !== '' &&
+    formData.customer_address.trim() !== '';
 
   if (!mounted) {
     return (
@@ -419,6 +496,81 @@ export default function SurveyForm() {
                   <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                     Gunakan nomor HP Indonesia 11-13 digit.
                   </p>
+                </div>
+
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-4">
+                    <MapPinIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    Alamat
+                  </h4>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                        Provinsi *
+                      </label>
+                      <select
+                        name="customer_province"
+                        value={formData.customer_province}
+                        onChange={handleInputChange}
+                        required
+                        disabled={locationsLoading}
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">{locationsLoading ? 'Memuat...' : 'Pilih Provinsi'}</option>
+                        {provinces.map(province => (
+                          <option key={province.id} value={province.name}>
+                            {province.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                        Kabupaten/Kota *
+                      </label>
+                      <select
+                        name="customer_city"
+                        value={formData.customer_city}
+                        onChange={handleInputChange}
+                        required
+                        disabled={!formData.customer_province || locationsLoading}
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">
+                          {locationsLoading ? 'Memuat...' : formData.customer_province ? 'Pilih Kabupaten/Kota' : 'Pilih Provinsi terlebih dahulu'}
+                        </option>
+                        {availableRegencies.map(regency => (
+                          <option key={regency.id} value={regency.name}>
+                            {regency.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                        Alamat Lengkap *
+                      </label>
+                      <textarea
+                        name="customer_address"
+                        value={formData.customer_address}
+                        onChange={handleInputChange}
+                        required
+                        rows={3}
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors resize-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
+                        placeholder="Jalan, RT/RW, Kelurahan/Desa, Kecamatan"
+                      />
+                    </div>
+                  </div>
+
+                  {locationError && (
+                    <p className="mt-3 text-xs text-red-500 font-medium flex items-center gap-1">
+                      <ExclamationTriangleIcon className="h-3 w-3" />
+                      {locationError}
+                    </p>
+                  )}
                 </div>
 
                 {/* ++ TAMBAHKAN: Product Info Card dengan Foto - ENHANCED SIZE ++ */}
@@ -627,7 +779,7 @@ export default function SurveyForm() {
                     nextStep();
                   }}
                   disabled={
-                    (currentStep === 1 && (!formData.customer_name)) ||
+                    (currentStep === 1 && !isStepOneComplete) ||
                     (currentStep === 2 && formData.ratings.overall_satisfaction === 0)
                   }
                   className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-emerald-500 dark:hover:from-emerald-500 dark:hover:to-emerald-600 focus:ring-4 focus:ring-emerald-500/20 dark:focus:ring-emerald-400/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
