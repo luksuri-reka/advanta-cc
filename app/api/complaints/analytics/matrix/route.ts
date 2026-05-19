@@ -1,4 +1,9 @@
 import { createClient } from '@/app/utils/supabase/server';
+import {
+  getComplaintMatrixStage,
+  getStatusesForComplaintGroup,
+  isClosedComplaintStatus,
+} from '@/app/utils/complaintStatus';
 import { NextResponse } from 'next/server';
 
 const parseQty = (val: string | null | undefined): number => {
@@ -138,12 +143,7 @@ export async function GET(request: Request) {
         if (quarter && info.quarter !== quarter) sidebarMatch = false;
         
         if (sidebarMatch && sbStatus) {
-          const statusGroups: Record<string, string[]> = {
-            'Pending': ['submitted', 'pending_response'],
-            'In Progress': ['acknowledged', 'observation', 'investigating', 'investigation', 'decision'],
-            'Resolved': ['resolved', 'closed']
-          };
-          const allowedStatuses = statusGroups[sbStatus] || [];
+          const allowedStatuses = getStatusesForComplaintGroup(sbStatus);
           if (!allowedStatuses.includes(c.status)) {
             sidebarMatch = false;
           }
@@ -172,8 +172,8 @@ export async function GET(request: Request) {
     const locationMap: Record<string, any> = {};    // Crop -> { T1...T8 }
 
     const initMetrics = () => ({
-      count: { total: 0, confirmed: 0, observasi: 0, investigation: 0, labTest: 0, waitingDecision: 0, closedTotal: 0, validMfg: 0, validNonMfg: 0, nonValid: 0, notComplaint: 0 },
-      qty: { total: 0, confirmed: 0, observasi: 0, investigation: 0, labTest: 0, waitingDecision: 0, closedTotal: 0, validMfg: 0, validNonMfg: 0, nonValid: 0, notComplaint: 0 }
+      count: { total: 0, confirmed: 0, observasi: 0, investigation: 0, labTest: 0, waitingDecision: 0, pendingResponse: 0, closedTotal: 0, validMfg: 0, validNonMfg: 0, nonValid: 0, notComplaint: 0 },
+      qty: { total: 0, confirmed: 0, observasi: 0, investigation: 0, labTest: 0, waitingDecision: 0, pendingResponse: 0, closedTotal: 0, validMfg: 0, validNonMfg: 0, nonValid: 0, notComplaint: 0 }
     });
 
     const categoriesList = ['Germination & Vigor', 'Seed damage', 'Packaging', 'Small Plant', 'Delivery *)'];
@@ -198,14 +198,10 @@ export async function GET(request: Request) {
 
       addMetric('total');
 
-      if (['submitted', 'assigned'].includes(status)) addMetric('confirmed');
-      else if (status === 'observasi') addMetric('observasi');
-      else if (status === 'investigation') addMetric('investigation');
-      else if (status === 'lab_test') addMetric('labTest');
-      else if (status === 'waiting_decision') addMetric('waitingDecision');
-      else if (['resolved', 'closed'].includes(status)) {
-        addMetric('closedTotal');
+      const matrixStage = getComplaintMatrixStage(status);
+      if (matrixStage) addMetric(matrixStage);
 
+      if (isClosedComplaintStatus(status)) {
         // Logic for Close conclusions
         let isValid = !!invs?.is_valid;
         let rootCause = (invs?.root_cause_category || c.complaint_type || '').toLowerCase();
@@ -241,7 +237,7 @@ export async function GET(request: Request) {
       // For the conclusion matrix we aggregate regardless if it is closed or not (based on current status mapped to Conclusion name)
       // Or we map conclusion by 'Valid Manufacturing', 'Non Valid', etc based on the closeSubCategory calculated above.
       let conclusionLabel = 'Under Investigation';
-      if (['resolved', 'closed'].includes(status)) {
+      if (isClosedComplaintStatus(status)) {
         if (metricsUpdate.count.validMfg) conclusionLabel = 'Valid Manufacturing';
         else if (metricsUpdate.count.validNonMfg) conclusionLabel = 'Valid Non Manufacturing';
         else if (metricsUpdate.count.nonValid) conclusionLabel = 'Non Valid';

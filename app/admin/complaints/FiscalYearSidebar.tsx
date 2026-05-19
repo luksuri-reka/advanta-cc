@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { getComplaintStatusGroup } from '@/app/utils/complaintStatus';
 
 interface FiscalYearData {
   id: string;
@@ -64,17 +65,15 @@ export default function FiscalYearSidebar({
       const fyEntry = fyMap.get(fyLabel)!;
       fyEntry.metrics.total++;
 
-      const pendingStatuses = ['submitted', 'pending_response'];
-      const inProgressStatuses = ['acknowledged', 'observation', 'investigating', 'investigation', 'decision'];
-      const resolvedStatuses = ['resolved', 'closed'];
+      const statusGroup = getComplaintStatusGroup(c.status);
 
-      if (pendingStatuses.includes(c.status)) {
+      if (statusGroup === 'Pending') {
         fyEntry.metrics.pending++;
         fyEntry.hasUnresolved = true;
-      } else if (inProgressStatuses.includes(c.status)) {
+      } else if (statusGroup === 'In Progress') {
         fyEntry.metrics.inProgress++;
         fyEntry.hasUnresolved = true;
-      } else if (resolvedStatuses.includes(c.status)) {
+      } else if (statusGroup === 'Resolved') {
         fyEntry.metrics.resolved++;
       }
     });

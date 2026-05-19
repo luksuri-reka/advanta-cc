@@ -24,6 +24,7 @@ import Link from 'next/link';
 import ModernDashboard from './ModernDashboard';
 import FiscalYearSidebar from './FiscalYearSidebar';
 import AdminSpinner from '../components/AdminSpinner';
+import { getStatusesForComplaintGroup } from '@/app/utils/complaintStatus';
 
 // Interface sesuai Database
 interface Complaint {
@@ -449,12 +450,7 @@ export default function AdminComplaintsPage() {
           sidebarMatch = false;
         }
         if (sidebarMatch && sidebarFilters.status) {
-          const statusGroups: Record<string, string[]> = {
-            'Pending': ['submitted', 'pending_response'],
-            'In Progress': ['acknowledged', 'observation', 'investigating', 'investigation', 'decision'],
-            'Resolved': ['resolved', 'closed']
-          };
-          const allowedStatuses = statusGroups[sidebarFilters.status] || [];
+          const allowedStatuses = getStatusesForComplaintGroup(sidebarFilters.status);
           if (!allowedStatuses.includes(c.status)) {
             sidebarMatch = false;
           }
@@ -605,9 +601,11 @@ export default function AdminComplaintsPage() {
               >
                 <option value="">Semua Status</option>
                 <option value="submitted">Dikirim</option>
+                <option value="acknowledged">Dikonfirmasi</option>
                 <option value="observation">Observasi</option>
                 <option value="investigation">Investigasi</option>
                 <option value="decision">Keputusan</option>
+                <option value="pending_response">Menunggu Respons</option>
                 <option value="resolved">Selesai</option>
                 <option value="closed">Ditutup</option>
               </select>

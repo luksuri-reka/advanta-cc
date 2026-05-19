@@ -77,7 +77,7 @@ export default function ActionModal({
           
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
             {selectedAction === 'verify' && 'Verifikasi Produk'}
-            {selectedAction === 'survey' && 'Berikan Rating Anda'}
+            {selectedAction === 'survey' && 'Berikan Feedback Anda'}
             {selectedAction === 'complaint' && 'Laporkan Masalah'}
           </h2>
           
@@ -300,7 +300,7 @@ export default function ActionModal({
                   {selectedAction === 'complaint' && <ChatBubbleLeftRightIcon className="h-4 sm:h-5 w-4 sm:w-5" />}
                   <span>
                     {selectedAction === 'verify' && 'Verifikasi Sekarang'}
-                    {selectedAction === 'survey' && 'Lanjut ke Survey'}
+                    {selectedAction === 'survey' && 'Lanjut ke Feedback'}
                     {selectedAction === 'complaint' && 'Lanjut ke Form Komplain'}
                   </span>
                   <ArrowRightIcon className="h-4 sm:h-5 w-4 sm:w-5 group-hover:translate-x-1 transition-transform" />

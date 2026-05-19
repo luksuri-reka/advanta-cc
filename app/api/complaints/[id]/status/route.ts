@@ -1,17 +1,7 @@
 // app/api/complaints/[id]/status/route.ts
 import { createClient } from '@/app/utils/supabase/server';
+import { isValidComplaintStatus, normalizeComplaintStatus } from '@/app/utils/complaintStatus';
 import { NextResponse } from 'next/server';
-
-const complaintStatuses = [
-  'submitted',        // 1. Dikirim
-  'acknowledged',     // 2. Dikonfirmasi
-  'observation',      // 3. Proses Observasi
-  'investigation',    // 4. Proses Investigasi & Lab Testing
-  'decision',         // 5. Menunggu Keputusan
-  'pending_response', // 6. Menunggu Respon Customer
-  'resolved',         // 7. Selesai
-  'closed'            // 8. Ditutup/Arsip
-];
 
 export async function POST(
   request: Request,
@@ -27,11 +17,11 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { status } = body;
+    const status = normalizeComplaintStatus(body.status);
 
-    if (!status || !complaintStatuses.includes(status)) {
+    if (!isValidComplaintStatus(status)) {
       return NextResponse.json({
-        error: `Invalid status: ${status}`
+        error: `Invalid status: ${body.status}`
       }, { status: 400 });
     }
 

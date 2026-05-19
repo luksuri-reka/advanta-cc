@@ -45,7 +45,8 @@ const statusColumns = [
   { key: 'observasi', label: 'Observasi', bg: 'bg-lime-200/40 text-lime-900' },
   { key: 'investigation', label: 'Investigation', bg: 'bg-purple-200/50 text-purple-900' },
   { key: 'labTest', label: 'Lab Test', bg: 'bg-cyan-200/50 text-cyan-900' },
-  { key: 'waitingDecision', label: 'Waiting Decision', bg: 'bg-yellow-300/50 text-yellow-900' }
+  { key: 'waitingDecision', label: 'Waiting Decision', bg: 'bg-yellow-300/50 text-yellow-900' },
+  { key: 'pendingResponse', label: 'Pending Response', bg: 'bg-violet-200/50 text-violet-900' }
 ];
 
 const closeColumns = [
@@ -199,6 +200,7 @@ export default function ModernDashboard({ filters, sidebarFilters }: DashboardPr
     { name: 'Investigation', value: computeFlowTotal('investigation') },
     { name: 'Lab Test', value: computeFlowTotal('labTest') },
     { name: 'Waiting Decision', value: computeFlowTotal('waitingDecision') },
+    { name: 'Pending Response', value: computeFlowTotal('pendingResponse') },
     { name: 'Close', value: computeFlowTotal('closedTotal') }
   ];
   
@@ -285,7 +287,7 @@ export default function ModernDashboard({ filters, sidebarFilters }: DashboardPr
           <div className="space-y-6">
             {/* COMPLAINT PROGRESS STATUS (Single Row Table Banner) */}
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm custom-scrollbar bg-white dark:bg-slate-900 mb-8 mt-2">
-              <table className="w-full text-center text-xs sm:text-sm whitespace-nowrap min-w-[1000px]">
+              <table className="w-full text-center text-xs sm:text-sm whitespace-nowrap min-w-[1100px]">
                 <thead>
                   <tr>
                     {statusColumns.map(s => (

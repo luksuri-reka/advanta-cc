@@ -356,8 +356,8 @@ export default function HomePage() {
                   <FaceSmileIcon className="h-8 w-8 text-white" />
                 </div>
                 <div className="text-center">
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Survei Pelanggan</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Beri rating produk</p>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Feedback dari Pelanggan</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Beri rating dan masukan</p>
                 </div>
               </button>
 
@@ -369,8 +369,8 @@ export default function HomePage() {
                   <ExclamationTriangleIcon className="h-8 w-8 text-white" />
                 </div>
                 <div className="text-center">
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Layanan Pelanggan</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Feedback dari pelanggan</p>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Layanan Keluhan Pelanggan</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Laporkan keluhan produk</p>
                 </div>
               </button>
             </div>
