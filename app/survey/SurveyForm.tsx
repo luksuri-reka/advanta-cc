@@ -11,10 +11,12 @@ import {
   ArrowLeftIcon,
   CheckCircleIcon,
   SparklesIcon,
-  PhotoIcon
+  PhotoIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import Link from 'next/link';
+import { validateIndonesianMobileNumber } from '@/app/utils/phoneValidation';
 
 interface SurveyFormData {
   customer_name: string;
@@ -51,6 +53,7 @@ export default function SurveyForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [phoneError, setPhoneError] = useState('');
   
   const productId = searchParams?.get('product_id') || '';
   const serial = searchParams?.get('serial') || '';
@@ -136,6 +139,14 @@ export default function SurveyForm() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    if (/^\+?\d*$/.test(value)) {
+      setFormData(prev => ({ ...prev, customer_phone: value }));
+      if (phoneError) setPhoneError('');
+    }
+  };
+
   const handleRecommendChange = (value: boolean) => {
     setFormData(prev => ({ ...prev, would_recommend: value }));
   };
@@ -174,6 +185,14 @@ export default function SurveyForm() {
   };
 
   const nextStep = () => {
+    if (currentStep === 1) {
+      const pError = validateIndonesianMobileNumber(formData.customer_phone);
+      if (pError) {
+        setPhoneError(pError);
+        return;
+      }
+    }
+
     setCurrentStep(prev => Math.min(prev + 1, 3));
   };
 
@@ -375,11 +394,31 @@ export default function SurveyForm() {
                     type="tel"
                     name="customer_phone"
                     value={formData.customer_phone}
-                    onChange={handleInputChange}
+                    onChange={handlePhoneChange}
+                    onBlur={() => setPhoneError(validateIndonesianMobileNumber(formData.customer_phone))}
                     required
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
-                    placeholder="08xxxxxxxxxx"
+                    minLength={11}
+                    maxLength={15}
+                    pattern="^(08\d{9,11}|628\d{9,11}|\+628\d{9,11})$"
+                    title="Nomor HP Indonesia harus diawali 08, 628, atau +628 dengan panjang lokal 11-13 digit."
+                    aria-invalid={!!phoneError}
+                    aria-describedby={phoneError ? 'survey-phone-error' : undefined}
+                    className={`w-full px-4 py-3 bg-white dark:bg-slate-900 border text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
+                      phoneError
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                        : 'border-gray-300 dark:border-slate-600 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400'
+                    }`}
+                    placeholder="Contoh: 081234567890"
                   />
+                  {phoneError && (
+                    <p id="survey-phone-error" className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
+                      <ExclamationTriangleIcon className="h-3 w-3" />
+                      {phoneError}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                    Gunakan nomor HP Indonesia 11-13 digit.
+                  </p>
                 </div>
 
                 {/* ++ TAMBAHKAN: Product Info Card dengan Foto - ENHANCED SIZE ++ */}

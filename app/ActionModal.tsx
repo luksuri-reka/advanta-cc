@@ -7,6 +7,7 @@ import {
   ChatBubbleLeftRightIcon, ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import SearchableSelect from './components/SearchableSelect';
+import { validateIndonesianMobileNumber } from './utils/phoneValidation';
 
 // Definisikan tipe props agar Type Safety terjaga
 interface ActionModalProps {
@@ -36,6 +37,8 @@ interface ActionModalProps {
   setQuickEmail: (val: string) => void;
   quickPhone: string;
   setQuickPhone: (val: string) => void;
+  phoneError: string;
+  setPhoneError: (val: string) => void;
   // Product Dropdown
   selectedProductId: string;
   setSelectedProductId: (val: string) => void;
@@ -48,6 +51,7 @@ export default function ActionModal({
   productType, setProductType, serialNumber, setSerialNumber, inputFocused, setInputFocused,
   loading, error, reportSuccess, isReporting, handleReportFailure,
   quickName, setQuickName, quickEmail, setQuickEmail, quickPhone, setQuickPhone,
+  phoneError, setPhoneError,
   selectedProductId, setSelectedProductId, allProducts, productsLoading
 }: ActionModalProps) {
 
@@ -233,9 +237,43 @@ export default function ActionModal({
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Nomor WhatsApp <span className="text-slate-400">*</span></label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-3"><PhoneIcon className="h-4 w-4 text-slate-400" /></div>
-                  <input type="tel" value={quickPhone} onChange={(e) => setQuickPhone(e.target.value)} required className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-emerald-500" placeholder="08xxxxxxxxxx" />
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <PhoneIcon className={`h-4 w-4 ${phoneError ? 'text-red-500' : 'text-slate-400'}`} />
+                  </div>
+                  <input
+                    type="tel"
+                    value={quickPhone}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^\+?\d*$/.test(value)) {
+                        setQuickPhone(value);
+                        if (phoneError) setPhoneError('');
+                      }
+                    }}
+                    onBlur={() => setPhoneError(validateIndonesianMobileNumber(quickPhone))}
+                    required
+                    minLength={11}
+                    maxLength={15}
+                    pattern="^(08\d{9,11}|628\d{9,11}|\+628\d{9,11})$"
+                    title="Nomor HP Indonesia harus diawali 08, 628, atau +628 dengan panjang lokal 11-13 digit."
+                    aria-invalid={!!phoneError}
+                    aria-describedby={phoneError ? 'quick-phone-error' : undefined}
+                    className={`w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border rounded-xl focus:ring-2 transition-colors ${
+                      phoneError
+                        ? 'border-red-500 focus:ring-red-500'
+                        : 'border-slate-200 dark:border-slate-600 focus:ring-emerald-500'
+                    }`}
+                    placeholder="Contoh: 081234567890"
+                  />
                 </div>
+                {phoneError && (
+                  <p id="quick-phone-error" className="mt-1.5 text-xs font-medium text-red-500">
+                    {phoneError}
+                  </p>
+                )}
+                <p className="mt-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+                  Gunakan nomor HP Indonesia 11-13 digit, contoh 081234567890.
+                </p>
               </div>
             </div>
           )}

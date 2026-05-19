@@ -22,6 +22,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { searchProduct, verifyProduct } from './utils/api';
+import { validateIndonesianMobileNumber } from './utils/phoneValidation';
 import Image from 'next/image';
 import ActionModal from './ActionModal';
 
@@ -159,20 +160,10 @@ export default function HomePage() {
     }
   };
 
-  // FUNGSI VALIDASI BARU
-  const validatePhoneNumber = (phone: string) => {
-    if (!/^[0-9+]+$/.test(phone)) return "Hanya boleh berisi angka";
-    const validPrefix = /^(\+62|62|0)/.test(phone);
-    if (!validPrefix) return "Nomor harus diawali 0, 62, atau +62";
-    const digitCount = phone.replace(/\D/g, '').length;
-    if (digitCount < 11) return "Nomor minimal 11 angka";
-    return "";
-  };
-
   const handleQuickSurvey = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const pError = validatePhoneNumber(quickPhone);
+    const pError = validateIndonesianMobileNumber(quickPhone);
     if (pError) {
       setPhoneError(pError);
       return;
@@ -189,7 +180,7 @@ export default function HomePage() {
   const handleQuickComplaint = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const pError = validatePhoneNumber(quickPhone);
+    const pError = validateIndonesianMobileNumber(quickPhone);
     if (pError) {
       setPhoneError(pError);
       return;
@@ -265,9 +256,9 @@ export default function HomePage() {
 
       {/* Navbar */}
       <nav className={`relative z-20 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex min-w-0 items-center gap-3 md:gap-4">
               <div className="relative h-8 w-auto md:h-12">
                 <Image 
                   src="/advanta-logo.png" 
@@ -288,19 +279,16 @@ export default function HomePage() {
               </div>
             </div>
 
-            <Link href="/admin/login">
-              <button className="hidden sm:flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white text-sm md:text-base font-bold rounded-lg md:rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-105 transition-all duration-300 group">
-                <LockClosedIcon className="h-4 md:h-5 w-4 md:w-5 group-hover:rotate-12 transition-transform" />
-                <span className="hidden md:inline">Admin Login</span>
-                <span className="md:hidden">Login</span>
-                <ArrowRightIcon className="hidden md:inline h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </button>
-            </Link>
-
-            <Link href="/admin/login">
-              <button className="sm:hidden flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-lg hover:bg-emerald-700 transition-all">
-                <LockClosedIcon className="h-4 w-4" />
-                <span>Login</span>
+            <Link href="/admin/login" className="ml-auto flex shrink-0 justify-end">
+              <button className="group flex items-center overflow-hidden rounded-xl border border-emerald-300/25 bg-white/10 text-xs font-bold text-white shadow-xl shadow-emerald-950/20 backdrop-blur-md transition-all duration-300 hover:border-emerald-300/50 hover:bg-white/15 hover:shadow-emerald-500/20 active:scale-95 sm:text-sm">
+                <span className="flex items-center gap-1.5 border-r border-white/15 bg-emerald-400/15 px-2.5 py-2 text-[10px] uppercase tracking-wide text-emerald-200 sm:px-3 sm:py-2.5 sm:text-[11px]">
+                  <LockClosedIcon className="h-3.5 w-3.5" />
+                  Admin
+                </span>
+                <span className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5">
+                  <span>Login</span>
+                  <ArrowRightIcon className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
               </button>
             </Link>
           </div>
@@ -499,6 +487,8 @@ export default function HomePage() {
           setQuickEmail={setQuickEmail}
           quickPhone={quickPhone}
           setQuickPhone={setQuickPhone}
+          phoneError={phoneError}
+          setPhoneError={setPhoneError}
           selectedProductId={selectedProductId}
           setSelectedProductId={setSelectedProductId}
           allProducts={allProducts}

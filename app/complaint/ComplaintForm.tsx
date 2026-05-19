@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { useDropzone } from 'react-dropzone';
 import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
 import SearchableSelect from '@/app/components/SearchableSelect';
+import { validateIndonesianMobileNumber } from '@/app/utils/phoneValidation';
 
 interface ComplaintFormData {
   customer_name: string;
@@ -440,26 +441,11 @@ export default function ComplaintForm() {
     maxSize: 10 * 1024 * 1024, // 10MB limit per file sebelum dikompres
   });
 
-  // ++ FUNGSI VALIDASI NO HP ++
-  const validatePhoneNumber = (phone: string) => {
-    if (!/^[0-9+]+$/.test(phone)) return "Hanya boleh berisi angka";
-
-    // Cek Awalan (0, 62, atau +62)
-    const validPrefix = /^(\+62|62|0)/.test(phone);
-    if (!validPrefix) return "Nomor harus diawali 0, 62, atau +62";
-
-    // Cek Jumlah Digit (minimal 11)
-    const digitCount = phone.replace(/\D/g, '').length;
-    if (digitCount < 11) return "Nomor minimal 11 angka";
-
-    return "";
-  };
-
   // ++ HANDLER KHUSUS INPUT HP ++
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     // Regex: Hanya izinkan angka dan tanda +
-    if (/^[0-9+]*$/.test(val)) {
+    if (/^\+?\d*$/.test(val)) {
       setFormData(prev => ({ ...prev, customer_phone: val }));
       if (phoneError) setPhoneError(''); // Hapus error saat user mengetik
     }
@@ -484,7 +470,7 @@ export default function ComplaintForm() {
     e.preventDefault();
 
     // ++ VALIDASI PHONE SEBELUM SUBMIT ++
-    const pError = validatePhoneNumber(formData.customer_phone);
+    const pError = validateIndonesianMobileNumber(formData.customer_phone);
     if (pError) {
       setPhoneError(pError);
       const phoneInput = document.querySelector('input[name="customer_phone"]');
@@ -812,7 +798,12 @@ export default function ComplaintForm() {
                       name="customer_phone"
                       value={formData.customer_phone}
                       onChange={handlePhoneChange}
+                      onBlur={() => setPhoneError(validateIndonesianMobileNumber(formData.customer_phone))}
                       required
+                      minLength={11}
+                      maxLength={15}
+                      pattern="^(08\d{9,11}|628\d{9,11}|\+628\d{9,11})$"
+                      title="Nomor HP Indonesia harus diawali 08, 628, atau +628 dengan panjang lokal 11-13 digit."
                       className={`w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border text-gray-900 dark:text-slate-100 rounded-xl focus:ring-2 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500 ${phoneError
                         ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                         : 'border-gray-300 dark:border-slate-600 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-emerald-500 dark:focus:border-emerald-400'
@@ -827,6 +818,9 @@ export default function ComplaintForm() {
                       {phoneError}
                     </p>
                   )}
+                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                    Gunakan nomor HP Indonesia 11-13 digit, contoh 081234567890.
+                  </p>
                 </div>
 
                 {/* Location Section */}
