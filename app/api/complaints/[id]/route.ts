@@ -74,7 +74,30 @@ export async function GET(
       .select('*')
       .eq('complaint_id', id);
 
-    // 6. Ambil Data Profil User Terkait
+    // 6. Ambil History Penugasan (untuk fallback jika field assignee sudah null)
+    const { data: assignmentHistory } = await supabase
+      .from('complaint_assignments')
+      .select('*')
+      .eq('complaint_id', id)
+      .order('assigned_at', { ascending: false });
+
+    // Helper: cari UUID terakhir untuk role tertentu dari history
+    const getLastAssigneeFromHistory = (role: 'assignee_observasi' | 'assignee_investigasi_1' | 'assignee_investigasi_2' | 'assignee_lab_testing' | 'assignee_approval') => {
+      if (!assignmentHistory || assignmentHistory.length === 0) return null;
+      for (const record of assignmentHistory) {
+        if (record[role]) return record[role] as string;
+      }
+      return null;
+    };
+
+    // 7. Ambil Data Profil User Terkait
+    // Gunakan field di complaints jika ada, fallback ke history terakhir
+    const resolvedObservasi = complaint.assignee_observasi || getLastAssigneeFromHistory('assignee_observasi');
+    const resolvedInvestigasi1 = complaint.assignee_investigasi_1 || getLastAssigneeFromHistory('assignee_investigasi_1');
+    const resolvedInvestigasi2 = complaint.assignee_investigasi_2 || getLastAssigneeFromHistory('assignee_investigasi_2');
+    const resolvedLabTesting = complaint.assignee_lab_testing || getLastAssigneeFromHistory('assignee_lab_testing');
+    const resolvedApproval = complaint.assignee_approval || getLastAssigneeFromHistory('assignee_approval');
+
     const [
       assignedTo,
       assignedBy,
@@ -92,20 +115,21 @@ export async function GET(
       getUserProfile(supabase, complaint.resolved_by),
       getUserProfile(supabase, complaint.escalated_by),
       getUserProfile(supabase, complaint.created_by),
-      getUserProfile(supabase, complaint.assignee_observasi),
-      getUserProfile(supabase, complaint.assignee_investigasi_1),
-      getUserProfile(supabase, complaint.assignee_investigasi_2),
-      getUserProfile(supabase, complaint.assignee_lab_testing),
-      getUserProfile(supabase, complaint.assignee_approval)
+      getUserProfile(supabase, resolvedObservasi),
+      getUserProfile(supabase, resolvedInvestigasi1),
+      getUserProfile(supabase, resolvedInvestigasi2),
+      getUserProfile(supabase, resolvedLabTesting),
+      getUserProfile(supabase, resolvedApproval)
     ]);
 
-    // 7. Gabungkan Semua Data
+    // 8. Gabungkan Semua Data
     const enrichedData = {
       ...complaint,
       complaint_responses: responses || [],
       complaint_observations: observations || [],
       complaint_investigations: investigations || [],
       complaint_lab_testing: labTesting || [],
+      complaint_assignment_history: assignmentHistory || [],
       assigned_to_user: assignedTo,
       assigned_by_user: assignedBy,
       resolved_by_user: resolvedBy,

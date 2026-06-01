@@ -80,7 +80,7 @@ export async function POST(
       }, { status: 500 });
     }
 
-    // Log the assignment (Minimal mapping for manual tracking if needed)
+    // Log the assignment — simpan semua role dalam satu record untuk history
     const validAssignees = [
       assignee_observasi,
       assignee_investigasi_1,
@@ -94,10 +94,17 @@ export async function POST(
         .from('complaint_assignments')
         .insert({
           complaint_id: parseInt(id),
-          assigned_to: validAssignees[0], // Menyimpan satu dari mereka untuk legacy fallback
+          assigned_to: validAssignees[0], // legacy fallback
           assigned_by: user.id,
           assignment_reason: notes || 'Manual multi-department assignment by admin',
-          is_active: true
+          is_active: true,
+          // Simpan semua role untuk history penugasan lengkap
+          assignee_observasi: assignee_observasi || null,
+          assignee_investigasi_1: assignee_investigasi_1 || null,
+          assignee_investigasi_2: assignee_investigasi_2 || null,
+          assignee_lab_testing: assignee_lab_testing || null,
+          assignee_approval: assignee_approval || null,
+          assigned_at: new Date().toISOString()
         });
 
       // 🔥 FIRE-AND-FORGET WA NOTIFICATION

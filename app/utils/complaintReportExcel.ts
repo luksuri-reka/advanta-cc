@@ -101,6 +101,18 @@ const formatUser = (user?: LooseRecord | null) => {
     .join(' - ') || '-';
 };
 
+// Ambil penugasan terakhir per role dari history (untuk fallback)
+const getLastAssigneeNameFromHistory = (
+  history: LooseRecord[],
+  role: 'assignee_observasi' | 'assignee_investigasi_1' | 'assignee_investigasi_2' | 'assignee_lab_testing' | 'assignee_approval'
+): string => {
+  if (!history || history.length === 0) return '-';
+  for (const record of history) {
+    if (record[`${role}_name`]) return String(record[`${role}_name`]);
+  }
+  return '-';
+};
+
 const sanitizeFilename = (value: string) => value.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
 
 const getFirstItem = (items?: unknown) => (Array.isArray(items) && items.length > 0 ? items[0] : null);
@@ -122,48 +134,76 @@ const appendSheet = (workbook: XLSX.WorkBook, name: string, rows: SheetRow[] | L
   XLSX.utils.book_append_sheet(workbook, worksheet, name.substring(0, 31));
 };
 
-const buildComplaintInfoRows = (complaint: LooseRecord): SheetRow[] => [
-  ...sectionRows('Keluhan', [
-    ['No. Tiket', complaint.complaint_number],
-    ['Status', formatStatus(complaint.status)],
-    [
-      'Validitas Komplain',
-      complaint.complaint_validity
-        ? COMPLAINT_VALIDITY_LABELS[complaint.complaint_validity as ComplaintValidity]
-        : '-'
-    ],
-    ['Tanggal Masuk', formatDate(complaint.created_at)],
-    ['Tanggal Update', formatDate(complaint.updated_at)],
-    ['Tanggal Selesai', formatDate(complaint.resolved_at)],
-    ['Departemen', complaint.department],
-    ['Subjek', complaint.subject],
-    ['Deskripsi', complaint.description]
-  ]),
-  ...sectionRows('Pelanggan', [
-    ['Nama Pelanggan', complaint.customer_name],
-    ['Email', complaint.customer_email],
-    ['WhatsApp', complaint.customer_phone],
-    ['Provinsi', complaint.customer_province],
-    ['Kabupaten/Kota', complaint.customer_city],
-    ['Alamat Lengkap', complaint.customer_address]
-  ]),
-  ...sectionRows('Produk', [
-    ['Nama Produk', complaint.related_product_name],
-    ['Serial Produk', complaint.related_product_serial],
-    ['Nomor Lot', complaint.lot_number],
-    ['Jumlah Bermasalah', complaint.problematic_quantity],
-    ['Kategori', complaint.complaint_category_name],
-    ['Subkategori', complaint.complaint_subcategory_name],
-    ['Jenis Kasus', complaint.complaint_case_type_names]
-  ]),
-  ...sectionRows('Penugasan', [
-    ['Petugas Observasi', formatUser(complaint.assignee_observasi_user)],
-    ['Petugas Investigasi 1', formatUser(complaint.assignee_investigasi_1_user)],
-    ['Petugas Investigasi 2', formatUser(complaint.assignee_investigasi_2_user)],
-    ['Petugas Lab Testing', formatUser(complaint.assignee_lab_testing_user)],
-    ['Petugas Approval', formatUser(complaint.assignee_approval_user)]
-  ])
-];
+// Resolve nama penugasan: aktif jika ada, fallback ke history terakhir
+const resolveAssigneeName = (
+  activeUser: LooseRecord | null | undefined,
+  history: LooseRecord[],
+  role: 'assignee_observasi' | 'assignee_investigasi_1' | 'assignee_investigasi_2' | 'assignee_lab_testing' | 'assignee_approval'
+): string => {
+  const fromActive = formatUser(activeUser);
+  if (fromActive !== '-') return fromActive;
+  // Fallback ke history — cari record terakhir yang punya UUID untuk role ini
+  if (history && history.length > 0) {
+    for (const record of history) {
+      if (record[role]) {
+        // Gunakan assigned_by_name jika ada, atau tandai sebagai history
+        const reason = record.assignment_reason || '';
+        const assignedAt = record.assigned_at ? ` (${formatDate(record.assigned_at)})` : '';
+        // Kita tidak punya nama langsung di sini, tapi API sudah resolve via getUserProfile.
+        // Jika masih '-', tandai bahwa pernah ditugaskan
+        return `[History] Ditugaskan${assignedAt}`;
+      }
+    }
+  }
+  return '-';
+};
+
+const buildComplaintInfoRows = (complaint: LooseRecord): SheetRow[] => {
+  const history: LooseRecord[] = complaint.complaint_assignment_history || [];
+
+  return [
+    ...sectionRows('Keluhan', [
+      ['No. Tiket', complaint.complaint_number],
+      ['Status', formatStatus(complaint.status)],
+      [
+        'Validitas Komplain',
+        complaint.complaint_validity
+          ? COMPLAINT_VALIDITY_LABELS[complaint.complaint_validity as ComplaintValidity]
+          : '-'
+      ],
+      ['Tanggal Masuk', formatDate(complaint.created_at)],
+      ['Tanggal Update', formatDate(complaint.updated_at)],
+      ['Tanggal Selesai', formatDate(complaint.resolved_at)],
+      ['Departemen', complaint.department],
+      ['Subjek', complaint.subject],
+      ['Deskripsi', complaint.description]
+    ]),
+    ...sectionRows('Pelanggan', [
+      ['Nama Pelanggan', complaint.customer_name],
+      ['Email', complaint.customer_email],
+      ['WhatsApp', complaint.customer_phone],
+      ['Provinsi', complaint.customer_province],
+      ['Kabupaten/Kota', complaint.customer_city],
+      ['Alamat Lengkap', complaint.customer_address]
+    ]),
+    ...sectionRows('Produk', [
+      ['Nama Produk', complaint.related_product_name],
+      ['Serial Produk', complaint.related_product_serial],
+      ['Nomor Lot', complaint.lot_number],
+      ['Jumlah Bermasalah', complaint.problematic_quantity],
+      ['Kategori', complaint.complaint_category_name],
+      ['Subkategori', complaint.complaint_subcategory_name],
+      ['Jenis Kasus', complaint.complaint_case_type_names]
+    ]),
+    ...sectionRows('Penugasan', [
+      ['Petugas Observasi', resolveAssigneeName(complaint.assignee_observasi_user, history, 'assignee_observasi')],
+      ['Petugas Investigasi 1', resolveAssigneeName(complaint.assignee_investigasi_1_user, history, 'assignee_investigasi_1')],
+      ['Petugas Investigasi 2', resolveAssigneeName(complaint.assignee_investigasi_2_user, history, 'assignee_investigasi_2')],
+      ['Petugas Lab Testing', resolveAssigneeName(complaint.assignee_lab_testing_user, history, 'assignee_lab_testing')],
+      ['Petugas Approval', resolveAssigneeName(complaint.assignee_approval_user, history, 'assignee_approval')]
+    ])
+  ];
+};
 
 const buildObservationRows = (observation: LooseRecord): SheetRow[] => [
   ...sectionRows('Petugas Observasi', [
@@ -341,6 +381,35 @@ const appendEvidenceSheet = (workbook: XLSX.WorkBook, files?: string[]) => {
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Lampiran');
 };
 
+// Sheet history penugasan — menampilkan semua riwayat assign per event
+const appendAssignmentHistorySheet = (workbook: XLSX.WorkBook, history: LooseRecord[]) => {
+  if (!history || history.length === 0) return;
+
+  const rows = history.map((record, index) => ({
+    No: index + 1,
+    'Tanggal Penugasan': formatDate(record.assigned_at || record.created_at),
+    'Petugas Observasi': record.assignee_observasi ? '✓ Ditugaskan' : '-',
+    'Petugas Investigasi 1': record.assignee_investigasi_1 ? '✓ Ditugaskan' : '-',
+    'Petugas Investigasi 2': record.assignee_investigasi_2 ? '✓ Ditugaskan' : '-',
+    'Petugas Lab Testing': record.assignee_lab_testing ? '✓ Ditugaskan' : '-',
+    'Petugas Approval': record.assignee_approval ? '✓ Ditugaskan' : '-',
+    'Catatan': record.assignment_reason || '-'
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  worksheet['!cols'] = [
+    { wch: 5 },
+    { wch: 28 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 40 }
+  ];
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'History Penugasan');
+};
+
 export function exportComplaintReportToExcel({
   complaint,
   approvalData,
@@ -380,6 +449,10 @@ export function exportComplaintReportToExcel({
 
   appendSheet(workbook, reportSheetNames[reportType], reportRows);
   appendEvidenceSheet(workbook, evidenceFiles);
+
+  // Tambahkan sheet history penugasan di semua tipe report
+  const assignmentHistory: LooseRecord[] = complaint.complaint_assignment_history || [];
+  appendAssignmentHistorySheet(workbook, assignmentHistory);
 
   const ticketNumber = sanitizeFilename(complaint.complaint_number || `complaint-${complaint.id}`);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

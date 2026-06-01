@@ -76,10 +76,31 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
   // States for Approval Flow
   const [showRequestApprovalModal, setShowRequestApprovalModal] = useState(false);
   const [approvalItem, setApprovalItem] = useState('');
+  const [approvalQty, setApprovalQty] = useState('');
+  const [approvalProductId, setApprovalProductId] = useState('');
+  const [approvalProducts, setApprovalProducts] = useState<{ id: number; name: string }[]>([]);
+  const [approvalProductsLoading, setApprovalProductsLoading] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState('');
   const [showFinalValidityModal, setShowFinalValidityModal] = useState(false);
   const [finalValidity, setFinalValidity] = useState<ComplaintValidity | ''>(complaint.complaint_validity || '');
   const [pendingFinalAction, setPendingFinalAction] = useState<{ status: string; message?: string } | null>(null);
+
+  const loadApprovalProducts = async () => {
+    if (approvalProducts.length > 0) return;
+    setApprovalProductsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name')
+        .order('name', { ascending: true });
+      if (data) setApprovalProducts(data);
+      if (error) console.error('Gagal memuat produk:', error.message);
+    } catch (err) {
+      console.error('Error loading products:', err);
+    } finally {
+      setApprovalProductsLoading(false);
+    }
+  };
 
   const activeAssignees = [
     complaint.assignee_observasi,
@@ -154,8 +175,12 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
 
   // 🔥 HANDLER UNTUK REQUEST APPROVAL (NEW)
   const handleRequestApproval = async () => {
-    if (!approvalItem.trim()) {
-      toast.error('Item penggantian harus diisi');
+    const selectedProduct = approvalProducts.find(p => String(p.id) === approvalProductId);
+    const generatedItem = approvalQty && selectedProduct
+      ? `${approvalQty} Kg - ${selectedProduct.name}`
+      : approvalItem.trim();
+    if (!generatedItem) {
+      toast.error('Qty dan produk penggantian harus diisi');
       return;
     }
     setUpdating(true);
@@ -164,14 +189,17 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          replacement_item: approvalItem,
+          replacement_item: generatedItem,
           notes: approvalNotes
         })
       });
       if (!resp.ok) throw new Error('Gagal mengajukan approval');
       toast.success('Approval berhasil diajukan');
       setShowRequestApprovalModal(false);
-      if (onApprovalUpdate) onApprovalUpdate(); // Refresh approval data in parent
+      setApprovalQty('');
+      setApprovalProductId('');
+      setApprovalNotes('');
+      if (onApprovalUpdate) onApprovalUpdate();
     } catch (err: any) {
       toast.error(err.message || 'Terjadi kesalahan');
     } finally {
@@ -386,7 +414,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
               {!approvalData ? (
                 // 1. Belum ada request approval diajukan
                 <button
-                  onClick={() => setShowRequestApprovalModal(true)}
+                  onClick={() => { setShowRequestApprovalModal(true); loadApprovalProducts(); }}
                   disabled={updating}
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
                 >
@@ -687,17 +715,55 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Usulan Item Pengganti */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Usulan Item Pengganti <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={approvalItem}
-                  onChange={(e) => setApprovalItem(e.target.value)}
-                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
-                  placeholder="Contoh: 5 Sak Benih Hybrid X"
-                />
+                <div className="flex gap-3 items-center">
+                  {/* Qty input */}
+                  <div className="flex items-center gap-1.5 w-36 flex-shrink-0">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Qty:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={approvalQty}
+                      onChange={(e) => setApprovalQty(e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base px-3 py-2.5 text-center"
+                      placeholder="0"
+                    />
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Kg</span>
+                  </div>
+                  {/* Dropdown produk */}
+                  <div className="flex-1">
+                    {approvalProductsLoading ? (
+                      <div className="w-full rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-400 flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                        Memuat produk...
+                      </div>
+                    ) : (
+                      <select
+                        value={approvalProductId}
+                        onChange={(e) => setApprovalProductId(e.target.value)}
+                        className="w-full rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2.5"
+                      >
+                        <option value="">-- Pilih Produk --</option>
+                        {approvalProducts.map((p) => (
+                          <option key={p.id} value={String(p.id)}>{p.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+                {/* Preview item */}
+                {(approvalQty || approvalProductId) && (
+                  <p className="mt-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-1.5">
+                    Item: <span className="font-semibold">
+                      {approvalQty || '?'} Kg{approvalProductId && approvalProducts.find(p => String(p.id) === approvalProductId) ? ` - ${approvalProducts.find(p => String(p.id) === approvalProductId)!.name}` : ''}
+                    </span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -723,7 +789,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
               </button>
               <button
                 onClick={handleRequestApproval}
-                disabled={updating || !approvalItem}
+                disabled={updating || !approvalQty || !approvalProductId}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 disabled:opacity-50 transition-colors"
               >
                 {updating ? 'Mengirim...' : 'Ajukan Request'}
@@ -1464,6 +1530,19 @@ export default function ComplaintDetailPage() {
               </p>
             </div>
             <div className="flex-shrink-0 flex items-center gap-3">
+              {complaint && (
+                <Link
+                  href={`/admin/complaints/${id}/print`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Summary PDF
+                </Link>
+              )}
               <button
                 onClick={loadComplaint}
                 disabled={loading}
