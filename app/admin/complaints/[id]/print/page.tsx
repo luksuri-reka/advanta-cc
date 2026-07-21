@@ -5,7 +5,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { getProfile } from '../../../../utils/auth';
-import { generateObservationSummary } from '@/app/utils/observationSummary';
+import {
+  formatReplacementDestination,
+  formatReplacementProposal,
+  generateObservationSummary
+} from '@/app/utils/observationSummary';
 import AdminSpinner from '@/app/admin/components/AdminSpinner';
 import { COMPLAINT_VALIDITY_LABELS } from '@/app/utils/complaintStatus';
 
@@ -153,6 +157,15 @@ export default function ComplaintPrintPage() {
   const inv = complaint.complaint_investigations?.[0] ?? null;
   const lab = complaint.complaint_lab_testing?.[0] ?? null;
   const obsSummary = generateObservationSummary(obs);
+  const approvalReplacementProposal = formatReplacementProposal(
+    approvalData?.replacement_qty,
+    approvalData?.replacement_product_name
+  ) || approvalData?.replacement_item || null;
+  const approvalReplacementDestination = formatReplacementDestination(
+    approvalData?.replacement_destination_type,
+    approvalData?.replacement_destination_name,
+    approvalData?.replacement_destination_address
+  );
 
   const statusLabel = STATUS_LABELS[complaint.status] ?? complaint.status;
   const validityLabel = complaint.complaint_validity
@@ -347,8 +360,11 @@ export default function ComplaintPrintPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 16px', marginBottom: '6px' }}>
                 <Field label="Bukti Pembelian" value={obs.has_purchase_proof === 'Ya' ? '✓ Ada' : '✗ Tidak Ada'} />
                 <Field label="Kemasan Produk" value={obs.has_packaging_evidence === 'Ya' ? '✓ Ada' : '✗ Tidak Ada'} />
-                {obs.replacement_qty && obs.replacement_hybrid && (
-                  <Field label="Usulan Penggantian Obs." value={`${obs.replacement_qty} unit — ${obs.replacement_hybrid}`} />
+                {obsSummary.replacementProposal && (
+                  <Field label="Usulan Penggantian Obs." value={obsSummary.replacementProposal} />
+                )}
+                {obsSummary.replacementDestination && (
+                  <Field label="Lokasi Penggantian" value={obsSummary.replacementDestination} wide />
                 )}
               </div>
 
@@ -396,7 +412,7 @@ export default function ComplaintPrintPage() {
             <>
               <SectionHeader color="#9d174d" title="Approval Penggantian" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 16px', marginBottom: '6px' }}>
-                <Field label="Item Pengganti" value={approvalData.replacement_item} />
+                <Field label="Item Pengganti" value={approvalReplacementProposal} />
                 <Field
                   label="Status Approval"
                   value={
@@ -405,6 +421,9 @@ export default function ComplaintPrintPage() {
                   }
                 />
                 <Field label="Diputuskan oleh" value={approvalData.approved_user?.full_name} />
+                {approvalReplacementDestination && (
+                  <Field label="Lokasi Penggantian" value={approvalReplacementDestination} wide />
+                )}
                 {approvalData.notes && <Field label="Catatan" value={approvalData.notes} wide />}
               </div>
               <Divider />

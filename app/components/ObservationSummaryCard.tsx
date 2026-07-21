@@ -35,29 +35,38 @@ export default function ObservationSummaryCard({ data }: { data: ObservationData
             {summary.shortSummary}
           </p>
           
-          {summary.status !== 'Pending' && (
+          {(summary.status !== 'Pending' || summary.replacementProposal || summary.replacementDestination) && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                    <p className="text-gray-500 dark:text-gray-400">Observer</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{summary.observerName}</p>
-                </div>
-                <div>
-                    <p className="text-gray-500 dark:text-gray-400">Tanggal Observasi</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{summary.observationDate}</p>
-                </div>
-                {summary.totalIssuesFound > 0 && (
+                {summary.status !== 'Pending' && (
+                  <>
                     <div>
-                    <p className="text-gray-500 dark:text-gray-400">Masalah Ditemukan</p>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                        {summary.totalIssuesFound} kriteria
-                    </p>
+                        <p className="text-gray-500 dark:text-gray-400">Observer</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{summary.observerName}</p>
                     </div>
+                    <div>
+                        <p className="text-gray-500 dark:text-gray-400">Tanggal Observasi</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{summary.observationDate}</p>
+                    </div>
+                    {summary.totalIssuesFound > 0 && (
+                        <div>
+                        <p className="text-gray-500 dark:text-gray-400">Masalah Ditemukan</p>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                            {summary.totalIssuesFound} kriteria
+                        </p>
+                        </div>
+                    )}
+                  </>
                 )}
-                {/* 🔥 HANYA tampilkan jika Valid DAN ada proposal */}
-                {summary.status === 'Valid' && summary.replacementProposal && (
+                {summary.replacementProposal && (
                     <div>
                     <p className="text-gray-500 dark:text-gray-400">Usulan Penggantian</p>
                     <p className="font-medium text-gray-900 dark:text-white">{summary.replacementProposal}</p>
+                    </div>
+                )}
+                {summary.replacementDestination && (
+                    <div className="col-span-2">
+                    <p className="text-gray-500 dark:text-gray-400">Lokasi Penggantian</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{summary.replacementDestination}</p>
                     </div>
                 )}
             </div>

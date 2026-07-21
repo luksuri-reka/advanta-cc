@@ -30,6 +30,16 @@ import {
   type ComplaintValidity
 } from '@/app/utils/complaintStatus';
 
+interface ComplaintObservation {
+  replacement_qty?: number | string | null;
+  replacement_product_name?: string | null;
+  replacement_hybrid?: string | null;
+  replacement_destination_type?: 'distributor' | 'retailer' | null;
+  replacement_destination_name?: string | null;
+  replacement_destination_address?: string | null;
+  updated_at?: string;
+}
+
 // Interface sesuai Database
 interface Complaint {
   id: number;
@@ -56,6 +66,7 @@ interface Complaint {
   complaint_case_type_names?: string[];
   resolution_summary?: string;
   customer_satisfaction_rating?: number;
+  complaint_observations?: ComplaintObservation[];
 }
 
 interface DisplayUser {
@@ -69,6 +80,28 @@ interface SortConfig {
   key: keyof Complaint | 'location' | 'age' | null;
   direction: SortDirection;
 }
+
+const formatReplacementSummary = (observation?: ComplaintObservation) => {
+  if (!observation) return '-';
+
+  const replacementQty = observation.replacement_qty;
+  const formattedQty = replacementQty == null || replacementQty === ''
+    ? ''
+    : Number.isNaN(Number(replacementQty))
+      ? String(replacementQty)
+      : String(Number(replacementQty));
+  const productName = observation.replacement_product_name || observation.replacement_hybrid || '';
+
+  return [formattedQty ? `${formattedQty} Kg` : '', productName]
+    .filter(Boolean)
+    .join(' ') || '-';
+};
+
+const formatReplacementDestinationType = (type?: ComplaintObservation['replacement_destination_type']) => {
+  if (type === 'distributor') return 'Distributor';
+  if (type === 'retailer') return 'Retailer/Kios';
+  return '-';
+};
 
 export default function AdminComplaintsPage() {
   const router = useRouter();
@@ -243,6 +276,10 @@ export default function AdminComplaintsPage() {
         'Nama Produk': item.related_product_name || '-',
         'Nomor Lot': item.lot_number || '-',
         'Quantity Bermasalah': item.problematic_quantity || '-',
+        'Usulan Penggantian': formatReplacementSummary(item.complaint_observations?.[0]),
+        'Tipe Tujuan Penggantian': formatReplacementDestinationType(item.complaint_observations?.[0]?.replacement_destination_type),
+        'Nama Distributor/Kios': item.complaint_observations?.[0]?.replacement_destination_name || '-',
+        'Alamat Pengiriman': item.complaint_observations?.[0]?.replacement_destination_address || '-',
         'Serial Number Produk': item.related_product_serial || '-',
         'Ringkasan Solusi': item.resolution_summary || '-',
         'Rating Kepuasan (1-5)': item.customer_satisfaction_rating ?? '-',
@@ -271,6 +308,10 @@ export default function AdminComplaintsPage() {
         { wch: 25 },  // Nama Produk
         { wch: 18 },  // Nomor Lot
         { wch: 18 },  // Quantity Bermasalah
+        { wch: 30 },  // Usulan Penggantian
+        { wch: 24 },  // Tipe Tujuan Penggantian
+        { wch: 30 },  // Nama Distributor/Kios
+        { wch: 45 },  // Alamat Pengiriman
         { wch: 22 },  // Serial Number Produk
         { wch: 40 },  // Ringkasan Solusi
         { wch: 18 },  // Rating Kepuasan

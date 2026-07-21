@@ -21,8 +21,11 @@ export interface ObservationData {
   planting_depth_over_7cm?: string | null;
   has_purchase_proof?: string | null;
   has_packaging_evidence?: string | null;
-  replacement_qty?: number | null;
+  replacement_qty?: number | string | null;
   replacement_hybrid?: string | null;
+  replacement_destination_type?: string | null;
+  replacement_destination_name?: string | null;
+  replacement_destination_address?: string | null;
   observation_result?: string | null;
   general_notes?: string | null;
 }
@@ -41,13 +44,71 @@ export interface ObservationSummary {
   hasProof: boolean;
   hasPackaging: boolean;
   replacementProposal: string | null;
+  replacementDestination: string | null;
   daysSincePlanting: number | null;
   isExpired: boolean;
   shortSummary: string;
   detailedSummary: string;
 }
 
+export function formatReplacementProposal(
+  quantity?: number | string | null,
+  hybrid?: string | null
+): string | null {
+  const rawQuantity = typeof quantity === 'string' ? quantity.trim() : quantity;
+  const productName = hybrid?.trim() || '';
+  const hasQuantity = rawQuantity !== null && rawQuantity !== undefined && rawQuantity !== '';
+
+  if (!hasQuantity && !productName) return null;
+
+  const parts: string[] = [];
+  if (hasQuantity) {
+    const numericQuantity = typeof rawQuantity === 'number'
+      ? rawQuantity
+      : Number(String(rawQuantity).replace(',', '.'));
+    const formattedQuantity = Number.isFinite(numericQuantity)
+      ? numericQuantity.toLocaleString('id-ID', { maximumFractionDigits: 2 })
+      : String(rawQuantity);
+    parts.push(`${formattedQuantity} Kg`);
+  }
+  if (productName) parts.push(productName);
+
+  return parts.join(' ');
+}
+
+export function formatReplacementDestination(
+  type?: string | null,
+  name?: string | null,
+  address?: string | null
+): string | null {
+  const destinationName = name?.trim() || '';
+  const destinationAddress = address?.trim() || '';
+  const detail = [destinationName, destinationAddress].filter(Boolean).join(' — ');
+
+  // Records created before destination tracking was introduced legitimately
+  // contain nulls here, so do not manufacture an empty destination label.
+  if (!detail) return null;
+
+  const typeLabel = type === 'distributor'
+    ? 'Distributor'
+    : type === 'retailer'
+      ? 'Retailer/Kios'
+      : null;
+
+  return typeLabel ? `${typeLabel}: ${detail}` : detail;
+}
+
 export function generateObservationSummary(data: ObservationData | null): ObservationSummary {
+  const replacementProposal = formatReplacementProposal(
+    data?.replacement_qty,
+    data?.replacement_hybrid
+  );
+  const replacementDestination = formatReplacementDestination(
+    data?.replacement_destination_type,
+    data?.replacement_destination_name,
+    data?.replacement_destination_address
+  );
+
   if (!data || !data.observation_result) {
     return {
       status: 'Pending',
@@ -62,7 +123,8 @@ export function generateObservationSummary(data: ObservationData | null): Observ
       issuesList: [],
       hasProof: false,
       hasPackaging: false,
-      replacementProposal: null,
+      replacementProposal,
+      replacementDestination,
       daysSincePlanting: null,
       isExpired: false,
       shortSummary: 'Menunggu hasil observasi lapangan',
@@ -132,11 +194,6 @@ export function generateObservationSummary(data: ObservationData | null): Observ
   const hasProof = data.has_purchase_proof === 'Ya';
   const hasPackaging = data.has_packaging_evidence === 'Ya';
 
-  // Replacement
-  let replacementProposal = null;
-  if (status === 'Valid' && data.replacement_qty && data.replacement_hybrid) {
-  replacementProposal = `${data.replacement_qty} unit ${data.replacement_hybrid}`;
-  }
 
   // Timeline
   let daysSincePlanting = null;
@@ -185,9 +242,12 @@ export function generateObservationSummary(data: ObservationData | null): Observ
     parts.push('\n⚠️ **Catatan Penting:** Benih dibeli setelah melewati tanggal expired pada label');
     }
 
-    // 🔥 HANYA tampilkan replacement jika Valid
-    if (status === 'Valid' && replacementProposal) {
+    if (replacementProposal) {
     parts.push(`\n**Usulan Penggantian:** ${replacementProposal}`);
+    }
+
+    if (replacementDestination) {
+    parts.push(`**Lokasi Penggantian:** ${replacementDestination}`);
     }
 
     parts.push(`\n**Kesimpulan:** ${status === 'Valid' 
@@ -215,6 +275,7 @@ export function generateObservationSummary(data: ObservationData | null): Observ
     hasProof,
     hasPackaging,
     replacementProposal,
+    replacementDestination,
     daysSincePlanting,
     isExpired,
     shortSummary,

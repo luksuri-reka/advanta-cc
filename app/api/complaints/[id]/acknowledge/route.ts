@@ -17,10 +17,12 @@ export async function POST(
     }
 
     const { replacement_qty, replacement_hybrid } = body;
+    const replacementQty = Number(replacement_qty);
+    const replacementProduct = typeof replacement_hybrid === 'string' ? replacement_hybrid.trim() : '';
 
-    if (!replacement_qty || !replacement_hybrid) {
+    if (!Number.isFinite(replacementQty) || replacementQty <= 0 || !replacementProduct) {
       return NextResponse.json({
-        error: 'Replacement qty and hybrid are required'
+        error: 'Qty Kg harus lebih dari 0 dan produk penggantian wajib dipilih'
       }, { status: 400 });
     }
 
@@ -29,8 +31,8 @@ export async function POST(
       .from('complaints')
       .update({
         status: 'acknowledged',
-        acknowledged_replacement_qty: replacement_qty,
-        acknowledged_replacement_hybrid: replacement_hybrid,
+        acknowledged_replacement_qty: replacementQty,
+        acknowledged_replacement_hybrid: replacementProduct,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
@@ -46,7 +48,7 @@ export async function POST(
         old_value: 'submitted',
         new_value: 'acknowledged',
         created_by: user.id,
-        notes: `Acknowledged with replacement: ${replacement_qty} unit ${replacement_hybrid}`
+        notes: `Acknowledged with replacement: ${replacementQty} Kg ${replacementProduct}`
       });
 
     // 3. Kirim notifikasi ke customer
@@ -69,8 +71,8 @@ export async function POST(
             email: complaint.customer_email,
             complaint_number: complaint.complaint_number,
             customer_name: complaint.customer_name,
-            replacement_qty,
-            replacement_hybrid
+            replacement_qty: replacementQty,
+            replacement_hybrid: replacementProduct
           })
         }).catch(err => console.error('Email notification failed:', err));
       }
@@ -85,8 +87,8 @@ export async function POST(
             customer_phone: complaint.customer_phone,
             complaint_number: complaint.complaint_number,
             customer_name: complaint.customer_name,
-            replacement_qty,
-            replacement_hybrid
+            replacement_qty: replacementQty,
+            replacement_hybrid: replacementProduct
           })
         }).catch(err => console.error('WhatsApp notification failed:', err));
       }

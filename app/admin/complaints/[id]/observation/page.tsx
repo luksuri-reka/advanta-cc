@@ -16,6 +16,18 @@ import { toast, Toaster } from 'react-hot-toast';
 import { createBrowserClient } from '@supabase/ssr';
 import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
 
+interface ProductOption {
+  id: number;
+  name: string;
+}
+
+interface DistributorOption {
+  id: number;
+  name: string;
+  address: string | null;
+  type: string | null;
+}
+
 export default function ObservationFormPage() {
   const params = useParams();
   const router = useRouter();
@@ -23,6 +35,9 @@ export default function ObservationFormPage() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [distributors, setDistributors] = useState<DistributorOption[]>([]);
+  const [masterDataLoading, setMasterDataLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     planting_date: '',
@@ -47,7 +62,12 @@ export default function ObservationFormPage() {
     has_purchase_proof: '',
     has_packaging_evidence: '',
     replacement_qty: '',
+    replacement_product_id: '',
     replacement_hybrid: '',
+    replacement_destination_type: '',
+    replacement_distributor_id: '',
+    replacement_destination_name: '',
+    replacement_destination_address: '',
     general_notes: '',
     observation_result: '',
     evidence_files: [] as string[]
@@ -77,34 +97,188 @@ export default function ObservationFormPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`/api/complaints/${id}/observation`);
+        const [response, productsResult, distributorsResult] = await Promise.all([
+          fetch(`/api/complaints/${id}/observation`),
+          supabase
+            .from('products')
+            .select('id, name')
+            .order('name', { ascending: true }),
+          supabase
+            .from('companies')
+            .select('id, name, address, type')
+            .in('type', ['Distributor', 'Sub-distributor'])
+            .order('name', { ascending: true })
+        ]);
+
+        const productOptions: ProductOption[] = (productsResult.data || []).map(product => ({
+          id: Number(product.id),
+          name: String(product.name)
+        }));
+        const distributorOptions: DistributorOption[] = (distributorsResult.data || []).map(company => ({
+          id: Number(company.id),
+          name: String(company.name),
+          address: company.address ? String(company.address) : null,
+          type: company.type ? String(company.type) : null
+        }));
+
+        if (productsResult.error) {
+          console.error('Error fetching products:', productsResult.error);
+          toast.error('Daftar produk penggantian gagal dimuat');
+        }
+        if (distributorsResult.error) {
+          console.error('Error fetching distributors:', distributorsResult.error);
+          toast.error('Daftar distributor gagal dimuat');
+        }
+
+        setProducts(productOptions);
+        setDistributors(distributorOptions);
+
         if (response.ok) {
           const result = await response.json();
           if (result.data) {
+            const observation = result.data;
+            const matchedProduct = productOptions.find(product =>
+              product.name.toLowerCase() === String(observation.replacement_hybrid || '').toLowerCase()
+            );
+            const replacementProductId = observation.replacement_product_id
+              ? String(observation.replacement_product_id)
+              : matchedProduct
+                ? String(matchedProduct.id)
+                : '';
+            const matchedDistributor = distributorOptions.find(distributor =>
+              String(distributor.id) === String(observation.replacement_distributor_id || '')
+            );
+
             setFormData(prev => ({
               ...prev,
-              ...result.data,
-              observation_date: result.data.observation_date ? result.data.observation_date.split('T')[0] : prev.observation_date,
-              evidence_files: result.data.evidence_files || []
+              ...observation,
+              observation_date: observation.observation_date
+                ? observation.observation_date.split('T')[0]
+                : prev.observation_date,
+              replacement_qty: observation.replacement_qty != null
+                ? String(observation.replacement_qty)
+                : '',
+              replacement_product_id: replacementProductId,
+              replacement_hybrid: observation.replacement_hybrid || matchedProduct?.name || '',
+              replacement_destination_type: observation.replacement_destination_type || '',
+              replacement_distributor_id: observation.replacement_distributor_id
+                ? String(observation.replacement_distributor_id)
+                : '',
+              replacement_destination_name: observation.replacement_destination_name || matchedDistributor?.name || '',
+              replacement_destination_address: observation.replacement_destination_address || matchedDistributor?.address || '',
+              evidence_files: observation.evidence_files || []
             }));
           }
+        } else {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.error || 'Data observasi gagal dimuat');
         }
       } catch (error) {
         console.error('Error fetching observation:', error);
+        toast.error('Data observasi gagal dimuat');
       } finally {
         setLoading(false);
+        setMasterDataLoading(false);
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, supabase]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const productId = e.target.value;
+    const selectedProduct = products.find(product => String(product.id) === productId);
+    setFormData(prev => ({
+      ...prev,
+      replacement_product_id: productId,
+      replacement_hybrid: selectedProduct?.name || ''
+    }));
+  };
+
+  const handleDestinationTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      replacement_destination_type: e.target.value,
+      replacement_distributor_id: '',
+      replacement_destination_name: '',
+      replacement_destination_address: ''
+    }));
+  };
+
+  const handleDistributorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const distributorId = e.target.value;
+    const selectedDistributor = distributors.find(distributor => String(distributor.id) === distributorId);
+    setFormData(prev => ({
+      ...prev,
+      replacement_distributor_id: distributorId,
+      replacement_destination_name: selectedDistributor?.name || '',
+      replacement_destination_address: selectedDistributor?.address || ''
+    }));
+  };
+
+  const hasReplacementProposal = [
+    formData.replacement_qty,
+    formData.replacement_product_id,
+    formData.replacement_hybrid,
+    formData.replacement_destination_type,
+    formData.replacement_distributor_id,
+    formData.replacement_destination_name,
+    formData.replacement_destination_address
+  ].some(value => value.trim() !== '');
+  const replacementRequired = formData.observation_result === 'Valid' || hasReplacementProposal;
+
+  const validateReplacementProposal = () => {
+    if (!replacementRequired) return true;
+
+    const replacementQty = Number(formData.replacement_qty);
+    if (!Number.isFinite(replacementQty) || replacementQty <= 0) {
+      toast.error('Qty penggantian harus lebih dari 0 Kg');
+      return false;
+    }
+
+    if (!products.some(product => String(product.id) === formData.replacement_product_id)) {
+      toast.error('Pilih produk penggantian dari daftar produk');
+      return false;
+    }
+
+    if (!['distributor', 'retailer'].includes(formData.replacement_destination_type)) {
+      toast.error('Pilih tujuan penggantian melalui distributor atau retailer/kios');
+      return false;
+    }
+
+    if (formData.replacement_destination_type === 'distributor') {
+      const selectedDistributor = distributors.find(
+        distributor => String(distributor.id) === formData.replacement_distributor_id
+      );
+      if (!selectedDistributor) {
+        toast.error('Pilih distributor tujuan penggantian');
+        return false;
+      }
+      if (!formData.replacement_destination_address.trim()) {
+        toast.error('Alamat distributor belum tersedia di master perusahaan');
+        return false;
+      }
+    }
+
+    if (
+      formData.replacement_destination_type === 'retailer'
+      && (!formData.replacement_destination_name.trim() || !formData.replacement_destination_address.trim())
+    ) {
+      toast.error('Nama dan alamat retailer/kios tujuan wajib diisi');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateReplacementProposal()) return;
+
     setSubmitting(true);
     const loadingToast = toast.loading('Sedang menyimpan data dan mengunggah dokumen...');
 
@@ -631,46 +805,157 @@ export default function ObservationFormPage() {
                 Tentukan usulan penggantian benih (Wajib jika Valid, Opsional jika Invalid)
               </p>
             </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Qty <span className="text-red-500">*</span>
+                    Qty (Kg) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
                     name="replacement_qty"
                     value={formData.replacement_qty}
                     onChange={handleChange}
-                    required={formData.observation_result === 'Valid'}
+                    min="0.01"
+                    step="0.01"
+                    inputMode="decimal"
+                    required={replacementRequired}
                     className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
-                    placeholder="Jumlah unit"
+                    placeholder="Contoh: 4.50"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Hybrid <span className="text-red-500">*</span>
+                    Produk Hybrid <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="replacement_hybrid"
-                    value={formData.replacement_hybrid}
-                    onChange={handleChange}
-                    required={formData.observation_result === 'Valid'}
+                  <select
+                    name="replacement_product_id"
+                    value={formData.replacement_product_id}
+                    onChange={handleProductChange}
+                    required={replacementRequired}
+                    disabled={masterDataLoading}
                     className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
-                    placeholder="Nama varietas hybrid"
-                  />
+                  >
+                    <option value="">
+                      {masterDataLoading ? 'Memuat produk...' : 'Pilih produk penggantian'}
+                    </option>
+                    {products.map(product => (
+                      <option key={product.id} value={String(product.id)}>{product.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-              {!formData.replacement_qty && !formData.replacement_hybrid && (
-                <div className="px-6 pb-6">
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                    <p className="text-xs text-yellow-800 dark:text-yellow-300">
-                      ⚠️ Wajib diisi jika komplain diterima
-                    </p>
+
+              <div className="pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Lokasi Pengiriman/Pengambilan Penggantian <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="replacement_destination_type"
+                        value="distributor"
+                        checked={formData.replacement_destination_type === 'distributor'}
+                        onChange={handleDestinationTypeChange}
+                        required={replacementRequired}
+                        className="w-4 h-4 text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Lewat Distributor</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="replacement_destination_type"
+                        value="retailer"
+                        checked={formData.replacement_destination_type === 'retailer'}
+                        onChange={handleDestinationTypeChange}
+                        required={replacementRequired}
+                        className="w-4 h-4 text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Lewat Retailer/Kios</span>
+                    </label>
                   </div>
                 </div>
-              )}
+
+                {formData.replacement_destination_type === 'distributor' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Distributor dan Alamat <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="replacement_distributor_id"
+                      value={formData.replacement_distributor_id}
+                      onChange={handleDistributorChange}
+                      required={replacementRequired}
+                      disabled={masterDataLoading}
+                      className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                    >
+                      <option value="">
+                        {masterDataLoading ? 'Memuat distributor...' : 'Pilih distributor'}
+                      </option>
+                      {distributors.map(distributor => (
+                        <option key={distributor.id} value={String(distributor.id)}>
+                          {distributor.type ? `[${distributor.type}] ` : ''}{distributor.name} — {distributor.address || 'Alamat belum tersedia'}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.replacement_distributor_id && (
+                      <div className="mt-3 rounded-lg bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 p-3">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Alamat tujuan</p>
+                        <p className="mt-1 text-sm text-gray-800 dark:text-gray-200">
+                          {formData.replacement_destination_address || 'Alamat belum tersedia di master perusahaan'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {formData.replacement_destination_type === 'retailer' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Nama Retailer/Kios <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="replacement_destination_name"
+                        value={formData.replacement_destination_name}
+                        onChange={handleChange}
+                        required={replacementRequired}
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                        placeholder="Nama retailer atau kios"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Alamat Retailer/Kios <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        name="replacement_destination_address"
+                        rows={2}
+                        value={formData.replacement_destination_address}
+                        onChange={handleChange}
+                        required={replacementRequired}
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                        placeholder="Alamat lengkap retailer atau kios"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <p className="text-xs text-yellow-800 dark:text-yellow-300">
+                  {replacementRequired
+                    ? '⚠️ Lengkapi Qty (Kg), produk, dan lokasi tujuan penggantian.'
+                    : 'Usulan penggantian boleh dikosongkan jika komplain dinyatakan tidak valid.'}
+                </p>
+              </div>
             </div>
+          </div>
+
           {/* Pesan jika ditolak */}
           {formData.observation_result === 'Invalid' && (
             <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800 p-6">

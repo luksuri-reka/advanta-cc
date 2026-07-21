@@ -94,6 +94,12 @@ const formatApprovalStatus = (status?: string) => {
   return status ? labels[status] || status : '-';
 };
 
+const formatReplacementDestinationType = (type?: string | null) => {
+  if (type === 'distributor') return 'Distributor';
+  if (type === 'retailer') return 'Retailer/Kios';
+  return '-';
+};
+
 const formatUser = (user?: LooseRecord | null) => {
   if (!user) return '-';
   return [user.full_name || user.name, user.department, user.job_title]
@@ -237,9 +243,14 @@ const buildObservationRows = (observation: LooseRecord): SheetRow[] => [
     ['Ada Bukti Kemasan', observation.has_packaging_evidence],
     ['Jumlah Lampiran', observation.evidence_files?.length || 0],
     ['Hasil Observasi', observation.observation_result],
-    ['Qty Penggantian', observation.replacement_qty],
-    ['Hybrid Penggantian', observation.replacement_hybrid],
     ['Catatan Umum', observation.general_notes]
+  ]),
+  ...sectionRows('Usulan Penggantian', [
+    ['Qty Penggantian (Kg)', observation.replacement_qty],
+    ['Produk Penggantian', observation.replacement_product_name || observation.replacement_hybrid],
+    ['Tipe Tujuan Penggantian', formatReplacementDestinationType(observation.replacement_destination_type)],
+    ['Nama Distributor/Kios', observation.replacement_destination_name],
+    ['Alamat Pengiriman', observation.replacement_destination_address]
   ])
 ];
 

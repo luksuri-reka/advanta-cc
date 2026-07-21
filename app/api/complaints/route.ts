@@ -381,9 +381,61 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const complaints = data || [];
+    const observationsByComplaint = new Map<string, any[]>();
+    const complaintIds = complaints.map(complaint => complaint.id).filter(Boolean);
+    const observationBatchSize = 200;
+    let useLegacyObservationFields = false;
+
+    // Ambil observation secara batch agar export rekap tidak melakukan query per complaint.
+    // Fallback field lama menjaga list complaint tetap dapat dibuka saat migrasi baru belum diterapkan.
+    for (let index = 0; index < complaintIds.length; index += observationBatchSize) {
+      const idBatch = complaintIds.slice(index, index + observationBatchSize);
+      const observationFields = useLegacyObservationFields
+        ? 'complaint_id, replacement_qty, replacement_hybrid, updated_at'
+        : 'complaint_id, replacement_qty, replacement_product_id, replacement_hybrid, replacement_destination_type, replacement_distributor_id, replacement_destination_name, replacement_destination_address, updated_at';
+
+      const observationResult = await supabase
+        .from('complaint_observations')
+        .select(observationFields)
+        .in('complaint_id', idBatch)
+        .order('updated_at', { ascending: false });
+      let observationData = observationResult.data as any[] | null;
+      let observationError = observationResult.error;
+
+      if (observationError && !useLegacyObservationFields) {
+        console.warn('Kolom tujuan penggantian belum tersedia, memakai field observation lama:', observationError.message);
+        useLegacyObservationFields = true;
+        const legacyResult = await supabase
+          .from('complaint_observations')
+          .select('complaint_id, replacement_qty, replacement_hybrid, updated_at')
+          .in('complaint_id', idBatch)
+          .order('updated_at', { ascending: false });
+        observationData = legacyResult.data;
+        observationError = legacyResult.error;
+      }
+
+      if (observationError) {
+        console.warn('Observation tidak dapat dimuat untuk rekap complaint:', observationError.message);
+        continue;
+      }
+
+      for (const observation of observationData || []) {
+        const complaintId = String(observation.complaint_id);
+        const observations = observationsByComplaint.get(complaintId) || [];
+        observations.push(observation);
+        observationsByComplaint.set(complaintId, observations);
+      }
+    }
+
+    const enrichedComplaints = complaints.map(complaint => ({
+      ...complaint,
+      complaint_observations: observationsByComplaint.get(String(complaint.id)) || []
+    }));
+
     return NextResponse.json({
       success: true,
-      data: data || []
+      data: enrichedComplaints
     });
 
   } catch (error: any) {

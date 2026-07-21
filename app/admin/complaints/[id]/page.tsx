@@ -75,7 +75,6 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
 
   // States for Approval Flow
   const [showRequestApprovalModal, setShowRequestApprovalModal] = useState(false);
-  const [approvalItem, setApprovalItem] = useState('');
   const [approvalQty, setApprovalQty] = useState('');
   const [approvalProductId, setApprovalProductId] = useState('');
   const [approvalProducts, setApprovalProducts] = useState<{ id: number; name: string }[]>([]);
@@ -86,20 +85,62 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
   const [pendingFinalAction, setPendingFinalAction] = useState<{ status: string; message?: string } | null>(null);
 
   const loadApprovalProducts = async () => {
-    if (approvalProducts.length > 0) return;
+    if (approvalProducts.length > 0) return approvalProducts;
     setApprovalProductsLoading(true);
     try {
       const { data, error } = await supabase
         .from('products')
         .select('id, name')
         .order('name', { ascending: true });
-      if (data) setApprovalProducts(data);
-      if (error) console.error('Gagal memuat produk:', error.message);
+      if (error) throw error;
+      const products = data || [];
+      setApprovalProducts(products);
+      return products;
     } catch (err) {
       console.error('Error loading products:', err);
+      toast.error('Daftar produk gagal dimuat');
+      return [];
     } finally {
       setApprovalProductsLoading(false);
     }
+  };
+
+  const replacementObservation = complaint.complaint_observations?.[0];
+  const replacementDestinationLabel = replacementObservation?.replacement_destination_name
+    ? `${replacementObservation.replacement_destination_type === 'distributor' ? 'Distributor' : 'Retailer/Kios'}: ${replacementObservation.replacement_destination_name}${replacementObservation.replacement_destination_address ? ` — ${replacementObservation.replacement_destination_address}` : ''}`
+    : '';
+
+  const openApprovalRequestModal = async () => {
+    const products = await loadApprovalProducts();
+    let qty = replacementObservation?.replacement_qty != null
+      ? String(replacementObservation.replacement_qty)
+      : '';
+    let productId = replacementObservation?.replacement_product_id
+      ? String(replacementObservation.replacement_product_id)
+      : '';
+
+    if (!productId && replacementObservation?.replacement_hybrid) {
+      const product = products.find(
+        item => item.name.toLowerCase() === String(replacementObservation.replacement_hybrid).toLowerCase()
+      );
+      productId = product ? String(product.id) : '';
+    }
+
+    if ((!qty || !productId) && approvalData?.replacement_item) {
+      const previousItem = String(approvalData.replacement_item).match(/^\s*([\d.,]+)\s*Kg\s*(?:-\s*)?(.+?)\s*$/i);
+      if (previousItem) {
+        qty ||= previousItem[1].replace(',', '.');
+        const product = products.find(
+          item => item.name.toLowerCase() === previousItem[2].trim().toLowerCase()
+        );
+        productId ||= product ? String(product.id) : '';
+      }
+    }
+
+    setApprovalQty(qty);
+    setApprovalProductId(productId);
+    setApprovalNotes(approvalData?.status === 'rejected' ? approvalData.notes || '' : '');
+    setShowRequestApprovalModal(true);
   };
 
   const activeAssignees = [
@@ -176,13 +217,12 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
   // 🔥 HANDLER UNTUK REQUEST APPROVAL (NEW)
   const handleRequestApproval = async () => {
     const selectedProduct = approvalProducts.find(p => String(p.id) === approvalProductId);
-    const generatedItem = approvalQty && selectedProduct
-      ? `${approvalQty} Kg - ${selectedProduct.name}`
-      : approvalItem.trim();
-    if (!generatedItem) {
+    const qty = Number(approvalQty);
+    if (!Number.isFinite(qty) || qty <= 0 || !selectedProduct) {
       toast.error('Qty dan produk penggantian harus diisi');
       return;
     }
+    const generatedItem = `${approvalQty} Kg ${selectedProduct.name}`;
     setUpdating(true);
     try {
       const resp = await fetch(`/api/complaints/${complaint.id}/approval`, {
@@ -190,16 +230,27 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           replacement_item: generatedItem,
+          replacement_qty: qty,
+          replacement_product_id: selectedProduct.id,
+          replacement_product_name: selectedProduct.name,
+          replacement_destination_type: replacementObservation?.replacement_destination_type || null,
+          replacement_distributor_id: replacementObservation?.replacement_distributor_id || null,
+          replacement_destination_name: replacementObservation?.replacement_destination_name || null,
+          replacement_destination_address: replacementObservation?.replacement_destination_address || null,
           notes: approvalNotes
         })
       });
-      if (!resp.ok) throw new Error('Gagal mengajukan approval');
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => null);
+        throw new Error(errorData?.error || errorData?.details || 'Gagal mengajukan approval');
+      }
       toast.success('Approval berhasil diajukan');
       setShowRequestApprovalModal(false);
       setApprovalQty('');
       setApprovalProductId('');
       setApprovalNotes('');
       if (onApprovalUpdate) onApprovalUpdate();
+      onStatusChange();
     } catch (err: any) {
       toast.error(err.message || 'Terjadi kesalahan');
     } finally {
@@ -229,8 +280,9 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
 
   // 🔥 HANDLER UNTUK KONFIRMASI DENGAN REPLACEMENT
   const handleAcknowledgeWithReplacement = async () => {
-    if (!replacementQty || !replacementHybrid) {
-      toast.error('Mohon isi qty dan hybrid penggantian');
+    const qty = Number(replacementQty);
+    if (!Number.isFinite(qty) || qty <= 0 || !replacementHybrid) {
+      toast.error('Mohon isi qty Kg dan produk penggantian');
       return;
     }
 
@@ -241,13 +293,14 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          replacement_qty: parseInt(replacementQty),
+          replacement_qty: qty,
           replacement_hybrid: replacementHybrid,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to acknowledge complaint');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Gagal mengonfirmasi komplain');
       }
 
       toast.success('Komplain dikonfirmasi dengan usulan penggantian!');
@@ -255,9 +308,9 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
       setReplacementQty('');
       setReplacementHybrid('');
       onStatusChange();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Acknowledge failed:', error);
-      toast.error('Gagal konfirmasi komplain');
+      toast.error(error.message || 'Gagal konfirmasi komplain');
     } finally {
       setUpdating(false);
     }
@@ -292,7 +345,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
           {complaint.status === 'acknowledged' && (
             <>
               <button
-                onClick={() => setShowReplacementModal(true)}
+                onClick={() => { setShowReplacementModal(true); void loadApprovalProducts(); }}
                 disabled={updating}
                 className="col-span-1 sm:col-span-2 flex flex-col items-center gap-2 p-4 bg-amber-100 dark:bg-amber-900/40 rounded-xl hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors disabled:opacity-50 border border-amber-200 dark:border-amber-800"
               >
@@ -391,6 +444,15 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                     </span>
                   </Link>
                 )}
+                {(isAssignedToMe || isSuperAdmin || isManagement) && (complaint.complaint_observations?.length ?? 0) > 0 && (
+                  <Link
+                    href={`/admin/complaints/${complaint.id}/observation`}
+                    className="sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 border border-amber-400 text-white hover:from-amber-700 hover:to-orange-700 transition-all shadow-md hover:shadow-lg"
+                  >
+                    <PencilSquareIcon className="h-6 w-6" />
+                    <span className="font-bold text-base">Revisi Usulan Penggantian</span>
+                  </Link>
+                )}
               </div>
 
               {/* Tombol Selesai Investigasi */}
@@ -414,7 +476,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
               {!approvalData ? (
                 // 1. Belum ada request approval diajukan
                 <button
-                  onClick={() => { setShowRequestApprovalModal(true); loadApprovalProducts(); }}
+                  onClick={() => void openApprovalRequestModal()}
                   disabled={updating}
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
                 >
@@ -428,6 +490,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                       <span className="block mb-1 text-xs text-amber-600">Request Detail:</span>
                       Item: {approvalData.replacement_item}<br />
                       Notes: {approvalData.notes || '-'}
+                      {replacementDestinationLabel && <><br />Tujuan: {replacementDestinationLabel}</>}
                     </p>
                   </div>
 
@@ -468,7 +531,20 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                     <p className="text-xs text-gray-500 mt-2">
                       Diputuskan oleh: {approvalData.approved_user?.full_name || 'Admin'}
                     </p>
+                    {replacementDestinationLabel && (
+                      <p className="text-xs text-gray-600 mt-2">Tujuan: {replacementDestinationLabel}</p>
+                    )}
                   </div>
+
+                  {approvalData.status === 'rejected' && (
+                    <button
+                      onClick={() => void openApprovalRequestModal()}
+                      disabled={updating}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                    >
+                      Revisi &amp; Ajukan Ulang Penggantian
+                    </button>
+                  )}
 
                   {/* Tombol lanjutan — hanya untuk super admin / management */}
                   {(isSuperAdmin || isManagement) && (
@@ -644,29 +720,37 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Quantity <span className="text-red-500">*</span>
+                    Quantity (Kg) <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="number"
-                    value={replacementQty}
-                    onChange={(e) => setReplacementQty(e.target.value)}
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
-                    placeholder="Jumlah unit"
-                    min="1"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={replacementQty}
+                      onChange={(e) => setReplacementQty(e.target.value)}
+                      className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
+                      placeholder="Jumlah penggantian"
+                      min="0.01"
+                      step="0.01"
+                    />
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">Kg</span>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Hybrid / Varietas <span className="text-red-500">*</span>
+                    Produk Penggantian <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={replacementHybrid}
                     onChange={(e) => setReplacementHybrid(e.target.value)}
                     className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 text-base px-4 py-3"
-                    placeholder="Nama varietas hybrid"
-                  />
+                    disabled={approvalProductsLoading}
+                  >
+                    <option value="">{approvalProductsLoading ? 'Memuat produk...' : '-- Pilih Produk --'}</option>
+                    {approvalProducts.map(product => (
+                      <option key={product.id} value={product.name}>{product.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -726,7 +810,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                     <span className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Qty:</span>
                     <input
                       type="number"
-                      min="0"
+                      min="0.01"
                       step="0.01"
                       value={approvalQty}
                       onChange={(e) => setApprovalQty(e.target.value)}
@@ -2446,11 +2530,11 @@ export default function ComplaintDetailPage() {
                     <div>
                       <dt className="text-sm font-medium text-amber-700 dark:text-amber-400">Quantity</dt>
                       <dd className="text-2xl font-bold text-amber-900 dark:text-amber-100">
-                        {complaint.acknowledged_replacement_qty} unit
+                        {complaint.acknowledged_replacement_qty} Kg
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-sm font-medium text-amber-700 dark:text-amber-400">Hybrid</dt>
+                      <dt className="text-sm font-medium text-amber-700 dark:text-amber-400">Produk Penggantian</dt>
                       <dd className="text-lg font-bold text-amber-900 dark:text-amber-100">
                         {complaint.acknowledged_replacement_hybrid}
                       </dd>

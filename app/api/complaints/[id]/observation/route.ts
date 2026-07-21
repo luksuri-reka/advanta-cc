@@ -37,6 +37,44 @@ export async function POST(
 
     const { data: { user } } = await supabase.auth.getUser();
 
+    const replacementQty = body.replacement_qty === '' || body.replacement_qty == null
+      ? null
+      : Number(body.replacement_qty);
+    const replacementHybrid = typeof body.replacement_hybrid === 'string'
+      ? body.replacement_hybrid.trim()
+      : '';
+    const hasReplacement = replacementQty !== null || Boolean(
+      replacementHybrid
+      || body.replacement_product_id
+      || body.replacement_destination_type
+      || body.replacement_distributor_id
+      || body.replacement_destination_name
+      || body.replacement_destination_address
+    );
+    const replacementRequired = body.observation_result === 'Valid';
+
+    if (replacementQty !== null && (!Number.isFinite(replacementQty) || replacementQty <= 0)) {
+      return NextResponse.json({ error: 'Qty penggantian harus lebih dari 0 Kg' }, { status: 400 });
+    }
+
+    if ((replacementRequired || hasReplacement) && (replacementQty === null || !replacementHybrid || !body.replacement_product_id)) {
+      return NextResponse.json({ error: 'Qty dan produk dari daftar master wajib diisi' }, { status: 400 });
+    }
+
+    if (replacementRequired || hasReplacement) {
+      if (!['distributor', 'retailer'].includes(body.replacement_destination_type)) {
+        return NextResponse.json({ error: 'Pilih tujuan penggantian melalui distributor atau retailer/kios' }, { status: 400 });
+      }
+
+      if (!body.replacement_destination_name?.trim() || !body.replacement_destination_address?.trim()) {
+        return NextResponse.json({ error: 'Nama dan alamat tujuan penggantian wajib diisi' }, { status: 400 });
+      }
+
+      if (body.replacement_destination_type === 'distributor' && !body.replacement_distributor_id) {
+        return NextResponse.json({ error: 'Distributor penggantian wajib dipilih' }, { status: 400 });
+      }
+    }
+
     const observationData = {
       complaint_id: id,
       observer_id: user?.id,
@@ -73,8 +111,15 @@ export async function POST(
       evidence_files: body.evidence_files,
 
       // Field Replacement & Result
-      replacement_qty: body.replacement_qty ? parseInt(body.replacement_qty) : null,
-      replacement_hybrid: body.replacement_hybrid,
+      replacement_qty: replacementQty,
+      replacement_product_id: body.replacement_product_id ? Number(body.replacement_product_id) : null,
+      replacement_hybrid: replacementHybrid || null,
+      replacement_destination_type: body.replacement_destination_type || null,
+      replacement_distributor_id: body.replacement_destination_type === 'distributor' && body.replacement_distributor_id
+        ? Number(body.replacement_distributor_id)
+        : null,
+      replacement_destination_name: body.replacement_destination_name?.trim() || null,
+      replacement_destination_address: body.replacement_destination_address?.trim() || null,
       observation_result: body.observation_result,
       general_notes: body.general_notes,
 
