@@ -515,6 +515,7 @@ export default function AdminComplaintsPage() {
           c.customer_name.toLowerCase().includes(filters.search.toLowerCase()) ||
           c.customer_email.toLowerCase().includes(filters.search.toLowerCase()) ||
           c.subject.toLowerCase().includes(filters.search.toLowerCase()) ||
+          (c.lot_number || '').toLowerCase().includes(filters.search.toLowerCase()) ||
           (c.customer_province && c.customer_province.toLowerCase().includes(filters.search.toLowerCase())) ||
           (c.customer_city && c.customer_city.toLowerCase().includes(filters.search.toLowerCase()))
         )
@@ -636,7 +637,7 @@ export default function AdminComplaintsPage() {
                   name="search"
                   value={filters.search}
                   onChange={handleFilterChange}
-                  placeholder="Cari (ID, Nama, Lokasi, dll)..."
+                  placeholder="Cari (ID, Nama, Lokasi, No Lot, dll)..."
                   className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
                 />
                 <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -713,6 +714,7 @@ export default function AdminComplaintsPage() {
                   <TableHeader label="ID" sortKey="complaint_number" />
                   <TableHeader label="Pelanggan" sortKey="customer_name" />
                   <TableHeader label="Lokasi" sortKey="location" />
+                  <TableHeader label="No Lot" sortKey="lot_number" />
                   <TableHeader label="Status" sortKey="status" />
                   <TableHeader label="Tgl Masuk" sortKey="created_at" />
                   <TableHeader label="Umur" sortKey="age" align="center" />
@@ -721,7 +723,7 @@ export default function AdminComplaintsPage() {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-8"><AdminSpinner text="Memuat daftar keluhan..." size="sm" /></td></tr>
+                  <tr><td colSpan={8} className="text-center py-8"><AdminSpinner text="Memuat daftar keluhan..." size="sm" /></td></tr>
                 ) : sortedAndFilteredComplaints.length > 0 ? (
                   sortedAndFilteredComplaints.map((complaint) => (
                     <tr key={complaint.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -738,6 +740,9 @@ export default function AdminComplaintsPage() {
                             {complaint.customer_city || '-'}, {complaint.customer_province || '-'}
                           </span>
                         </div>
+                      </td>
+                      <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        {complaint.lot_number || '-'}
                       </td>
                       <td className="px-4 py-2">
                         <span className={`px-2 py-0.5 inline-flex text-[10px] leading-4 font-semibold rounded-full ${getStatusClass(complaint.status)}`}>
@@ -774,7 +779,7 @@ export default function AdminComplaintsPage() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={7} className="text-center py-8 text-sm text-gray-500">Tidak ada data ditemukan.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-8 text-sm text-gray-500">Tidak ada data ditemukan.</td></tr>
                 )}
               </tbody>
             </table>

@@ -74,6 +74,7 @@ export async function GET(request: Request) {
         complaint_validity,
         customer_province,
         related_product_name,
+        lot_number,
         problematic_quantity,
         complaint_category_name,
         complaint_case_type_names,
@@ -162,6 +163,7 @@ export async function GET(request: Request) {
           (c.customer_name || '').toLowerCase().includes(search) ||
           (c.customer_email || '').toLowerCase().includes(search) ||
           (c.subject || '').toLowerCase().includes(search) ||
+          (c.lot_number || '').toLowerCase().includes(search) ||
           (c.customer_province || '').toLowerCase().includes(search) ||
           (c.customer_city || '').toLowerCase().includes(search)
         )
