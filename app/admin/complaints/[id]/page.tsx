@@ -153,6 +153,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
   ].filter(Boolean);
 
   const isAssignedToMe = activeAssignees.includes(userId);
+  const isApprovalAssignee = complaint.assignee_approval === userId;
   const isSuperAdmin = user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin');
   const isManagement = user?.department === 'management';
 
@@ -267,7 +268,10 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-      if (!resp.ok) throw new Error(`Gagal memproses ${status}`);
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => null);
+        throw new Error(errorData?.error || `Gagal memproses ${status}`);
+      }
       toast.success(`Approval berhasil di-${status}`);
       if (onApprovalUpdate) onApprovalUpdate();
       onStatusChange(); // Because status could change to 'decision'
@@ -494,7 +498,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                     </p>
                   </div>
 
-                  {isSuperAdmin || isManagement || userId === complaint.assigned_to ? (
+                  {isApprovalAssignee ? (
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleProcessApproval('approved')}
@@ -513,7 +517,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                     </div>
                   ) : (
                     <div className="py-3 px-4 bg-gray-100 text-gray-600 rounded-xl text-center text-sm font-medium">
-                      Menunggu persetujuan dari Management/Admin
+                      Menunggu persetujuan dari petugas Management yang ditugaskan
                     </div>
                   )}
                 </div>
@@ -555,7 +559,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
 
                       {approvalData.status === 'approved' ? (
                         <>
-                          {/* Approved → kirim ke customer atau selesaikan langsung */}
+                          {/* Approved → kirim notifikasi ke customer */}
                           <button
                             onClick={() => handleQuickStatus(
                               'pending_response',
@@ -566,17 +570,6 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                           >
                             <PaperAirplaneIcon className="h-4 w-4" />
                             Kirim Notifikasi ke Customer
-                          </button>
-                          <button
-                            onClick={() => requestFinalStatus(
-                              'resolved',
-                              `Komplain telah diselesaikan. Penggantian produk: ${approvalData.replacement_item} telah disetujui dan dikonfirmasi.`
-                            )}
-                            disabled={updating}
-                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
-                          >
-                            <CheckCircleIcon className="h-4 w-4" />
-                            Selesaikan Komplain
                           </button>
                         </>
                       ) : (

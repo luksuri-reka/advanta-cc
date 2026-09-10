@@ -174,11 +174,29 @@ export async function PATCH(
             return NextResponse.json({ error: 'Status approval tidak valid' }, { status: 400 });
         }
 
+        const complaintId = parseInt(id, 10);
+        const { data: complaint, error: complaintError } = await supabase
+            .from('complaints')
+            .select('assignee_approval')
+            .eq('id', complaintId)
+            .single();
+
+        if (complaintError || !complaint) {
+            return NextResponse.json({ error: 'Complaint not found' }, { status: 404 });
+        }
+
+        if (complaint.assignee_approval !== user.id) {
+            return NextResponse.json(
+                { error: 'Hanya petugas approval yang ditugaskan pada komplain ini yang dapat memberikan keputusan' },
+                { status: 403 }
+            );
+        }
+
         // We only update the LATEST pending approval for this complaint
         const { data: latestPending } = await supabase
             .from('complaint_approvals')
             .select('id')
-            .eq('complaint_id', parseInt(id, 10))
+            .eq('complaint_id', complaintId)
             .eq('status', 'pending')
             .order('created_at', { ascending: false })
             .limit(1)
@@ -231,7 +249,7 @@ export async function PATCH(
                     complaintUpdate.acknowledged_replacement_hybrid = replacementProductName;
                 }
                 const { error: complaintUpdateError } = await supabase
-                    .from('complaints').update(complaintUpdate).eq('id', parseInt(id, 10));
+                    .from('complaints').update(complaintUpdate).eq('id', complaintId);
                 if (complaintUpdateError) throw complaintUpdateError;
             }
         }
