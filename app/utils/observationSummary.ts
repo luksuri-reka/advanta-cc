@@ -25,7 +25,13 @@ export interface ObservationData {
   replacement_hybrid?: string | null;
   replacement_destination_type?: string | null;
   replacement_destination_name?: string | null;
+  replacement_recipient_name?: string | null;
+  replacement_recipient_phone?: string | null;
   replacement_destination_address?: string | null;
+  replacement_destination_village?: string | null;
+  replacement_destination_district?: string | null;
+  replacement_destination_regency?: string | null;
+  replacement_destination_province?: string | null;
   observation_result?: string | null;
   general_notes?: string | null;
 }
@@ -79,11 +85,27 @@ export function formatReplacementProposal(
 export function formatReplacementDestination(
   type?: string | null,
   name?: string | null,
-  address?: string | null
+  address?: string | null,
+  recipientName?: string | null,
+  recipientPhone?: string | null,
+  village?: string | null,
+  district?: string | null,
+  regency?: string | null,
+  province?: string | null
 ): string | null {
   const destinationName = name?.trim() || '';
-  const destinationAddress = address?.trim() || '';
-  const detail = [destinationName, destinationAddress].filter(Boolean).join(' — ');
+  const recipient = recipientName?.trim() || '';
+  const phone = recipientPhone?.trim() || '';
+  const destinationAddress = [address, village, district, regency, province]
+    .map(value => value?.trim() || '')
+    .filter(Boolean)
+    .join(', ');
+  const recipientDetail = [recipient, phone].filter(Boolean).join(' / ');
+  const detail = [
+    destinationName && destinationName !== recipient ? destinationName : '',
+    recipientDetail || destinationName,
+    destinationAddress
+  ].filter(Boolean).join(' — ');
 
   // Records created before destination tracking was introduced legitimately
   // contain nulls here, so do not manufacture an empty destination label.
@@ -106,7 +128,13 @@ export function generateObservationSummary(data: ObservationData | null): Observ
   const replacementDestination = formatReplacementDestination(
     data?.replacement_destination_type,
     data?.replacement_destination_name,
-    data?.replacement_destination_address
+    data?.replacement_destination_address,
+    data?.replacement_recipient_name,
+    data?.replacement_recipient_phone,
+    data?.replacement_destination_village,
+    data?.replacement_destination_district,
+    data?.replacement_destination_regency,
+    data?.replacement_destination_province
   );
 
   if (!data || !data.observation_result) {

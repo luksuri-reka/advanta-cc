@@ -393,7 +393,7 @@ export async function GET(request: Request) {
       const idBatch = complaintIds.slice(index, index + observationBatchSize);
       const observationFields = useLegacyObservationFields
         ? 'complaint_id, replacement_qty, replacement_hybrid, updated_at'
-        : 'complaint_id, replacement_qty, replacement_product_id, replacement_hybrid, replacement_destination_type, replacement_distributor_id, replacement_destination_name, replacement_destination_address, updated_at';
+        : 'complaint_id, replacement_qty, replacement_product_id, replacement_hybrid, replacement_destination_type, replacement_distributor_id, replacement_destination_name, replacement_recipient_name, replacement_recipient_phone, replacement_destination_address, replacement_destination_village, replacement_destination_district, replacement_destination_regency, replacement_destination_province, updated_at';
 
       const observationResult = await supabase
         .from('complaint_observations')

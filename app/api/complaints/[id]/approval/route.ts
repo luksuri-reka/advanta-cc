@@ -68,6 +68,27 @@ export async function POST(
         const replacementProductName = typeof body.replacement_product_name === 'string'
             ? body.replacement_product_name.trim()
             : '';
+        const replacementRecipientName = typeof body.replacement_recipient_name === 'string'
+            ? body.replacement_recipient_name.trim()
+            : '';
+        const replacementRecipientPhone = typeof body.replacement_recipient_phone === 'string'
+            ? body.replacement_recipient_phone.trim()
+            : '';
+        const replacementDestinationAddress = typeof body.replacement_destination_address === 'string'
+            ? body.replacement_destination_address.trim()
+            : '';
+        const replacementDestinationVillage = typeof body.replacement_destination_village === 'string'
+            ? body.replacement_destination_village.trim()
+            : '';
+        const replacementDestinationDistrict = typeof body.replacement_destination_district === 'string'
+            ? body.replacement_destination_district.trim()
+            : '';
+        const replacementDestinationRegency = typeof body.replacement_destination_regency === 'string'
+            ? body.replacement_destination_regency.trim()
+            : '';
+        const replacementDestinationProvince = typeof body.replacement_destination_province === 'string'
+            ? body.replacement_destination_province.trim()
+            : '';
 
         if (!replacementItem) {
             return NextResponse.json({ error: 'Item penggantian wajib diisi' }, { status: 400 });
@@ -81,8 +102,35 @@ export async function POST(
             return NextResponse.json({ error: 'Produk penggantian wajib dipilih dari daftar produk' }, { status: 400 });
         }
 
+        if (replacementQty !== null && !['distributor', 'retailer'].includes(body.replacement_destination_type)) {
+            return NextResponse.json({ error: 'Tujuan penggantian wajib dipilih' }, { status: 400 });
+        }
+
         if (body.replacement_destination_type && !['distributor', 'retailer'].includes(body.replacement_destination_type)) {
             return NextResponse.json({ error: 'Tujuan penggantian tidak valid' }, { status: 400 });
+        }
+
+        if (replacementQty !== null && body.replacement_destination_type === 'distributor' && !body.replacement_distributor_id) {
+            return NextResponse.json({ error: 'Distributor penggantian wajib dipilih' }, { status: 400 });
+        }
+
+        if (replacementQty !== null) {
+            const requiredDeliveryFields = [
+                ['Nama penerima', replacementRecipientName],
+                ['Nomor telepon/HP', replacementRecipientPhone],
+                ['Alamat pengiriman', replacementDestinationAddress],
+                ['Desa', replacementDestinationVillage],
+                ['Kecamatan', replacementDestinationDistrict],
+                ['Kabupaten/Kota', replacementDestinationRegency],
+                ['Provinsi', replacementDestinationProvince]
+            ];
+            const missingDeliveryField = requiredDeliveryFields.find(([, value]) => !value);
+            if (missingDeliveryField) {
+                return NextResponse.json(
+                    { error: `${missingDeliveryField[0]} tujuan penggantian wajib diisi` },
+                    { status: 400 }
+                );
+            }
         }
 
         const { data: activePending, error: pendingError } = await supabase
@@ -110,8 +158,15 @@ export async function POST(
                     replacement_distributor_id: body.replacement_destination_type === 'distributor' && body.replacement_distributor_id
                         ? Number(body.replacement_distributor_id)
                         : null,
-                    replacement_destination_name: body.replacement_destination_name?.trim() || null,
-                    replacement_destination_address: body.replacement_destination_address?.trim() || null,
+                    replacement_destination_name: body.replacement_destination_name?.trim()
+                        || (body.replacement_destination_type === 'retailer' ? replacementRecipientName : null),
+                    replacement_recipient_name: replacementRecipientName || null,
+                    replacement_recipient_phone: replacementRecipientPhone || null,
+                    replacement_destination_address: replacementDestinationAddress || null,
+                    replacement_destination_village: replacementDestinationVillage || null,
+                    replacement_destination_district: replacementDestinationDistrict || null,
+                    replacement_destination_regency: replacementDestinationRegency || null,
+                    replacement_destination_province: replacementDestinationProvince || null,
                     updated_at: new Date().toISOString()
                 })
                 .eq('complaint_id', parseInt(id, 10));
@@ -131,8 +186,15 @@ export async function POST(
             replacement_distributor_id: body.replacement_destination_type === 'distributor' && body.replacement_distributor_id
                 ? Number(body.replacement_distributor_id)
                 : null,
-            replacement_destination_name: body.replacement_destination_name?.trim() || null,
-            replacement_destination_address: body.replacement_destination_address?.trim() || null,
+            replacement_destination_name: body.replacement_destination_name?.trim()
+                || (body.replacement_destination_type === 'retailer' ? replacementRecipientName : null),
+            replacement_recipient_name: replacementRecipientName || null,
+            replacement_recipient_phone: replacementRecipientPhone || null,
+            replacement_destination_address: replacementDestinationAddress || null,
+            replacement_destination_village: replacementDestinationVillage || null,
+            replacement_destination_district: replacementDestinationDistrict || null,
+            replacement_destination_regency: replacementDestinationRegency || null,
+            replacement_destination_province: replacementDestinationProvince || null,
             notes: body.notes || null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()

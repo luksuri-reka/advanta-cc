@@ -106,8 +106,21 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
   };
 
   const replacementObservation = complaint.complaint_observations?.[0];
-  const replacementDestinationLabel = replacementObservation?.replacement_destination_name
-    ? `${replacementObservation.replacement_destination_type === 'distributor' ? 'Distributor' : 'Retailer/Kios'}: ${replacementObservation.replacement_destination_name}${replacementObservation.replacement_destination_address ? ` — ${replacementObservation.replacement_destination_address}` : ''}`
+  const replacementAddress = [
+    replacementObservation?.replacement_destination_address,
+    replacementObservation?.replacement_destination_village,
+    replacementObservation?.replacement_destination_district,
+    replacementObservation?.replacement_destination_regency,
+    replacementObservation?.replacement_destination_province
+  ].filter(Boolean).join(', ');
+  const replacementRecipient = replacementObservation?.replacement_recipient_name
+    || replacementObservation?.replacement_destination_name;
+  const replacementDestinationLabel = replacementRecipient
+    ? [
+        `${replacementObservation?.replacement_destination_type === 'distributor' ? 'Distributor' : 'Retailer/Kios'}: ${replacementRecipient}`,
+        replacementObservation?.replacement_recipient_phone,
+        replacementAddress
+      ].filter(Boolean).join(' — ')
     : '';
 
   const openApprovalRequestModal = async () => {
@@ -237,7 +250,13 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
           replacement_destination_type: replacementObservation?.replacement_destination_type || null,
           replacement_distributor_id: replacementObservation?.replacement_distributor_id || null,
           replacement_destination_name: replacementObservation?.replacement_destination_name || null,
+          replacement_recipient_name: replacementObservation?.replacement_recipient_name || null,
+          replacement_recipient_phone: replacementObservation?.replacement_recipient_phone || null,
           replacement_destination_address: replacementObservation?.replacement_destination_address || null,
+          replacement_destination_village: replacementObservation?.replacement_destination_village || null,
+          replacement_destination_district: replacementObservation?.replacement_destination_district || null,
+          replacement_destination_regency: replacementObservation?.replacement_destination_regency || null,
+          replacement_destination_province: replacementObservation?.replacement_destination_province || null,
           notes: approvalNotes
         })
       });

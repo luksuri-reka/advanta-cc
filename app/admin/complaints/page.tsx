@@ -36,7 +36,13 @@ interface ComplaintObservation {
   replacement_hybrid?: string | null;
   replacement_destination_type?: 'distributor' | 'retailer' | null;
   replacement_destination_name?: string | null;
+  replacement_recipient_name?: string | null;
+  replacement_recipient_phone?: string | null;
   replacement_destination_address?: string | null;
+  replacement_destination_village?: string | null;
+  replacement_destination_district?: string | null;
+  replacement_destination_regency?: string | null;
+  replacement_destination_province?: string | null;
   updated_at?: string;
 }
 
@@ -81,20 +87,11 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-const formatReplacementSummary = (observation?: ComplaintObservation) => {
-  if (!observation) return '-';
-
-  const replacementQty = observation.replacement_qty;
-  const formattedQty = replacementQty == null || replacementQty === ''
-    ? ''
-    : Number.isNaN(Number(replacementQty))
-      ? String(replacementQty)
-      : String(Number(replacementQty));
-  const productName = observation.replacement_product_name || observation.replacement_hybrid || '';
-
-  return [formattedQty ? `${formattedQty} Kg` : '', productName]
-    .filter(Boolean)
-    .join(' ') || '-';
+const formatReplacementQuantity = (observation?: ComplaintObservation): number | string => {
+  const replacementQty = observation?.replacement_qty;
+  if (replacementQty == null || replacementQty === '') return '-';
+  const numericQuantity = Number(replacementQty);
+  return Number.isNaN(numericQuantity) ? String(replacementQty) : numericQuantity;
 };
 
 const formatReplacementDestinationType = (type?: ComplaintObservation['replacement_destination_type']) => {
@@ -275,11 +272,21 @@ export default function AdminComplaintsPage() {
         'Jenis Kasus (Tags)': item.complaint_case_type_names?.join(', ') || '-',
         'Nama Produk': item.related_product_name || '-',
         'Nomor Lot': item.lot_number || '-',
-        'Quantity Bermasalah': item.problematic_quantity || '-',
-        'Usulan Penggantian': formatReplacementSummary(item.complaint_observations?.[0]),
-        'Tipe Tujuan Penggantian': formatReplacementDestinationType(item.complaint_observations?.[0]?.replacement_destination_type),
-        'Nama Distributor/Kios': item.complaint_observations?.[0]?.replacement_destination_name || '-',
+        'Quantity Bermasalah (Kg)': item.problematic_quantity || '-',
+        'Usulan Penggantian (Kg)': formatReplacementQuantity(item.complaint_observations?.[0]),
+        'Produk Pengganti': item.complaint_observations?.[0]?.replacement_product_name
+          || item.complaint_observations?.[0]?.replacement_hybrid
+          || '-',
+        'Tipe Tujuan Penggantian (Distributor/Kios)': formatReplacementDestinationType(item.complaint_observations?.[0]?.replacement_destination_type),
+        'Nama Penerima': item.complaint_observations?.[0]?.replacement_recipient_name
+          || item.complaint_observations?.[0]?.replacement_destination_name
+          || '-',
+        'No Telepon/HP': item.complaint_observations?.[0]?.replacement_recipient_phone || '-',
         'Alamat Pengiriman': item.complaint_observations?.[0]?.replacement_destination_address || '-',
+        'Desa': item.complaint_observations?.[0]?.replacement_destination_village || '-',
+        'Kecamatan': item.complaint_observations?.[0]?.replacement_destination_district || '-',
+        'Kabupaten/Kota': item.complaint_observations?.[0]?.replacement_destination_regency || '-',
+        'Propinsi': item.complaint_observations?.[0]?.replacement_destination_province || '-',
         'Serial Number Produk': item.related_product_serial || '-',
         'Ringkasan Solusi': item.resolution_summary || '-',
         'Rating Kepuasan (1-5)': item.customer_satisfaction_rating ?? '-',
@@ -307,11 +314,17 @@ export default function AdminComplaintsPage() {
         { wch: 30 },  // Jenis Kasus (Tags)
         { wch: 25 },  // Nama Produk
         { wch: 18 },  // Nomor Lot
-        { wch: 18 },  // Quantity Bermasalah
-        { wch: 30 },  // Usulan Penggantian
-        { wch: 24 },  // Tipe Tujuan Penggantian
-        { wch: 30 },  // Nama Distributor/Kios
+        { wch: 22 },  // Quantity Bermasalah (Kg)
+        { wch: 24 },  // Usulan Penggantian (Kg)
+        { wch: 24 },  // Produk Pengganti
+        { wch: 38 },  // Tipe Tujuan Penggantian (Distributor/Kios)
+        { wch: 26 },  // Nama Penerima
+        { wch: 18 },  // No Telepon/HP
         { wch: 45 },  // Alamat Pengiriman
+        { wch: 20 },  // Desa
+        { wch: 20 },  // Kecamatan
+        { wch: 24 },  // Kabupaten/Kota
+        { wch: 22 },  // Propinsi
         { wch: 22 },  // Serial Number Produk
         { wch: 40 },  // Ringkasan Solusi
         { wch: 18 },  // Rating Kepuasan

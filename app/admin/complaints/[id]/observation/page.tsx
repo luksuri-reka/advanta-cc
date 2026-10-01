@@ -67,7 +67,13 @@ export default function ObservationFormPage() {
     replacement_destination_type: '',
     replacement_distributor_id: '',
     replacement_destination_name: '',
+    replacement_recipient_name: '',
+    replacement_recipient_phone: '',
     replacement_destination_address: '',
+    replacement_destination_village: '',
+    replacement_destination_district: '',
+    replacement_destination_regency: '',
+    replacement_destination_province: '',
     general_notes: '',
     observation_result: '',
     evidence_files: [] as string[]
@@ -165,7 +171,16 @@ export default function ObservationFormPage() {
                 ? String(observation.replacement_distributor_id)
                 : '',
               replacement_destination_name: observation.replacement_destination_name || matchedDistributor?.name || '',
+              replacement_recipient_name: observation.replacement_recipient_name
+                || (observation.replacement_destination_type === 'retailer'
+                  ? observation.replacement_destination_name
+                  : ''),
+              replacement_recipient_phone: observation.replacement_recipient_phone || '',
               replacement_destination_address: observation.replacement_destination_address || matchedDistributor?.address || '',
+              replacement_destination_village: observation.replacement_destination_village || '',
+              replacement_destination_district: observation.replacement_destination_district || '',
+              replacement_destination_regency: observation.replacement_destination_regency || '',
+              replacement_destination_province: observation.replacement_destination_province || '',
               evidence_files: observation.evidence_files || []
             }));
           }
@@ -205,7 +220,13 @@ export default function ObservationFormPage() {
       replacement_destination_type: e.target.value,
       replacement_distributor_id: '',
       replacement_destination_name: '',
-      replacement_destination_address: ''
+      replacement_recipient_name: '',
+      replacement_recipient_phone: '',
+      replacement_destination_address: '',
+      replacement_destination_village: '',
+      replacement_destination_district: '',
+      replacement_destination_regency: '',
+      replacement_destination_province: ''
     }));
   };
 
@@ -220,6 +241,17 @@ export default function ObservationFormPage() {
     }));
   };
 
+  const handleRecipientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const recipientName = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      replacement_recipient_name: recipientName,
+      replacement_destination_name: prev.replacement_destination_type === 'retailer'
+        ? recipientName
+        : prev.replacement_destination_name
+    }));
+  };
+
   const hasReplacementProposal = [
     formData.replacement_qty,
     formData.replacement_product_id,
@@ -227,7 +259,13 @@ export default function ObservationFormPage() {
     formData.replacement_destination_type,
     formData.replacement_distributor_id,
     formData.replacement_destination_name,
-    formData.replacement_destination_address
+    formData.replacement_recipient_name,
+    formData.replacement_recipient_phone,
+    formData.replacement_destination_address,
+    formData.replacement_destination_village,
+    formData.replacement_destination_district,
+    formData.replacement_destination_regency,
+    formData.replacement_destination_province
   ].some(value => value.trim() !== '');
   const replacementRequired = formData.observation_result === 'Valid' || hasReplacementProposal;
 
@@ -258,17 +296,20 @@ export default function ObservationFormPage() {
         toast.error('Pilih distributor tujuan penggantian');
         return false;
       }
-      if (!formData.replacement_destination_address.trim()) {
-        toast.error('Alamat distributor belum tersedia di master perusahaan');
-        return false;
-      }
     }
 
-    if (
-      formData.replacement_destination_type === 'retailer'
-      && (!formData.replacement_destination_name.trim() || !formData.replacement_destination_address.trim())
-    ) {
-      toast.error('Nama dan alamat retailer/kios tujuan wajib diisi');
+    const requiredDeliveryFields = [
+      ['Nama penerima', formData.replacement_recipient_name],
+      ['Nomor telepon/HP', formData.replacement_recipient_phone],
+      ['Alamat pengiriman', formData.replacement_destination_address],
+      ['Desa', formData.replacement_destination_village],
+      ['Kecamatan', formData.replacement_destination_district],
+      ['Kabupaten/Kota', formData.replacement_destination_regency],
+      ['Provinsi', formData.replacement_destination_province]
+    ];
+    const missingDeliveryField = requiredDeliveryFields.find(([, value]) => !value.trim());
+    if (missingDeliveryField) {
+      toast.error(`${missingDeliveryField[0]} tujuan penggantian wajib diisi`);
       return false;
     }
 
@@ -912,35 +953,107 @@ export default function ObservationFormPage() {
                   </div>
                 )}
 
-                {formData.replacement_destination_type === 'retailer' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Nama Retailer/Kios <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="replacement_destination_name"
-                        value={formData.replacement_destination_name}
-                        onChange={handleChange}
-                        required={replacementRequired}
-                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
-                        placeholder="Nama retailer atau kios"
-                      />
+                {formData.replacement_destination_type && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Nama Penerima <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="replacement_recipient_name"
+                          value={formData.replacement_recipient_name}
+                          onChange={handleRecipientNameChange}
+                          required={replacementRequired}
+                          className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                          placeholder="Nama penerima penggantian"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Nomor Telepon/HP <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          name="replacement_recipient_phone"
+                          value={formData.replacement_recipient_phone}
+                          onChange={handleChange}
+                          required={replacementRequired}
+                          className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                          placeholder="Contoh: 081234567890"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Alamat Retailer/Kios <span className="text-red-500">*</span>
-                      </label>
-                      <textarea
-                        name="replacement_destination_address"
-                        rows={2}
-                        value={formData.replacement_destination_address}
-                        onChange={handleChange}
-                        required={replacementRequired}
-                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
-                        placeholder="Alamat lengkap retailer atau kios"
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Alamat Pengiriman <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          name="replacement_destination_address"
+                          rows={2}
+                          value={formData.replacement_destination_address}
+                          onChange={handleChange}
+                          required={replacementRequired}
+                          className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                          placeholder="Jalan, nomor rumah, RT/RW"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Desa <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="replacement_destination_village"
+                            value={formData.replacement_destination_village}
+                            onChange={handleChange}
+                            required={replacementRequired}
+                            className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Kecamatan <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="replacement_destination_district"
+                            value={formData.replacement_destination_district}
+                            onChange={handleChange}
+                            required={replacementRequired}
+                            className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Kabupaten/Kota <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="replacement_destination_regency"
+                            value={formData.replacement_destination_regency}
+                            onChange={handleChange}
+                            required={replacementRequired}
+                            className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Provinsi <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="replacement_destination_province"
+                            value={formData.replacement_destination_province}
+                            onChange={handleChange}
+                            required={replacementRequired}
+                            className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-2.5"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -949,7 +1062,7 @@ export default function ObservationFormPage() {
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                 <p className="text-xs text-yellow-800 dark:text-yellow-300">
                   {replacementRequired
-                    ? '⚠️ Lengkapi Qty (Kg), produk, dan lokasi tujuan penggantian.'
+                    ? '⚠️ Lengkapi Qty (Kg), produk, penerima, nomor HP, dan seluruh detail alamat tujuan penggantian.'
                     : 'Usulan penggantian boleh dikosongkan jika komplain dinyatakan tidak valid.'}
                 </p>
               </div>

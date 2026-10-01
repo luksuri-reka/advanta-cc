@@ -43,13 +43,40 @@ export async function POST(
     const replacementHybrid = typeof body.replacement_hybrid === 'string'
       ? body.replacement_hybrid.trim()
       : '';
+    const replacementRecipientName = typeof body.replacement_recipient_name === 'string'
+      ? body.replacement_recipient_name.trim()
+      : '';
+    const replacementRecipientPhone = typeof body.replacement_recipient_phone === 'string'
+      ? body.replacement_recipient_phone.trim()
+      : '';
+    const replacementDestinationAddress = typeof body.replacement_destination_address === 'string'
+      ? body.replacement_destination_address.trim()
+      : '';
+    const replacementDestinationVillage = typeof body.replacement_destination_village === 'string'
+      ? body.replacement_destination_village.trim()
+      : '';
+    const replacementDestinationDistrict = typeof body.replacement_destination_district === 'string'
+      ? body.replacement_destination_district.trim()
+      : '';
+    const replacementDestinationRegency = typeof body.replacement_destination_regency === 'string'
+      ? body.replacement_destination_regency.trim()
+      : '';
+    const replacementDestinationProvince = typeof body.replacement_destination_province === 'string'
+      ? body.replacement_destination_province.trim()
+      : '';
     const hasReplacement = replacementQty !== null || Boolean(
       replacementHybrid
       || body.replacement_product_id
       || body.replacement_destination_type
       || body.replacement_distributor_id
       || body.replacement_destination_name
-      || body.replacement_destination_address
+      || replacementRecipientName
+      || replacementRecipientPhone
+      || replacementDestinationAddress
+      || replacementDestinationVillage
+      || replacementDestinationDistrict
+      || replacementDestinationRegency
+      || replacementDestinationProvince
     );
     const replacementRequired = body.observation_result === 'Valid';
 
@@ -66,12 +93,25 @@ export async function POST(
         return NextResponse.json({ error: 'Pilih tujuan penggantian melalui distributor atau retailer/kios' }, { status: 400 });
       }
 
-      if (!body.replacement_destination_name?.trim() || !body.replacement_destination_address?.trim()) {
-        return NextResponse.json({ error: 'Nama dan alamat tujuan penggantian wajib diisi' }, { status: 400 });
-      }
-
       if (body.replacement_destination_type === 'distributor' && !body.replacement_distributor_id) {
         return NextResponse.json({ error: 'Distributor penggantian wajib dipilih' }, { status: 400 });
+      }
+
+      const requiredDeliveryFields = [
+        ['Nama penerima', replacementRecipientName],
+        ['Nomor telepon/HP', replacementRecipientPhone],
+        ['Alamat pengiriman', replacementDestinationAddress],
+        ['Desa', replacementDestinationVillage],
+        ['Kecamatan', replacementDestinationDistrict],
+        ['Kabupaten/Kota', replacementDestinationRegency],
+        ['Provinsi', replacementDestinationProvince]
+      ];
+      const missingDeliveryField = requiredDeliveryFields.find(([, value]) => !value);
+      if (missingDeliveryField) {
+        return NextResponse.json(
+          { error: `${missingDeliveryField[0]} tujuan penggantian wajib diisi` },
+          { status: 400 }
+        );
       }
     }
 
@@ -118,8 +158,15 @@ export async function POST(
       replacement_distributor_id: body.replacement_destination_type === 'distributor' && body.replacement_distributor_id
         ? Number(body.replacement_distributor_id)
         : null,
-      replacement_destination_name: body.replacement_destination_name?.trim() || null,
-      replacement_destination_address: body.replacement_destination_address?.trim() || null,
+      replacement_destination_name: body.replacement_destination_name?.trim()
+        || (body.replacement_destination_type === 'retailer' ? replacementRecipientName : null),
+      replacement_recipient_name: replacementRecipientName || null,
+      replacement_recipient_phone: replacementRecipientPhone || null,
+      replacement_destination_address: replacementDestinationAddress || null,
+      replacement_destination_village: replacementDestinationVillage || null,
+      replacement_destination_district: replacementDestinationDistrict || null,
+      replacement_destination_regency: replacementDestinationRegency || null,
+      replacement_destination_province: replacementDestinationProvince || null,
       observation_result: body.observation_result,
       general_notes: body.general_notes,
 

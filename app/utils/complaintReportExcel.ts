@@ -246,11 +246,16 @@ const buildObservationRows = (observation: LooseRecord): SheetRow[] => [
     ['Catatan Umum', observation.general_notes]
   ]),
   ...sectionRows('Usulan Penggantian', [
-    ['Qty Penggantian (Kg)', observation.replacement_qty],
-    ['Produk Penggantian', observation.replacement_product_name || observation.replacement_hybrid],
+    ['Usulan Penggantian (Kg)', observation.replacement_qty],
+    ['Produk Pengganti', observation.replacement_product_name || observation.replacement_hybrid],
     ['Tipe Tujuan Penggantian', formatReplacementDestinationType(observation.replacement_destination_type)],
-    ['Nama Distributor/Kios', observation.replacement_destination_name],
-    ['Alamat Pengiriman', observation.replacement_destination_address]
+    ['Nama Penerima', observation.replacement_recipient_name || observation.replacement_destination_name],
+    ['No Telepon/HP', observation.replacement_recipient_phone],
+    ['Alamat Pengiriman', observation.replacement_destination_address],
+    ['Desa', observation.replacement_destination_village],
+    ['Kecamatan', observation.replacement_destination_district],
+    ['Kabupaten/Kota', observation.replacement_destination_regency],
+    ['Propinsi', observation.replacement_destination_province]
   ])
 ];
 
@@ -347,7 +352,16 @@ const buildLabTestingRows = (lab: LooseRecord): SheetRow[] => [
 const buildApprovalRows = (approval: LooseRecord): SheetRow[] => [
   ...sectionRows('Approval Penggantian', [
     ['Status Approval', formatApprovalStatus(approval.status)],
-    ['Item Penggantian', approval.replacement_item],
+    ['Usulan Penggantian (Kg)', approval.replacement_qty],
+    ['Produk Pengganti', approval.replacement_product_name || approval.replacement_item],
+    ['Tipe Tujuan Penggantian', formatReplacementDestinationType(approval.replacement_destination_type)],
+    ['Nama Penerima', approval.replacement_recipient_name || approval.replacement_destination_name],
+    ['No Telepon/HP', approval.replacement_recipient_phone],
+    ['Alamat Pengiriman', approval.replacement_destination_address],
+    ['Desa', approval.replacement_destination_village],
+    ['Kecamatan', approval.replacement_destination_district],
+    ['Kabupaten/Kota', approval.replacement_destination_regency],
+    ['Propinsi', approval.replacement_destination_province],
     ['Catatan', approval.notes],
     ['Diminta Oleh', formatUser(approval.requested_user)],
     ['Diputuskan Oleh', formatUser(approval.approved_user)],

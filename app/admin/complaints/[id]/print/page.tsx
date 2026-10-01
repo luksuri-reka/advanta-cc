@@ -164,7 +164,13 @@ export default function ComplaintPrintPage() {
   const approvalReplacementDestination = formatReplacementDestination(
     approvalData?.replacement_destination_type,
     approvalData?.replacement_destination_name,
-    approvalData?.replacement_destination_address
+    approvalData?.replacement_destination_address,
+    approvalData?.replacement_recipient_name,
+    approvalData?.replacement_recipient_phone,
+    approvalData?.replacement_destination_village,
+    approvalData?.replacement_destination_district,
+    approvalData?.replacement_destination_regency,
+    approvalData?.replacement_destination_province
   );
 
   const statusLabel = STATUS_LABELS[complaint.status] ?? complaint.status;
