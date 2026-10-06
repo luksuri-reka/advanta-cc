@@ -51,6 +51,21 @@ export async function POST(
     }
 
     if (complaint.status === status) {
+      if (requestedValidity && isValidComplaintValidity(requestedValidity) && requestedValidity !== complaint.complaint_validity) {
+        await supabase
+          .from('complaints')
+          .update({
+            complaint_validity: requestedValidity,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id);
+
+        return NextResponse.json({
+          message: 'Status already set, validity updated',
+          data: { ...complaint, complaint_validity: requestedValidity }
+        }, { status: 200 });
+      }
+
       return NextResponse.json({
         message: 'Status already set',
         data: complaint

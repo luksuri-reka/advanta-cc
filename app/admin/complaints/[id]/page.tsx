@@ -1151,6 +1151,11 @@ export default function ComplaintDetailPage() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedComplaintValidity, setSelectedComplaintValidity] = useState<ComplaintValidity | ''>('');
 
+  const [showEditValidityModal, setShowEditValidityModal] = useState(false);
+  const [editValidity, setEditValidity] = useState<ComplaintValidity | ''>('');
+  const [editValidityNotes, setEditValidityNotes] = useState('');
+  const [isUpdatingValidity, setIsUpdatingValidity] = useState(false);
+
   // 🔥 Approval State
   const [approvalData, setApprovalData] = useState<any>(null);
 
@@ -1446,6 +1451,40 @@ export default function ComplaintDetailPage() {
       toast.error(err.message || 'Gagal memperbarui status');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleUpdateValiditySubmit = async () => {
+    if (!editValidity) {
+      toast.error('Pilih validitas komplain terlebih dahulu');
+      return;
+    }
+
+    setIsUpdatingValidity(true);
+    try {
+      const response = await fetch(`/api/complaints/${id}/validity`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          complaint_validity: editValidity,
+          notes: editValidityNotes,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Gagal memperbarui validitas komplain');
+      }
+
+      toast.success('Validitas komplain berhasil diperbarui!');
+      setShowEditValidityModal(false);
+      setEditValidityNotes('');
+      await loadComplaint();
+    } catch (err: any) {
+      console.error('Error updating validity:', err);
+      toast.error(err.message || 'Gagal memperbarui validitas komplain');
+    } finally {
+      setIsUpdatingValidity(false);
     }
   };
 
@@ -2512,14 +2551,35 @@ export default function ComplaintDetailPage() {
                   {getStatusLabel(complaint.status)}
                 </span>
 
-                {complaint.complaint_validity && (
-                  <div className="mt-4">
+                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700/60">
+                  <div className="flex items-center justify-between mb-1.5">
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Validitas Komplain</dt>
-                    <dd className="mt-1 inline-flex px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-                      {COMPLAINT_VALIDITY_LABELS[complaint.complaint_validity]}
-                    </dd>
+                    {hasPermission('canUpdateComplaintStatus') && (
+                      <button
+                        onClick={() => {
+                          setEditValidity(complaint.complaint_validity || '');
+                          setEditValidityNotes('');
+                          setShowEditValidityModal(true);
+                        }}
+                        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg transition-colors"
+                      >
+                        <PencilIcon className="h-3 w-3" />
+                        {complaint.complaint_validity ? 'Ubah' : 'Tentukan'}
+                      </button>
+                    )}
                   </div>
-                )}
+                  <dd>
+                    {complaint.complaint_validity ? (
+                      <span className="inline-flex px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                        {COMPLAINT_VALIDITY_LABELS[complaint.complaint_validity]}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                        Belum ditentukan (-)
+                      </span>
+                    )}
+                  </dd>
+                </div>
 
                 {complaint.resolved_at && (
                   <div className="mt-4">
@@ -3152,6 +3212,93 @@ export default function ComplaintDetailPage() {
                   <>
                     <CheckIcon className="h-5 w-5" />
                     <span>Simpan Status</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showEditValidityModal && complaint && (
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Ubah Validitas Komplain</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Tiket #{complaint.complaint_number}</p>
+              </div>
+              <button
+                onClick={() => setShowEditValidityModal(false)}
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Pilih status validitas untuk komplain ini:
+              </p>
+              <div className="space-y-2">
+                {COMPLAINT_VALIDITY_OPTIONS.map((validity) => (
+                  <label
+                    key={validity}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      editValidity === validity
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="edit_complaint_validity"
+                      value={validity}
+                      checked={editValidity === validity}
+                      onChange={(e) => setEditValidity(e.target.value as ComplaintValidity)}
+                      className="h-5 w-5 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {COMPLAINT_VALIDITY_LABELS[validity]}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Catatan Perubahan (opsional)
+                </label>
+                <textarea
+                  value={editValidityNotes}
+                  onChange={(e) => setEditValidityNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Alasan perubahan validitas (misal: koreksi hasil investigasi lapangan)..."
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 p-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowEditValidityModal(false)}
+                className="px-5 py-2.5 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleUpdateValiditySubmit}
+                disabled={isUpdatingValidity || !editValidity}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+              >
+                {isUpdatingValidity ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckIcon className="h-4 w-4" />
+                    <span>Simpan Validitas</span>
                   </>
                 )}
               </button>
