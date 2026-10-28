@@ -45,6 +45,8 @@ import InvestigationSummaryCard from '@/app/components/InvestigationSummaryCard'
 import LabTestingSummaryCard from '@/app/components/LabTestingSummaryCard';
 import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
 import AdminSpinner from '../../components/AdminSpinner';
+import ReplacementShipmentFields from '@/app/components/ReplacementShipmentFields';
+import { canUpdateReplacementShipment, type ReplacementShipment } from '@/app/utils/replacementShipment';
 import {
   complaintReportLabels,
   exportComplaintReportToExcel,
@@ -970,7 +972,7 @@ interface RelatedUser {
 }
 
 // --- INTERFACE COMPLAINT ---
-interface Complaint {
+interface Complaint extends ReplacementShipment {
   id: number;
   complaint_number: string;
   customer_name: string;
@@ -1112,6 +1114,7 @@ export default function ComplaintDetailPage() {
   const { id } = params;
 
   const [user, setUser] = useState<DisplayUser | null>(null);
+  const [canEditShipment, setCanEditShipment] = useState(false);
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
 
@@ -1185,12 +1188,14 @@ export default function ComplaintDetailPage() {
           try {
             const { data: profileData } = await supabase
               .from('user_complaint_profiles')
-              .select('department')
+              .select('department, complaint_permissions, is_active')
               .eq('user_id', profile.id)
               .maybeSingle();
             department = profileData?.department || undefined;
+            setCanEditShipment(canUpdateReplacementShipment(profile.app_metadata?.roles, profileData));
           } catch (_) {
             // Ignore error — department tetap undefined
+            setCanEditShipment(canUpdateReplacementShipment(profile.app_metadata?.roles, null));
           }
 
           setUser({
@@ -2587,6 +2592,12 @@ export default function ComplaintDetailPage() {
                     <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(complaint.resolved_at)}</dd>
                   </div>
                 )}
+                <ReplacementShipmentFields
+                  key={complaint.id}
+                  complaint={complaint}
+                  canEdit={canEditShipment}
+                  onSaved={loadComplaint}
+                />
               </div>
 
               {/* 🔥 TAMBAHKAN DI SINI - DIRECT REPLACEMENT INFO */}

@@ -24,6 +24,7 @@ import Link from 'next/link';
 import ModernDashboard from './ModernDashboard';
 import FiscalYearSidebar from './FiscalYearSidebar';
 import AdminSpinner from '../components/AdminSpinner';
+import { getReplacementShipmentExportFields, type ReplacementShipment } from '@/app/utils/replacementShipment';
 import {
   COMPLAINT_VALIDITY_LABELS,
   getStatusesForComplaintGroup,
@@ -47,7 +48,7 @@ interface ComplaintObservation {
 }
 
 // Interface sesuai Database
-interface Complaint {
+interface Complaint extends ReplacementShipment {
   id: number;
   complaint_number: string;
   customer_name: string;
@@ -255,6 +256,7 @@ export default function AdminComplaintsPage() {
         'No. Tiket': item.complaint_number,
         'Tanggal Masuk': formatDate(item.created_at),
         'Tanggal Selesai': item.resolved_at ? formatDate(item.resolved_at) : '-',
+        ...getReplacementShipmentExportFields(item),
         'Umur Tiket (Hari)': calculateAge(item.created_at, item.resolved_at),
         'Status': getStatusLabel(item.status),
         'Validitas Komplain': item.complaint_validity ? COMPLAINT_VALIDITY_LABELS[item.complaint_validity] : '-',
@@ -297,6 +299,8 @@ export default function AdminComplaintsPage() {
         { wch: 18 },  // No. Tiket
         { wch: 20 },  // Tanggal Masuk
         { wch: 20 },  // Tanggal Selesai
+        { wch: 40 },  // Status Pengiriman Benih Pengganti
+        { wch: 40 },  // Tanggal Pengiriman Benih Pengganti
         { wch: 16 },  // Umur Tiket (Hari)
         { wch: 18 },  // Status
         { wch: 28 },  // Validitas Komplain

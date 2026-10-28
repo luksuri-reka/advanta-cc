@@ -42,6 +42,7 @@ next-env.d.ts
 
 # supabase
 /supabase/migrations/*
+!/supabase/migrations/20261028_add_replacement_shipment.sql
 
 # # Another
 # /app/lpj-maret/*

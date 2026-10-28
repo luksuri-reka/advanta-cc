@@ -122,3 +122,29 @@ luksuri-reka/advanta-cc/
       * **Middleware** untuk proteksi rute.
   * **Manajemen Notifikasi**: **React Hot Toast**
   * **Manipulasi Excel/CSV**: **xlsx** (SheetJS)
+
+## Pengiriman Benih Pengganti
+
+Sebelum menjalankan versi aplikasi yang memakai fitur ini, jalankan
+[`20261028_add_replacement_shipment.sql`](supabase/migrations/20261028_add_replacement_shipment.sql)
+melalui SQL Editor Supabase atau koneksi PostgreSQL untuk proyek yang sama dengan
+`NEXT_PUBLIC_SUPABASE_URL`. Migrasi ini dapat dijalankan ulang dan tidak mengisi
+status pengiriman pada data lama.
+
+Pada detail komplain, bagian pengiriman berada di bawah **Tgl Selesai** dan tetap
+bisa diperbarui setelah komplain selesai. Superadmin atau petugas aktif dengan
+hak **Update Status** dapat memilih **Sudah**, **Belum**, atau
+**Tidak Ada Penggantian Benih**. Tanggal wajib untuk **Sudah** dan dikosongkan
+untuk dua pilihan lainnya. Tampilan tanggal dan export menggunakan DD/MM/YYYY.
+Setiap perubahan disimpan bersama catatan internal dalam satu transaksi.
+
+Status dan tanggal masuk ke `Rekap_Complaint` serta sheet **Info Keluhan** pada
+report Excel individual. Data lama ditampilkan sebagai **Belum diisi**.
+
+Pengujian API, validasi, hak akses, dan export Excel:
+
+```sh
+node --test tests/replacement-shipment.test.cjs
+npx tsc --noEmit --incremental false
+npm run build
+```

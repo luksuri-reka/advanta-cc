@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { COMPLAINT_VALIDITY_LABELS, type ComplaintValidity } from './complaintStatus';
+import { getReplacementShipmentExportFields } from './replacementShipment';
 
 export type ComplaintReportType = 'observation' | 'investigation' | 'labTesting' | 'approval';
 
@@ -180,6 +181,7 @@ const buildComplaintInfoRows = (complaint: LooseRecord): SheetRow[] => {
       ['Tanggal Masuk', formatDate(complaint.created_at)],
       ['Tanggal Update', formatDate(complaint.updated_at)],
       ['Tanggal Selesai', formatDate(complaint.resolved_at)],
+      ...Object.entries(getReplacementShipmentExportFields(complaint)),
       ['Departemen', complaint.department],
       ['Subjek', complaint.subject],
       ['Deskripsi', complaint.description]
