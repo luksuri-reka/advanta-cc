@@ -35,6 +35,8 @@ function classNames(...classes: string[]) {
 interface DisplayUser {
   name: string;
   roles?: string[];
+  isSuperAdmin: boolean;
+  canViewProduction: boolean;
   department?: string;
   complaint_permissions?: Record<string, boolean>;
 }
@@ -58,21 +60,14 @@ export default function Navbar({ user }: { user: DisplayUser | null }) {
     router.refresh(); // 🔥 Paksa Next.js Server Component (layout.tsx) memuat ulang auth state
   };
 
-  const hasComplaintPermission = (permission: string) => {
-    if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
-      return true;
-    }
-    return user?.complaint_permissions?.[permission] === true;
-  };
+  const isSuperAdmin = user?.isSuperAdmin ?? false;
+  const hasComplaintPermission = (permission: string) =>
+    isSuperAdmin || user?.complaint_permissions?.[permission] === true;
 
   const { stats, markAllAsRead } = useComplaintNotifications(hasComplaintPermission('canViewComplaints'));
 
   const totalNotifications = stats.unreadCount;
   const customerCareBadge = stats.unreadCount > 0 ? stats.unreadCount : undefined;
-
-  // Role helpers
-  const roles = user?.roles || [];
-  const isSuperAdmin = roles.includes('Superadmin') || roles.includes('superadmin');
 
   const navigation: NavItem[] = [
     (isSuperAdmin ? {
@@ -80,14 +75,16 @@ export default function Navbar({ user }: { user: DisplayUser | null }) {
       href: '/admin',
       icon: HomeIcon
     } : null),
-    (isSuperAdmin ? {
+    (isSuperAdmin || user?.canViewProduction ? {
       name: 'Manajemen',
       icon: Squares2X2Icon,
       children: [
-        { name: 'Pengguna & Akun', href: '/admin/users' },
-        { name: 'Peran & Izin', href: '/admin/roles' },
-        { name: 'Data Produk', href: '/admin/products' },
-        { name: 'Data Produksi', href: '/admin/productions' },
+        ...(isSuperAdmin ? [
+          { name: 'Pengguna & Akun', href: '/admin/users' },
+          { name: 'Peran & Izin', href: '/admin/roles' },
+          { name: 'Data Produk', href: '/admin/products' },
+        ] : []),
+        ...(user?.canViewProduction ? [{ name: 'Data Produksi', href: '/admin/productions' }] : []),
       ],
     } : null),
     {

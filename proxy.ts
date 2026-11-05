@@ -66,7 +66,8 @@ export async function proxy(request: NextRequest) {
           // Jika butuh analytics, bisa ditambahkan di sini berdasarkan permissions
         ];
 
-        const isAllowed = allowedPaths.some(p =>
+        // The production page checks its own role grant before reading data.
+        const isAllowed = pathname === '/admin/productions' || allowedPaths.some(p =>
           pathname === p || pathname.startsWith(p + '/')
         );
 

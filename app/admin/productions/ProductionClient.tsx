@@ -11,7 +11,6 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
-import { useAuth } from '@/app/AuthContext';
 import { formatDate } from '@/app/utils/dateFormat';
 import ProductionForm from './ProductionForm';
 import ProductionViewModal from './ProductionViewModal';
@@ -55,18 +54,15 @@ interface Pagination {
 }
 
 interface ProductionClientProps {
+  canManage: boolean;
+  canExport: boolean;
+  canGenerate: boolean;
   initialProductions: ProductionList[];
   products: RelationalData[];
   companies: RelationalData[];
   varietas: RelationalData[];
   kelasBenih: RelationalData[];
   pagination: Pagination;
-}
-
-interface DisplayUser {
-  name: string;
-  roles?: string[];
-  complaint_permissions?: Record<string, boolean>;
 }
 
 type SortField = 'product' | 'hybrid_code' | 'clearance_number' | 'lot_number' | 'volume' | 'harvest_date' | 'expired_date' | 'status';
@@ -225,9 +221,8 @@ const SortableHeader = ({ field, children, sortField, sortDirection, onSort }: a
 // --- KOMPONEN UTAMA ---
 
 export default function ProductionClient({ 
-  initialProductions, products, companies, varietas, kelasBenih, pagination
+  canManage, canExport, canGenerate, initialProductions, products, companies, varietas, kelasBenih, pagination
 }: ProductionClientProps) {
-  const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -272,11 +267,6 @@ export default function ProductionClient({
       setShowFilters(true);
     }
   }, [searchParams]);
-
-  const displayUser: DisplayUser | null = user ? {
-    name: user.user_metadata?.name || 'Admin',
-    roles: user.app_metadata?.roles || [],
-  } : null;
 
   // --- LOGIKA FILTER & SORTING ---
   const filteredAndSortedProductions = useMemo(() => {
@@ -471,8 +461,12 @@ export default function ProductionClient({
 
         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
           <button onClick={() => handleView(prod)} className="text-gray-500 hover:text-gray-800 p-1 mr-2" title="Lihat"><EyeIcon className="h-4 w-4"/></button>
-          <button onClick={() => handleEdit(prod)} className="text-emerald-600 hover:text-emerald-900 p-1 mr-2" title="Edit"><PencilIcon className="h-4 w-4"/></button>
-          <button onClick={() => handleDelete(prod.id)} className="text-red-600 hover:text-red-900 p-1" title="Hapus"><TrashIcon className="h-4 w-4"/></button>
+          {canManage && (
+            <>
+              <button onClick={() => handleEdit(prod)} className="text-emerald-600 hover:text-emerald-900 p-1 mr-2" title="Edit"><PencilIcon className="h-4 w-4"/></button>
+              <button onClick={() => handleDelete(prod.id)} className="text-red-600 hover:text-red-900 p-1" title="Hapus"><TrashIcon className="h-4 w-4"/></button>
+            </>
+          )}
         </td>
       </tr>
     );
@@ -502,18 +496,26 @@ export default function ProductionClient({
             >
               <FunnelIcon className="h-5 w-5" /> Filter {activeFiltersCount > 0 && `(${activeFiltersCount})`}
             </button>
-            <button onClick={() => setIsExportModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-purple-500">
-              <DocumentArrowDownIcon className="h-5 w-5" /> Export
-            </button>
-            <button onClick={() => setIsGenerateModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500">
-              <QrCodeIcon className="h-5 w-5" /> Generate
-            </button>
-            <button onClick={() => setIsImportModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-white text-gray-900 px-4 py-2.5 text-sm font-semibold ring-1 ring-gray-300 hover:bg-gray-50">
-              <ArrowDownOnSquareIcon className="h-5 w-5" /> Impor
-            </button>
-            <button onClick={handleAdd} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500">
-              <PlusIcon className="h-5 w-5" /> Tambah
-            </button>
+            {canExport && (
+              <button onClick={() => setIsExportModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-purple-500">
+                <DocumentArrowDownIcon className="h-5 w-5" /> Export
+              </button>
+            )}
+            {canGenerate && (
+              <button onClick={() => setIsGenerateModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500">
+                <QrCodeIcon className="h-5 w-5" /> Generate
+              </button>
+            )}
+            {canManage && (
+              <>
+                <button onClick={() => setIsImportModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-white text-gray-900 px-4 py-2.5 text-sm font-semibold ring-1 ring-gray-300 hover:bg-gray-50">
+                  <ArrowDownOnSquareIcon className="h-5 w-5" /> Impor
+                </button>
+                <button onClick={handleAdd} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500">
+                  <PlusIcon className="h-5 w-5" /> Tambah
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -596,11 +598,11 @@ export default function ProductionClient({
       </main>
 
       {/* Modals */}
-      <ProductionForm isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} productionToEdit={selectedProduction} products={products} companies={companies} varietas={varietas} kelasBenih={kelasBenih} />
+      {canManage && <ProductionForm isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} productionToEdit={selectedProduction} products={products} companies={companies} varietas={varietas} kelasBenih={kelasBenih} />}
       <ProductionViewModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} production={viewingProduction} />
-      <ImportDataModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImportSuccess={handleImportSuccess} />
-      <ExportDataModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} productions={productionsForDropdown} />
-      <GenerateRegistersModal isOpen={isGenerateModalOpen} onClose={() => setIsGenerateModalOpen(false)} productions={productionsForDropdown} />
+      {canManage && <ImportDataModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImportSuccess={handleImportSuccess} />}
+      {canExport && <ExportDataModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} productions={productionsForDropdown} />}
+      {canGenerate && <GenerateRegistersModal isOpen={isGenerateModalOpen} onClose={() => setIsGenerateModalOpen(false)} productions={productionsForDropdown} />}
     </div>
   );
 }

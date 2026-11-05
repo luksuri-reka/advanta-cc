@@ -1,21 +1,13 @@
 // app/admin/productions/page.tsx
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createServiceClient } from '@/app/utils/supabase/service';
+import { getProductionAccess } from '../access';
 import ProductionClient from './ProductionClient';
 
 export const dynamic = "force-dynamic";
 
 async function fetchAllDataInBatches() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-      },
-    }
-  );
+  const supabase = createServiceClient();
 
   try {
     const allProductions = [];
@@ -108,10 +100,17 @@ async function fetchAllDataInBatches() {
 }
 
 export default async function ProductionsPage() {
+  const access = await getProductionAccess();
+  if (!access.authenticated) redirect('/admin/login');
+  if (!access.view) redirect('/admin/complaints');
+
   try {
     const data = await fetchAllDataInBatches();
     return (
       <ProductionClient 
+        canManage={access.manage}
+        canExport={access.download}
+        canGenerate={access.uploadQr}
         initialProductions={data.productions} 
         products={data.products}
         companies={data.companies}

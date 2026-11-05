@@ -63,7 +63,8 @@ export default function UserClient({ initialUsers, availableRoles }: UserClientP
     if (window.confirm('Apakah Anda yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan.')) {
       const toastId = toast.loading('Menghapus user...');
       try {
-        await deleteUser(id);
+        const result = await deleteUser(id);
+        if (result.error) throw new Error(result.error.message);
         toast.success('User berhasil dihapus.', { id: toastId });
         window.location.reload(); 
       } catch (error: any) {

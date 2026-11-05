@@ -4,6 +4,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import { getAdminIdentity } from '../access';
+
+const forbidden = { error: { message: 'Hanya Superadmin yang dapat mengelola akun.' } };
 
 const createSupabaseServerClient = async () => {
   const cookieStore = await cookies();
@@ -30,6 +33,7 @@ export interface UserFormData {
 }
 
 export async function createUser(formData: UserFormData) {
+  if (!(await getAdminIdentity()).isSuperAdmin) return forbidden;
   const supabase = await createSupabaseServerClient();
 
   if (!formData.password) {
@@ -75,10 +79,11 @@ export async function createUser(formData: UserFormData) {
   }
 
   revalidatePath('/admin/users');
-  return { data: authUser };
+  return { data: authUser, error: null };
 }
 
 export async function updateUser(userId: string, formData: UserFormData) {
+  if (!(await getAdminIdentity()).isSuperAdmin) return forbidden;
   const supabase = await createSupabaseServerClient();
 
   const updateData: any = {
@@ -142,10 +147,11 @@ export async function updateUser(userId: string, formData: UserFormData) {
   }
 
   revalidatePath('/admin/users');
-  return { data: authUser };
+  return { data: authUser, error: null };
 }
 
 export async function deleteUser(userId: string) {
+  if (!(await getAdminIdentity()).isSuperAdmin) return forbidden;
   const supabase = await createSupabaseServerClient();
 
   // Delete user complaint profile first
@@ -161,5 +167,5 @@ export async function deleteUser(userId: string) {
   }
 
   revalidatePath('/admin/users');
-  return { data };
+  return { data, error: null };
 }

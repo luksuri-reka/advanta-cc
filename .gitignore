@@ -43,6 +43,7 @@ next-env.d.ts
 # supabase
 /supabase/migrations/*
 !/supabase/migrations/20261028_add_replacement_shipment.sql
+!/supabase/migrations/20261105_save_admin_role.sql
 
 # # Another
 # /app/lpj-maret/*

@@ -1,101 +1,48 @@
 // app/admin/roles/RoleForm.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast, Toaster } from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
-import { useAuth } from '@/app/AuthContext';
 import { createRole, updateRole } from './actions';
+import type { RolePermission } from './permissions';
 
-// Definisikan struktur grup dan izin sesuai dengan database
-const permissionGroups = [
-    {
-        groupName: 'Manajemen Akun',
-        permissions: [
-            { id: '2', name: 'account.role.view', label: 'Lihat Peran' },
-            { id: '1', name: 'account.role.manage', label: 'Kelola Peran (tambah, edit, & hapus)' },
-            { id: '4', name: 'account.user.view', label: 'Lihat Pengguna' },
-            { id: '3', name: 'account.user.manage', label: 'Kelola Pengguna (tambah, edit, & hapus)' },
-        ]
-    },
-    // ... permissionGroups lainnya ...
-    {
-        groupName: 'Katalog Produk',
-        permissions: [
-            { id: '6', name: 'catalog.jenis_tanaman.view', label: 'Lihat Jenis Tanaman' },
-            { id: '5', name: 'catalog.jenis_tanaman.manage', label: 'Kelola Jenis Tanaman' },
-            { id: '8', name: 'catalog.kelas_benih.view', label: 'Lihat Kelas Benih' },
-            { id: '7', name: 'catalog.kelas_benih.manage', label: 'Kelola Kelas Benih' },
-            { id: '10', name: 'catalog.varietas.view', label: 'Lihat Varietas' },
-            { id: '9', name: 'catalog.varietas.manage', label: 'Kelola Varietas' },
-            { id: '12', name: 'catalog.perusahaan.view', label: 'Lihat Perusahaan' },
-            { id: '11', name: 'catalog.perusahaan.manage', label: 'Kelola Perusahaan' },
-            { id: '14', name: 'catalog.bahan_aktif.view', label: 'Lihat Bahan Aktif' },
-            { id: '13', name: 'catalog.bahan_aktif.manage', label: 'Kelola Bahan Aktif' },
-            { id: '16', name: 'catalog.produk.view', label: 'Lihat Produk' },
-            { id: '15', name: 'catalog.produk.manage', label: 'Kelola Produk' },
-        ]
-    },
-    {
-        groupName: 'Manajemen Produksi',
-        permissions: [
-            { id: '18', name: 'production.batch.view', label: 'Lihat Batch Produksi' },
-            { id: '17', name: 'production.batch.manage', label: 'Kelola Batch Produksi' },
-            { id: '20', name: 'production.register.view', label: 'Lihat Registrasi Kantong' },
-            { id: '19', name: 'production.register.manage', label: 'Kelola Registrasi Kantong' },
-        ]
-    }
-];
-
-interface DisplayUser {
-  name: string;
-  roles?: string[];
-  complaint_permissions?: Record<string, boolean>;
-}
+const permissionGroupLabels: Record<string, string> = {
+    account: 'Manajemen Akun',
+    catalog: 'Katalog Produk',
+    production: 'Manajemen Produksi',
+};
 
 interface RoleFormProps {
     role?: {
         id: number;
         name: string;
-        description: string;
-        permissions: number[]; // Prop 'permissions' adalah number[]
-    } | null;
+        description: string | null;
+        permissionIds: number[];
+    };
+    permissions: RolePermission[];
 }
 
-export default function RoleForm({ role }: RoleFormProps) {
-    const { user } = useAuth();
+export default function RoleForm({ role, permissions }: RoleFormProps) {
     const router = useRouter();
-    const [roleName, setRoleName] = useState('');
-    const [roleDescription, setRoleDescription] = useState('');
-    // ++ FIX 1: Ubah state untuk menyimpan Set<string> ++
-    const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
+    const [roleName, setRoleName] = useState(role?.name ?? '');
+    const [roleDescription, setRoleDescription] = useState(role?.description ?? '');
+    const [selectedPermissions, setSelectedPermissions] = useState(() => new Set(role?.permissionIds));
     const [isSubmitting, setIsSubmitting] = useState(false);
-
     const isEditMode = !!role;
 
-    const displayUser: DisplayUser | null = user
-      ? {
-          name: user.user_metadata?.name || 'Admin',
-          roles: user.app_metadata?.roles || [],
-        }
-      : null;
-      
-    const handleLogout = () => { /* ... */ };
+    const permissionGroups = new Map<string, RolePermission[]>();
+    for (const permission of permissions) {
+        const group = permission.name.split('.')[0];
+        const groupPermissions = permissionGroups.get(group) ?? [];
+        groupPermissions.push(permission);
+        permissionGroups.set(group, groupPermissions);
+    }
 
-    useEffect(() => {
-        if (isEditMode && role) {
-            setRoleName(role.name);
-            setRoleDescription(role.description);
-            // ++ FIX 2: Konversi prop number[] menjadi Set<string> ++
-            setSelectedPermissions(new Set(role.permissions.map(String)));
-        }
-    }, [isEditMode, role]);
-
-    // ++ FIX 3: Ubah fungsi untuk menerima permissionId sebagai string ++
-    const handlePermissionChange = (permissionId: string) => {
+    const handlePermissionChange = (permissionId: number) => {
         setSelectedPermissions(prev => {
             const next = new Set(prev);
             if (next.has(permissionId)) {
@@ -116,13 +63,11 @@ export default function RoleForm({ role }: RoleFormProps) {
             name: roleName,
             description: roleDescription,
         };
-        // ++ FIX 4: Array.from(selectedPermissions) sekarang akan menghasilkan string[] ++
         const permissionIds = Array.from(selectedPermissions); 
 
         try {
             let result;
             if (isEditMode && role) {
-                // Tipe argumen (number, RoleData, string[]) sekarang cocok
                 result = await updateRole(role.id, roleData, permissionIds);
             } else {
                 // Tipe argumen (RoleData, string[]) sekarang cocok
@@ -167,7 +112,6 @@ export default function RoleForm({ role }: RoleFormProps) {
                         </p>
 
                         <div className="mt-8 grid grid-cols-1 gap-y-6">
-                            {/* ... Input Nama dan Deskripsi (tidak berubah) ... */}
                             <div>
                                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Nama Peran
@@ -176,6 +120,7 @@ export default function RoleForm({ role }: RoleFormProps) {
                                     type="text" 
                                     name="name" 
                                     id="name" 
+                                    readOnly={role?.name.toLowerCase() === 'superadmin'}
                                     value={roleName} 
                                     onChange={(e) => setRoleName(e.target.value)} 
                                     required 
@@ -202,15 +147,13 @@ export default function RoleForm({ role }: RoleFormProps) {
 
                         {/* Izin (Permissions) */}
                         <div className="mt-8 space-y-8">
-                            {permissionGroups.map((group, groupIndex) => (
-                                <div key={group.groupName} className={groupIndex > 0 ? "border-t border-gray-200 dark:border-slate-700 pt-8" : ""}>
+                            {[...permissionGroups].map(([groupName, groupPermissions], groupIndex) => (
+                                <div key={groupName} className={groupIndex > 0 ? "border-t border-gray-200 dark:border-slate-700 pt-8" : ""}>
                                     <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">
-                                        {group.groupName}
+                                        {permissionGroupLabels[groupName] ?? groupName}
                                     </h3>
                                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {group.permissions.map((perm) => {
-                                            // ++ FIX 5: Gunakan perm.id (string) secara langsung ++
-                                            const permId = perm.id; 
+                                        {groupPermissions.map((perm) => {
                                             return (
                                                 <div key={perm.id} className="relative flex items-start">
                                                     <div className="flex h-6 items-center">
@@ -218,14 +161,14 @@ export default function RoleForm({ role }: RoleFormProps) {
                                                             id={`perm-${perm.id}`}
                                                             name={`perm-${perm.id}`}
                                                             type="checkbox"
-                                                            checked={selectedPermissions.has(permId)}
-                                                            onChange={() => handlePermissionChange(permId)}
+                                                            checked={selectedPermissions.has(perm.id)}
+                                                            onChange={() => handlePermissionChange(perm.id)}
                                                             className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 dark:bg-slate-600 text-emerald-600 focus:ring-emerald-600 dark:focus:ring-emerald-500 dark:focus:ring-offset-slate-800"
                                                         />
                                                     </div>
                                                     <div className="ml-3 text-sm leading-6">
                                                         <label htmlFor={`perm-${perm.id}`} className="font-medium text-gray-900 dark:text-slate-200">
-                                                            {perm.label}
+                                                            {perm.description || perm.name}
                                                         </label>
                                                     </div>
                                                 </div>

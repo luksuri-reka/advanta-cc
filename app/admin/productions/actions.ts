@@ -1,26 +1,15 @@
 // app/admin/productions/actions.ts - Final Complete Version with Progress Tracking
 'use server';
 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import { createServiceClient } from '@/app/utils/supabase/service';
+import { getProductionAccess } from '../access';
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-const createSupabaseServerClient = async () => {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-      },
-    }
-  );
-};
+const forbidden = { error: { message: 'Anda tidak memiliki izin untuk aksi ini.' } };
 
 const getNullIfEmpty = (formData: FormData, field: string): string | null => {
   const value = formData.get(field) as string;
@@ -205,7 +194,8 @@ async function processProductionFormData(supabase: any, formData: FormData, isUp
 
 export async function createProduction(formData: FormData) {
   try {
-    const supabase = await createSupabaseServerClient();
+    if (!(await getProductionAccess()).manage) return forbidden;
+    const supabase = createServiceClient();
     const productionData = await processProductionFormData(supabase, formData, false);
 
     const { data, error } = await supabase.from('productions').insert(productionData).select().single();
@@ -226,7 +216,8 @@ export async function createProduction(formData: FormData) {
 
 export async function updateProduction(id: number, formData: FormData) {
   try {
-    const supabase = await createSupabaseServerClient();
+    if (!(await getProductionAccess()).manage) return forbidden;
+    const supabase = createServiceClient();
     
     const { data: existingData } = await supabase
       .from('productions')
@@ -254,7 +245,8 @@ export async function updateProduction(id: number, formData: FormData) {
 
 export async function deleteProduction(id: number) {
   try {
-    const supabase = await createSupabaseServerClient();
+    if (!(await getProductionAccess()).manage) return forbidden;
+    const supabase = createServiceClient();
     
     const { data: productionData } = await supabase
       .from('productions')
@@ -299,6 +291,7 @@ export async function deleteProduction(id: number) {
 const progressStore = new Map<string, any>();
 
 export async function getProgress(jobId: string) {
+  if (!(await getProductionAccess()).uploadQr) return null;
   return progressStore.get(jobId) || null;
 }
 
@@ -311,8 +304,17 @@ export async function generateProductionRegisters(
   token: string,
   jobId?: string
 ): Promise<{ data?: any; error?: any }> {
+  if (!(await getProductionAccess()).uploadQr) return forbidden;
+  return generateRegisters(productionId, token, jobId);
+}
+
+async function generateRegisters(
+  productionId: number,
+  token: string,
+  jobId?: string
+): Promise<{ data?: any; error?: any }> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createServiceClient();
 
     console.log('=== START Generate Registers ===');
     console.log('Production ID:', productionId);
@@ -599,6 +601,7 @@ export async function generateProductionRegisters(
 export async function bulkGenerateProductionRegisters(
   entries: Array<{ productionId: number; token: string }>
 ): Promise<{ data?: any; error?: any }> {
+  if (!(await getProductionAccess()).uploadQr) return forbidden;
   if (!entries || entries.length === 0) {
     return { error: { message: 'Tidak ada data untuk di-generate.' } };
   }
@@ -617,7 +620,7 @@ export async function bulkGenerateProductionRegisters(
   try {
     for (const entry of entries) {
       try {
-        const result = await generateProductionRegisters(
+        const result = await generateRegisters(
           Number(entry.productionId), 
           String(entry.token)
         );

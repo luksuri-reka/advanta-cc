@@ -107,13 +107,11 @@ export default function UserForm({ isOpen, onClose, availableRoles, userToEdit }
     const toastId = toast.loading(isEditMode ? 'Memperbarui user...' : 'Membuat user...');
 
     try {
-      if (isEditMode && userToEdit) {
-        await updateUser(userToEdit.id, formData);
-        toast.success('User berhasil diperbarui.', { id: toastId });
-      } else {
-        await createUser(formData);
-        toast.success('User berhasil dibuat.', { id: toastId });
-      }
+      const result = isEditMode && userToEdit
+        ? await updateUser(userToEdit.id, formData)
+        : await createUser(formData);
+      if (result.error) throw new Error(result.error.message);
+      toast.success(isEditMode ? 'User berhasil diperbarui.' : 'User berhasil dibuat.', { id: toastId });
       onClose();
       window.location.reload(); 
     } catch (error: any) {

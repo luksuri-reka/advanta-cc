@@ -2,10 +2,10 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import * as XLSX from 'xlsx';
+import { createServiceClient } from '@/app/utils/supabase/service';
+import { rejectUnauthorizedProductionRequest } from '../access';
 
 interface ImportRow {
   [key: string]: string;
@@ -54,6 +54,9 @@ async function parseCSVFile(file: File): Promise<{ headers: string[], dataRows: 
 
 export async function POST(request: NextRequest) {
   try {
+    const denied = await rejectUnauthorizedProductionRequest('manage');
+    if (denied) return denied;
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
@@ -61,16 +64,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File tidak ditemukan' }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          get: (name: string) => cookieStore.get(name)?.value,
-        },
-      }
-    );
+    const supabase = createServiceClient();
 
     // Parse file berdasarkan tipe
     let headers: string[];

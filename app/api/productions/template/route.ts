@@ -1,9 +1,13 @@
 // app/api/productions/template/route.ts - Enhanced with Excel support
 import { NextResponse, NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
+import { rejectUnauthorizedProductionRequest } from '../access';
 
 export async function GET(request: NextRequest) {
   try {
+    const denied = await rejectUnauthorizedProductionRequest('manage');
+    if (denied) return denied;
+
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') || 'csv'; // Default to CSV
 

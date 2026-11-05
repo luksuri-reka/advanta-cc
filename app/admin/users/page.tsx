@@ -2,6 +2,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import UserClient from './UserClient';
+import { requireSuperAdminPage } from '../access';
 
 // 1. Jadikan fungsi ini 'async'
 const createSupabaseServerClient = () => {
@@ -44,6 +45,7 @@ async function fetchInitialData() {
 }
 
 export default async function UsersPage() {
+  await requireSuperAdminPage();
   const { users, roles } = await fetchInitialData();
   return <UserClient initialUsers={users} availableRoles={roles} />;
 }

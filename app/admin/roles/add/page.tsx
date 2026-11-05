@@ -1,9 +1,8 @@
-// app/admin/roles/add/page.tsx
+import { requireSuperAdminPage } from '../../access';
 import RoleForm from '../RoleForm';
+import { loadRolePermissions } from '../permissions';
 
-export default function AddRolePage() {
-  return (
-    // Kita akan buat layout di dalam RoleForm
-    <RoleForm />
-  );
+export default async function AddRolePage() {
+  await requireSuperAdminPage();
+  return <RoleForm permissions={await loadRolePermissions()} />;
 }
