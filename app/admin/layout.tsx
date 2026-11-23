@@ -1,21 +1,18 @@
 import Navbar from './Navbar';
-import { getAdminIdentity, getAdminUser, getProductionAccess } from './access';
+import { getAdminIdentity, getProductionAccess } from './access';
+import { getComplaintAccess } from './complaintAccess';
+import { ComplaintAccessProvider } from './ComplaintAccessProvider';
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, supabase } = await getAdminUser();
+  const { user, roles, isSuperAdmin } = await getAdminIdentity();
   if (!user) return children;
 
-  const [{ data: profile }, { roles, isSuperAdmin }, productionAccess] = await Promise.all([
-    supabase
-      .from('user_complaint_profiles')
-      .select('department, complaint_permissions')
-      .eq('user_id', user.id)
-      .single(),
-    getAdminIdentity(),
+  const [{ actor }, productionAccess] = await Promise.all([
+    getComplaintAccess(),
     getProductionAccess(),
   ]);
 
@@ -24,14 +21,14 @@ export default async function AdminLayout({
     roles: roles.length ? roles : ['User'],
     isSuperAdmin,
     canViewProduction: productionAccess.view,
-    department: profile?.department,
-    complaint_permissions: profile?.complaint_permissions || {},
+    department: actor?.department,
+    complaint_permissions: actor?.complaint_permissions,
   };
 
   return (
-    <>
+    <ComplaintAccessProvider value={actor}>
       <Navbar user={displayUser} />
       {children}
-    </>
+    </ComplaintAccessProvider>
   );
 }

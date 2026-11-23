@@ -1,10 +1,12 @@
 // app/admin/settings/complaints/page.tsx - 3 Level Categories System
 'use client';
 
+import { useComplaintActor } from '@/app/admin/ComplaintAccessProvider';
+import { hasComplaintPermission as can, type ComplaintPermission } from '@/app/utils/complaintPermissions';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getProfile, logout } from '../../../utils/auth';
-import type { User } from '@supabase/supabase-js';
+import { logout } from '../../../utils/auth';
 import {
   CogIcon,
   ClockIcon,
@@ -16,12 +18,6 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import AdminSpinner from '../../components/AdminSpinner';
-
-interface DisplayUser {
-  name: string;
-  roles?: string[];
-  complaint_permissions?: Record<string, boolean>;
-}
 
 interface ComplaintSettings {
   sla_response_time: number;
@@ -53,7 +49,7 @@ interface ComplaintCategory {
 
 export default function ComplaintSettingsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<DisplayUser | null>(null);
+  const user = useComplaintActor();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'sla' | 'categories' | 'notifications' | 'templates'>('sla');
   const [loading, setLoading] = useState(true);
@@ -244,31 +240,12 @@ export default function ComplaintSettingsPage() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile: User | null = await getProfile();
-        if (profile) {
-          setUser({
-            name: profile.user_metadata?.name || 'Admin',
-            roles: profile.app_metadata?.roles || ['Superadmin'],
-            complaint_permissions: profile.user_metadata?.complaint_permissions || {}
-          });
-        }
-        await loadSettings();
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-        router.push('/admin/login');
-      }
-    })();
-  }, []);
 
-  const hasComplaintPermission = (permission: string) => {
-    if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
-      return true;
-    }
-    return user?.complaint_permissions?.[permission] === true;
-  };
+  const hasComplaintPermission = (permission: ComplaintPermission) => can(user, permission);
+
+  useEffect(() => {
+    if (can(user, 'canConfigureComplaintSystem')) void loadSettings();
+  }, [user]);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -509,7 +486,7 @@ export default function ComplaintSettingsPage() {
     { id: 'templates', label: 'Template Email', icon: DocumentTextIcon }
   ];
 
-  if (!mounted || loading) {
+  if (!mounted || (hasComplaintPermission('canConfigureComplaintSystem') && loading)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
         <AdminSpinner text="Memuat pengaturan komplain..." size="lg" />

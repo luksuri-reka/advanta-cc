@@ -46,11 +46,3 @@ export const getReplacementShipmentExportFields = (shipment: ReplacementShipment
     ? formatShipmentDate(shipment.replacement_shipped_date)
     : '-',
 });
-
-export const canUpdateReplacementShipment = (
-  roles: unknown,
-  profile: { is_active?: boolean | null; complaint_permissions?: Record<string, unknown> | null } | null,
-): boolean => {
-  if (Array.isArray(roles) && (roles.includes('Superadmin') || roles.includes('superadmin'))) return true;
-  return profile?.is_active === true && profile.complaint_permissions?.canUpdateComplaintStatus === true;
-};

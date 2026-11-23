@@ -1,6 +1,7 @@
 // app/api/complaints/[id]/assign/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 import { sendWhatsAppMessage } from '@/app/utils/whatsapp';
 
 export async function POST(
@@ -9,12 +10,11 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaint(id, 'canAssignComplaints');
+    if (access.denied) return access.denied;
+    const { actor: user } = access;
+    const supabase = createServiceClient();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await request.json();
     const {

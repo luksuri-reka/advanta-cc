@@ -1,27 +1,11 @@
 // app/admin/users/actions.ts - Updated version
 'use server';
 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createServiceClient } from '@/app/utils/supabase/service';
 import { revalidatePath } from 'next/cache';
 import { getAdminIdentity } from '../access';
 
 const forbidden = { error: { message: 'Hanya Superadmin yang dapat mengelola akun.' } };
-
-const createSupabaseServerClient = async () => {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
-};
 
 export interface UserFormData {
   name: string;
@@ -34,7 +18,7 @@ export interface UserFormData {
 
 export async function createUser(formData: UserFormData) {
   if (!(await getAdminIdentity()).isSuperAdmin) return forbidden;
-  const supabase = await createSupabaseServerClient();
+  const supabase = createServiceClient();
 
   if (!formData.password) {
     return { error: { message: 'Password wajib diisi untuk pengguna baru.' } };
@@ -84,7 +68,7 @@ export async function createUser(formData: UserFormData) {
 
 export async function updateUser(userId: string, formData: UserFormData) {
   if (!(await getAdminIdentity()).isSuperAdmin) return forbidden;
-  const supabase = await createSupabaseServerClient();
+  const supabase = createServiceClient();
 
   const updateData: any = {
     user_metadata: {
@@ -152,7 +136,7 @@ export async function updateUser(userId: string, formData: UserFormData) {
 
 export async function deleteUser(userId: string) {
   if (!(await getAdminIdentity()).isSuperAdmin) return forbidden;
-  const supabase = await createSupabaseServerClient();
+  const supabase = createServiceClient();
 
   // Delete user complaint profile first
   await supabase

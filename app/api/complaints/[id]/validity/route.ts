@@ -1,5 +1,5 @@
 // app/api/complaints/[id]/validity/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 import {
   COMPLAINT_VALIDITY_LABELS,
   ComplaintValidity,
@@ -7,6 +7,7 @@ import {
   normalizeComplaintValidity,
 } from '@/app/utils/complaintStatus';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 
 async function handleUpdateValidity(
   request: Request,
@@ -14,12 +15,11 @@ async function handleUpdateValidity(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaint(id, 'canEditComplaints');
+    if (access.denied) return access.denied;
+    const { actor: user } = access;
+    const supabase = createServiceClient();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await request.json();
     const requestedValidity = normalizeComplaintValidity(body.complaint_validity);
@@ -58,15 +58,6 @@ async function handleUpdateValidity(
       return NextResponse.json({ error: 'Failed to update validity' }, { status: 500 });
     }
 
-    // Ambil nama profil admin
-    const { data: profile } = await supabase
-      .from('user_complaint_profiles')
-      .select('name')
-      .eq('user_id', user.id)
-      .single();
-
-    const adminName = profile?.name || user.user_metadata?.name || user.email || 'Admin';
-
     // Log riwayat internal ke complaint_responses
     const logMessage = `Validitas komplain diubah dari "${oldLabel}" menjadi "${newLabel}".${notes ? ` Catatan: ${notes}` : ''}`;
     await supabase
@@ -74,7 +65,7 @@ async function handleUpdateValidity(
       .insert({
         complaint_id: parseInt(id),
         message: logMessage,
-        admin_name: adminName,
+        admin_name: user.name,
         admin_id: user.id,
         is_internal: true
       });

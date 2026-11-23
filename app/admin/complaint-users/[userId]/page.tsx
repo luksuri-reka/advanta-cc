@@ -1,10 +1,12 @@
 // app/admin/complaint-users/[userId]/page.tsx
 'use client';
 
+import { useComplaintActor } from '@/app/admin/ComplaintAccessProvider';
+import { complaintPermissionLabels, hasComplaintPermission as can, normalizeComplaintPermissions, type ComplaintPermission } from '@/app/utils/complaintPermissions';
+
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getProfile, logout } from '../../../utils/auth';
-import type { User } from '@supabase/supabase-js';
+import { logout } from '../../../utils/auth';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -18,12 +20,6 @@ import {
   ShieldCheckIcon,
   WrenchIcon
 } from '@heroicons/react/24/outline';
-
-interface DisplayUser {
-  name: string;
-  roles?: string[];
-  complaint_permissions?: Record<string, boolean>;
-}
 
 interface ComplaintUserDetail {
   user_id: string;
@@ -53,7 +49,7 @@ export default function ComplaintUserDetailPage() {
   const router = useRouter();
   const userId = params?.userId as string;
 
-  const [user, setUser] = useState<DisplayUser | null>(null);
+  const user = useComplaintActor();
   const [userDetail, setUserDetail] = useState<ComplaintUserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,42 +70,14 @@ export default function ComplaintUserDetailPage() {
     return departments[dept] || dept;
   };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile: User | null = await getProfile();
-        if (profile) {
-          setUser({
-            name: profile.user_metadata?.name || 'Admin',
-            roles: profile.app_metadata?.roles || ['Superadmin'],
-            complaint_permissions: profile.user_metadata?.complaint_permissions || {}
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-        router.push('/admin/login');
-      }
-    })();
-  }, []);
 
   useEffect(() => {
-    if (user && userId) {
+    if (can(user, 'canManageComplaintUsers') && userId) {
       loadUserDetail();
     }
   }, [user, userId]);
 
-  const permissionList = [
-    { id: 'canViewComplaints', name: 'View Complaints' },
-    { id: 'canEditComplaints', name: 'Edit Complaints' },
-    { id: 'canAssignComplaints', name: 'Assign Complaints' },
-    { id: 'canResolveComplaints', name: 'Resolve Complaints' },
-    { id: 'canRespondToComplaints', name: 'Respond to Complaints' },
-    { id: 'canUpdateComplaintStatus', name: 'Update Status' }, // TAMBAHKAN
-    { id: 'canDeleteComplaints', name: 'Delete Complaints' }, // TAMBAHKAN
-    { id: 'canManageComplaintSettings', name: 'Manage Settings' },
-    { id: 'canViewComplaintAnalytics', name: 'View Analytics' },
-    { id: 'canExportComplaintData', name: 'Export Data' }, // TAMBAHKAN
-  ];
+  const permissionList = Object.entries(complaintPermissionLabels).map(([id, name]) => ({ id, name }));
 
   const loadUserDetail = async () => {
     setLoading(true);
@@ -120,7 +88,7 @@ export default function ComplaintUserDetailPage() {
       if (response.ok) {
         setUserDetail(result.data);
       } else {
-        setError(result.message || 'Failed to load user details');
+        setError(result.error || 'Failed to load user details');
       }
     } catch (error) {
       console.error('Error loading user details:', error);
@@ -172,7 +140,7 @@ export default function ComplaintUserDetailPage() {
     }
   };
 
-  if (!user) {
+  if (!can(user, 'canManageComplaintUsers')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">

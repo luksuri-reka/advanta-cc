@@ -1,14 +1,17 @@
 // app/api/complaints/[id]/lab-testing/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
     const { id } = await params;
+    const access = await authorizeComplaint(id, 'canViewComplaints');
+    if (access.denied) return access.denied;
+    const { supabase } = access;
 
     const { data, error } = await supabase
       .from('complaint_lab_testing')
@@ -31,10 +34,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
     const { id } = await params;
+    const access = await authorizeComplaint(id, 'workflow');
+    if (access.denied) return access.denied;
+    const { actor: user } = access;
+    const supabase = createServiceClient();
     const body = await request.json();
-    const { data: { user } } = await supabase.auth.getUser();
 
     const labTestingData = {
       complaint_id: id,

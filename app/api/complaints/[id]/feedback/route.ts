@@ -1,5 +1,5 @@
 // app/api/complaints/[id]/feedback/route.ts
-import { createClient } from '@/utils/supabase/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> } // 🔥 UBAH: params jadi Promise
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     
     // 🔥 AWAIT params dulu
     const { id } = await params;
@@ -15,6 +15,10 @@ export async function POST(
     
     const body = await request.json();
     const { rating, quick_answers = [], feedback, complaint_number } = body;
+
+    if (!/^[1-9]\d*$/.test(id) || typeof complaint_number !== 'string' || !complaint_number.trim()) {
+      return NextResponse.json({ error: 'Nomor komplain tidak valid.' }, { status: 400 });
+    }
 
     // Validasi rating
     if (!rating || rating < 1 || rating > 5) {
@@ -35,8 +39,9 @@ export async function POST(
         updated_at: new Date().toISOString(),
       })
       .eq('id', complaintId)
+      .eq('complaint_number', complaint_number.trim())
       .select()
-      .single();
+      .maybeSingle();
 
     if (updateError) {
       console.error('Error updating complaint:', updateError);
@@ -45,6 +50,7 @@ export async function POST(
         { status: 500 }
       );
     }
+    if (!complaint) return NextResponse.json({ error: 'Komplain tidak ditemukan.' }, { status: 404 });
 
     // Optional: Kirim email notifikasi ke admin tentang feedback baru
     // await sendFeedbackNotificationEmail(complaint);

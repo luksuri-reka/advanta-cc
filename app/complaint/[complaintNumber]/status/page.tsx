@@ -273,6 +273,7 @@ export default function ComplaintStatusPage() {
         },
         body: JSON.stringify({
           message: responseMessage,
+          complaint_number: complaint.complaint_number,
           admin_id: null,
           admin_name: null,
           is_internal: false

@@ -1,18 +1,15 @@
 // app/api/complaints/analytics/route.ts
-import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '30'; // days
-    const supabase = await createClient();
+    const access = await authorizeComplaintTeam('canViewComplaintAnalytics');
+    if (access.denied) return access.denied;
+    const { regions, supabase } = access;
 
-    // Check auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Calculate date range
     const endDate = new Date();
@@ -20,7 +17,7 @@ export async function GET(request: Request) {
     startDate.setDate(startDate.getDate() - parseInt(period));
 
     // Fetch all complaints in period with all relevant fields
-    const { data: complaints, error } = await supabase
+    let query = supabase
       .from('complaints')
       .select(`
         id,
@@ -49,6 +46,9 @@ export async function GET(request: Request) {
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString())
       .order('created_at', { ascending: true });
+
+    if (regions.length > 0) query = query.in('customer_province', regions);
+    const { data: complaints, error } = await query;
 
     if (error) {
       console.error('Database error:', error);

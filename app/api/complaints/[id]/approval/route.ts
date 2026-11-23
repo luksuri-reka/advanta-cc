@@ -1,14 +1,17 @@
 // app/api/complaints/[id]/approval/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createClient();
         const { id } = await params;
+        const access = await authorizeComplaint(id, 'canViewComplaints');
+        if (access.denied) return access.denied;
+        const { supabase } = access;
 
         const { data: approval, error } = await supabase
             .from('complaint_approvals')
@@ -53,13 +56,12 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createClient();
+        const access = await authorizeComplaint(id, 'workflow');
+        if (access.denied) return access.denied;
+        const { actor: user } = access;
+        const supabase = createServiceClient();
         const body = await request.json();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
 
         const replacementItem = typeof body.replacement_item === 'string'
             ? body.replacement_item.trim()
@@ -224,13 +226,12 @@ export async function PATCH(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createClient();
+        const access = await authorizeComplaint(id, 'approval');
+        if (access.denied) return access.denied;
+        const { actor: user } = access;
+        const supabase = createServiceClient();
         const body = await request.json();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
 
         if (!['approved', 'rejected'].includes(body.status)) {
             return NextResponse.json({ error: 'Status approval tidak valid' }, { status: 400 });

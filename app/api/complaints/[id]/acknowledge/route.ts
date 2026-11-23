@@ -1,6 +1,7 @@
 // app/api/complaints/[id]/acknowledge/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 
 export async function POST(
   request: Request,
@@ -8,13 +9,12 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaint(id, 'workflow');
+    if (access.denied) return access.denied;
+    const { actor: user } = access;
+    const supabase = createServiceClient();
     const body = await request.json();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { replacement_qty, replacement_hybrid } = body;
     const replacementQty = Number(replacement_qty);

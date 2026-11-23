@@ -1,7 +1,8 @@
 // app/api/complaints/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
 
 // Tambahkan helper function
 function formatPhoneNumber(phone: string): string {
@@ -20,7 +21,7 @@ function formatPhoneNumber(phone: string): string {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const body = await request.json();
 
     const requiredFields = [
@@ -282,9 +283,6 @@ async function generateUniqueComplaintNumber(supabase: any): Promise<string> {
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
     const { searchParams } = new URL(request.url);
     const complaintNumber = searchParams.get('complaint_number');
 
@@ -335,13 +333,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: [enrichedData] });
     }
 
-    // List all complaints (membutuhkan Auth)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const roles = user?.app_metadata?.roles || [];
-    const isSuperAdmin = roles.includes('Superadmin') || roles.includes('superadmin');
+    const access = await authorizeComplaintTeam('canViewComplaints');
+    if (access.denied) return access.denied;
+    const { regions, supabase } = access;
 
     // Baca optional query params
     const limit = searchParams.get('limit');
@@ -361,19 +355,7 @@ export async function GET(request: Request) {
       query = query.limit(parseInt(limit, 10));
     }
 
-    if (!isSuperAdmin) {
-      const { data: profile } = await supabase
-        .from('user_complaint_profiles')
-        .select('assigned_regions')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profile?.assigned_regions && profile.assigned_regions.length > 0) {
-        query = query.in('customer_province', profile.assigned_regions);
-      }
-      // Jika kosong, query dibiarkan tanpa filter in(), sehingga RLS di DB yang akan mengambil alih.
-      // (Berdasarkan update RLS: array kosong berarti boleh lihat semua)
-    }
+    if (regions.length > 0) query = query.in('customer_province', regions);
 
     const { data, error } = await query;
 

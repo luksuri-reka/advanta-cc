@@ -61,9 +61,11 @@ export async function proxy(request: NextRequest) {
         // Tentukan path mana saja yang boleh mereka akses secara umum (Selain fitur spesifik)
         const allowedPaths = [
           '/admin/complaints',
+          '/admin/complaint-users',
+          '/admin/analytics',
+          '/admin/settings/complaints',
           '/admin/profile',
-          '/admin/help'
-          // Jika butuh analytics, bisa ditambahkan di sini berdasarkan permissions
+          '/admin/help',
         ];
 
         // The production page checks its own role grant before reading data.

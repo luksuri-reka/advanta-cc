@@ -1,5 +1,5 @@
 // app/api/complaints/[id]/status/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 import {
   isClosedComplaintStatus,
   isValidComplaintStatus,
@@ -8,6 +8,7 @@ import {
   normalizeComplaintValidity,
 } from '@/app/utils/complaintStatus';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 
 export async function POST(
   request: Request,
@@ -15,20 +16,15 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await request.json();
-    const status = normalizeComplaintStatus(body.status);
-    const requestedValidity = normalizeComplaintValidity(body.complaint_validity);
+    const status = normalizeComplaintStatus(typeof body?.status === 'string' ? body.status : null);
+    const requestedValidity = normalizeComplaintValidity(typeof body?.complaint_validity === 'string' ? body.complaint_validity : null);
 
     if (!isValidComplaintStatus(status)) {
       return NextResponse.json({
-        error: `Invalid status: ${body.status}`
+        error: 'Status komplain tidak valid.'
       }, { status: 400 });
     }
 
@@ -37,6 +33,11 @@ export async function POST(
         error: 'Validitas komplain wajib dipilih sebelum status diselesaikan'
       }, { status: 400 });
     }
+
+    const access = await authorizeComplaint(id, isClosedComplaintStatus(status) ? 'resolveWorkflow' : 'workflow');
+    if (access.denied) return access.denied;
+    const { actor: user } = access;
+    const supabase = createServiceClient();
 
     const { data: complaint, error: complaintError } = await supabase
       .from('complaints')
@@ -50,15 +51,20 @@ export async function POST(
       }, { status: 404 });
     }
 
+    if (isClosedComplaintStatus(complaint.status) && complaint.status !== status) {
+      return NextResponse.json({ error: 'Komplain yang sudah selesai tidak dapat diubah statusnya.' }, { status: 409 });
+    }
+
     if (complaint.status === status) {
-      if (requestedValidity && isValidComplaintValidity(requestedValidity) && requestedValidity !== complaint.complaint_validity) {
-        await supabase
+      if (isClosedComplaintStatus(status) && requestedValidity !== complaint.complaint_validity) {
+        const { error } = await supabase
           .from('complaints')
           .update({
             complaint_validity: requestedValidity,
             updated_at: new Date().toISOString()
           })
           .eq('id', id);
+        if (error) return NextResponse.json({ error: 'Gagal menyimpan validitas komplain.' }, { status: 500 });
 
         return NextResponse.json({
           message: 'Status already set, validity updated',
@@ -92,10 +98,13 @@ export async function POST(
       updateData.complaint_validity = requestedValidity;
     }
 
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('complaints')
       .update(updateData)
-      .eq('id', id);
+      .eq('id', id)
+      .eq('status', complaint.status)
+      .select('id')
+      .maybeSingle();
 
     if (updateError) {
       console.error('Update status error:', updateError);
@@ -103,6 +112,7 @@ export async function POST(
         error: 'Failed to update status'
       }, { status: 500 });
     }
+    if (!updated) return NextResponse.json({ error: 'Status komplain sudah berubah. Muat ulang halaman.' }, { status: 409 });
 
     // Log history
     await supabase

@@ -1,11 +1,13 @@
 // app/admin/complaints/[id]/page.tsx
 'use client';
 
+import { useComplaintActor } from '@/app/admin/ComplaintAccessProvider';
+import { canWorkOnComplaint, hasComplaintPermission as can, type ComplaintActor, type ComplaintPermission } from '@/app/utils/complaintPermissions';
+
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getProfile, logout } from '../../../utils/auth';
+import { logout } from '../../../utils/auth';
 import { supabase } from '../../../utils/supabase';
-import type { User } from '@supabase/supabase-js';
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -46,7 +48,7 @@ import LabTestingSummaryCard from '@/app/components/LabTestingSummaryCard';
 import ImageLightbox, { LightboxImage } from '@/app/components/ImageLightbox';
 import AdminSpinner from '../../components/AdminSpinner';
 import ReplacementShipmentFields from '@/app/components/ReplacementShipmentFields';
-import { canUpdateReplacementShipment, type ReplacementShipment } from '@/app/utils/replacementShipment';
+import type { ReplacementShipment } from '@/app/utils/replacementShipment';
 import {
   complaintReportLabels,
   exportComplaintReportToExcel,
@@ -61,7 +63,7 @@ import {
 interface QuickActionsProps {
   complaint: Complaint;
   userId: string;
-  user: DisplayUser; // 🔥 TAMBAHKAN INI
+  user: ComplaintActor;
   onStatusChange: () => void;
   approvalData?: any;
   onApprovalUpdate?: () => void;
@@ -158,19 +160,15 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
     setShowRequestApprovalModal(true);
   };
 
-  const activeAssignees = [
-    complaint.assignee_observasi,
-    complaint.assignee_investigasi_1,
-    complaint.assignee_investigasi_2,
-    complaint.assignee_lab_testing,
-    complaint.assignee_approval,
-    complaint.assigned_to // Fallback legacy
-  ].filter(Boolean);
-
-  const isAssignedToMe = activeAssignees.includes(userId);
+  const canEdit = canWorkOnComplaint(user, complaint, 'canEditComplaints');
+  const hasEditGrant = can(user, 'canEditComplaints');
+  const canInvestigate = hasEditGrant || user.department === 'management'
+    || userId === complaint.assignee_investigasi_1 || userId === complaint.assignee_investigasi_2
+    || complaint.department?.startsWith('investigasi');
+  const canTest = hasEditGrant || user.department === 'management'
+    || userId === complaint.assignee_lab_testing || complaint.department?.startsWith('lab');
+  const canResolve = canWorkOnComplaint(user, complaint, 'canResolveComplaints');
   const isApprovalAssignee = complaint.assignee_approval === userId;
-  const isSuperAdmin = user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin');
-  const isManagement = user?.department === 'management';
 
   const handleQuickStatus = async (newStatus: string, message?: string, complaintValidity?: ComplaintValidity) => {
     setUpdating(true);
@@ -189,7 +187,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
         throw new Error(errorData?.error || 'Failed to update status');
       }
 
-      if (message) {
+      if (message && can(user, 'canRespondToComplaints')) {
         await fetch(`/api/complaints/${complaint.id}/responses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -341,7 +339,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
     }
   };
 
-  if (!isAssignedToMe && !isSuperAdmin && !isManagement) return null;
+  if (!canEdit && !(complaint.status === 'decision' && isApprovalAssignee) && !(complaint.status === 'pending_response' && canResolve)) return null;
 
   return (
     <>
@@ -354,7 +352,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
           {/* === STATUS: SUBMITTED → ACKNOWLEDGED === */}
-          {complaint.status === 'submitted' && (
+          {canEdit && complaint.status === 'submitted' && (
             <button
               onClick={() => handleQuickStatus('acknowledged', 'Komplain Anda telah kami terima dan dikonfirmasi. Tim kami akan segera memproses lebih lanjut.')}
               disabled={updating}
@@ -367,7 +365,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
           )}
 
           {/* === STATUS: ACKNOWLEDGED → OBSERVATION atau DIRECT REPLACEMENT === */}
-          {complaint.status === 'acknowledged' && (
+          {canEdit && complaint.status === 'acknowledged' && (
             <>
               <button
                 onClick={() => { setShowReplacementModal(true); void loadApprovalProducts(); }}
@@ -392,7 +390,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
           )}
 
           {/* === STATUS: OBSERVATION - ISI FORM OBSERVASI === */}
-          {complaint.status === 'observation' && (
+          {canEdit && complaint.status === 'observation' && (
             <>
               <Link
                 href={`/admin/complaints/${complaint.id}/observation`}
@@ -411,13 +409,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
               </Link>
 
               {/* Tombol Mulai Investigasi jika user adalah petugas investigasi/lab */}
-              {(userId === complaint.assignee_investigasi_1 ||
-                userId === complaint.assignee_investigasi_2 ||
-                userId === complaint.assignee_lab_testing ||
-                complaint.department?.startsWith('investigasi') ||
-                complaint.department?.startsWith('lab') ||
-                isSuperAdmin ||
-                isManagement) && (
+              {(canInvestigate || canTest) && (
                   <button
                     onClick={() => handleQuickStatus('investigation', 'Tim investigasi telah memulai pengujian dan analisis mendalam.')}
                     disabled={updating}
@@ -432,10 +424,10 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
           )}
 
           {/* === STATUS: INVESTIGATION - ISI FORM INVESTIGASI & LAB === */}
-          {complaint.status === 'investigation' && (
+          {canEdit && complaint.status === 'investigation' && (
             <>
               <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(userId === complaint.assignee_investigasi_1 || userId === complaint.assignee_investigasi_2 || complaint.department?.startsWith('investigasi') || isSuperAdmin || isManagement) && (
+                {canInvestigate && (
                   <Link
                     href={`/admin/complaints/${complaint.id}/investigation`}
                     className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${complaint.complaint_investigations && complaint.complaint_investigations.length > 0
@@ -452,7 +444,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                     </span>
                   </Link>
                 )}
-                {(userId === complaint.assignee_lab_testing || complaint.department?.startsWith('lab') || isSuperAdmin || isManagement) && (
+                {canTest && (
                   <Link
                     href={`/admin/complaints/${complaint.id}/lab-testing`}
                     className={`flex items-center justify-center gap-2 p-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border ${complaint.complaint_lab_testing && complaint.complaint_lab_testing.length > 0
@@ -469,7 +461,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                     </span>
                   </Link>
                 )}
-                {(isAssignedToMe || isSuperAdmin || isManagement) && (complaint.complaint_observations?.length ?? 0) > 0 && (
+                {(complaint.complaint_observations?.length ?? 0) > 0 && (
                   <Link
                     href={`/admin/complaints/${complaint.id}/observation`}
                     className="sm:col-span-2 flex items-center justify-center gap-2 p-4 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 border border-amber-400 text-white hover:from-amber-700 hover:to-orange-700 transition-all shadow-md hover:shadow-lg"
@@ -498,7 +490,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
             <div className="col-span-1 sm:col-span-2 p-5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
               <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Persetujuan Penggantian</h4>
 
-              {!approvalData ? (
+              {!approvalData ? (canEdit && (
                 // 1. Belum ada request approval diajukan
                 <button
                   onClick={() => void openApprovalRequestModal()}
@@ -507,7 +499,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                 >
                   Ajukan Persetujuan Penggantian (Request Approval)
                 </button>
-              ) : approvalData.status === 'pending' ? (
+              )) : approvalData.status === 'pending' ? (
                 // 2. Ada request pending. Cek siapa yang berhak approve.
                 <div className="space-y-4">
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -572,13 +564,13 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                   )}
 
                   {/* Tombol lanjutan — hanya untuk super admin / management */}
-                  {(isSuperAdmin || isManagement) && (
+                  {(canEdit || canResolve) && (
                     <div className="space-y-2 pt-1">
                       <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                         Proses Selanjutnya
                       </p>
 
-                      {approvalData.status === 'approved' ? (
+                      {approvalData.status === 'approved' ? (canEdit && (
                         <>
                           {/* Approved → kirim notifikasi ke customer */}
                           <button
@@ -593,10 +585,11 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                             Kirim Notifikasi ke Customer
                           </button>
                         </>
-                      ) : (
+                      )) : (
                         <>
                           {/* Rejected → kembali investigasi atau tutup */}
-                          <button
+                          {canEdit && (
+                            <button
                             onClick={() => handleQuickStatus(
                               'investigation',
                               `Permohonan penggantian ditolak. Tim investigasi akan melakukan kajian ulang.`
@@ -607,7 +600,9 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                             <BeakerIcon className="h-4 w-4" />
                             Kembali ke Investigasi
                           </button>
-                          <button
+                          )}
+                          {canResolve && (
+                            <button
                             onClick={() => requestFinalStatus(
                               'resolved',
                               `Komplain diselesaikan. Permohonan penggantian ditolak berdasarkan hasil investigasi.`
@@ -618,6 +613,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                             <CheckCircleIcon className="h-4 w-4" />
                             Selesaikan Komplain
                           </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -665,7 +661,7 @@ function QuickActions({ complaint, userId, user, onStatusChange, approvalData, o
                       </div>
 
                       {/* Tombol lanjutan hanya untuk super admin / assigned */}
-                      {(isSuperAdmin || isManagement || isAssignedToMe) && (
+                      {canResolve && (
                         <button
                           onClick={() => requestFinalStatus(
                             'resolved',
@@ -1077,14 +1073,6 @@ interface AdminUser {
   assigned_regions?: string[];
 }
 
-interface DisplayUser {
-  name: string;
-  roles?: string[];
-  department?: string;
-  complaint_permissions?: Record<string, boolean>;
-  id?: string;
-}
-
 const complaintDepartments = [
   'admin',
   'customer_service',
@@ -1113,8 +1101,7 @@ export default function ComplaintDetailPage() {
   const params = useParams();
   const { id } = params;
 
-  const [user, setUser] = useState<DisplayUser | null>(null);
-  const [canEditShipment, setCanEditShipment] = useState(false);
+  const user = useComplaintActor();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
 
@@ -1178,46 +1165,11 @@ export default function ComplaintDetailPage() {
     setLightboxImages([]);
   };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile: User | null = await getProfile();
-        if (profile) {
-          // Fetch department dari user_complaint_profiles agar isManagement bekerja benar
-          let department: string | undefined;
-          try {
-            const { data: profileData } = await supabase
-              .from('user_complaint_profiles')
-              .select('department, complaint_permissions, is_active')
-              .eq('user_id', profile.id)
-              .maybeSingle();
-            department = profileData?.department || undefined;
-            setCanEditShipment(canUpdateReplacementShipment(profile.app_metadata?.roles, profileData));
-          } catch (_) {
-            // Ignore error — department tetap undefined
-            setCanEditShipment(canUpdateReplacementShipment(profile.app_metadata?.roles, null));
-          }
-
-          setUser({
-            id: profile.id,
-            name: profile.user_metadata?.name || 'Admin',
-            roles: profile.app_metadata?.roles || ['Superadmin'],
-            department,
-            complaint_permissions: profile.user_metadata?.complaint_permissions || {}
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-        router.push('/admin/login');
-      }
-    })();
-  }, []);
-
 
   useEffect(() => {
-    if (user) {
+    if (can(user, 'canViewComplaints')) {
       loadComplaint();
-      loadAdminUsers();
+      if (can(user, 'canAssignComplaints')) loadAdminUsers();
       loadApprovalData();
     }
   }, [user, id]);
@@ -1230,12 +1182,7 @@ export default function ComplaintDetailPage() {
   }, [complaint]);
 
 
-  const hasPermission = (permission: string) => {
-    if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
-      return true;
-    }
-    return user?.complaint_permissions?.[permission] === true;
-  };
+  const hasPermission = (permission: ComplaintPermission) => can(user, permission);
 
   const loadComplaint = async () => {
     setLoading(true);
@@ -1268,7 +1215,7 @@ export default function ComplaintDetailPage() {
 
   const loadAdminUsers = async () => {
     try {
-      const response = await fetch('/api/admin/complaint-users');
+      const response = await fetch('/api/complaint-profiles');
       if (response.ok) {
         const data = await response.json();
         setAdminUsers(data.data || []);
@@ -1617,8 +1564,9 @@ export default function ComplaintDetailPage() {
     );
   }
 
-  const isSuperAdmin = user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin');
-  const isManagement = user?.department === 'management';
+  const canEdit = hasPermission('canEditComplaints');
+  const canAssign = hasPermission('canAssignComplaints');
+  const canResolve = complaint ? canWorkOnComplaint(user, complaint, 'canResolveComplaints') : false;
 
   const renderReportDownloadButton = (
     reportType: ComplaintReportType,
@@ -2537,7 +2485,7 @@ export default function ComplaintDetailPage() {
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Status</h3>
-                  {hasPermission('canUpdateComplaintStatus') && (complaint.status !== 'resolved' && complaint.status !== 'closed') && (
+                  {(canEdit || canResolve) && (complaint.status !== 'resolved' && complaint.status !== 'closed') && (
                     <button
                       onClick={() => setShowStatusModal(true)}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -2559,7 +2507,7 @@ export default function ComplaintDetailPage() {
                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700/60">
                   <div className="flex items-center justify-between mb-1.5">
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Validitas Komplain</dt>
-                    {hasPermission('canUpdateComplaintStatus') && (
+                    {canEdit && (
                       <button
                         onClick={() => {
                           setEditValidity(complaint.complaint_validity || '');
@@ -2595,7 +2543,7 @@ export default function ComplaintDetailPage() {
                 <ReplacementShipmentFields
                   key={complaint.id}
                   complaint={complaint}
-                  canEdit={canEditShipment}
+                  canEdit={canEdit}
                   onSaved={loadComplaint}
                 />
               </div>
@@ -2744,7 +2692,7 @@ export default function ComplaintDetailPage() {
               )}
 
               {/* Info Penugasan */}
-              {(isSuperAdmin || isManagement) && (
+              {(canAssign || user.department === 'management') && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-5">
                     Penugasan & Departemen
@@ -3096,7 +3044,7 @@ export default function ComplaintDetailPage() {
                   Pilih Status Baru
                 </label>
                 <div className="space-y-1.5">
-                  {complaintStatuses.map((status) => (
+                  {complaintStatuses.filter(status => status === 'resolved' || status === 'closed' ? canResolve : canEdit).map((status) => (
                     <label
                       key={status}
                       className={`

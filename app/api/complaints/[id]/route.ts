@@ -1,6 +1,7 @@
 // app/api/complaints/[id]/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // --- HELPER: Mengambil Profil User ---
@@ -35,7 +36,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaint(id, 'canViewComplaints');
+    if (access.denied) return access.denied;
+    const { supabase } = access;
 
     // 1. Ambil Data Komplain Utama
     const { data: complaint, error: complaintError } = await supabase
@@ -160,12 +163,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaint(id, 'canDeleteComplaints');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { data, error } = await supabase
       .from('complaints')
@@ -195,13 +196,16 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaint(id, 'canEditComplaints');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
     const body = await request.json();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const editableFields = ['subject', 'description', 'priority'];
+    if (!body || typeof body !== 'object' || Object.keys(body).length === 0
+        || Object.keys(body).some(field => !editableFields.includes(field))) {
+      return NextResponse.json({ error: 'Kolom komplain tidak dapat diperbarui melalui endpoint ini.' }, { status: 400 });
     }
+
 
     const { data, error } = await supabase
       .from('complaints')

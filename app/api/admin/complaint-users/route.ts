@@ -1,33 +1,17 @@
 // app/api/admin/complaint-users/route.ts
-import { createClient as createServerClient } from '@/app/utils/supabase/server';
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-// Helper untuk create admin client
-const createAdminClient = () => {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
-};
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
+import { createServiceClient } from '@/app/utils/supabase/service';
+import { normalizeComplaintPermissions } from '@/app/utils/complaintPermissions';
 
 export async function GET() {
   try {
-    const supabase = await createServerClient();
+    const access = await authorizeComplaintTeam('canManageComplaintUsers');
+    if (access.denied) return access.denied;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Use admin client untuk bypass RLS
-    const adminClient = createAdminClient();
+    const adminClient = createServiceClient();
 
     const { data, error } = await adminClient
       .from('user_complaint_profiles')
@@ -67,15 +51,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerClient();
+    const access = await authorizeComplaintTeam('canManageComplaintUsers');
+    if (access.denied) return access.denied;
+    const { actor: user } = access;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await request.json();
-    console.log('Received body:', body);
+
 
     // Validasi
     if (!body.user_id || typeof body.user_id !== 'string' || body.user_id.trim() === '') {
@@ -92,7 +74,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = createServiceClient();
 
     // Cek apakah user sudah ada
     const { data: existing } = await adminClient
@@ -116,16 +98,7 @@ export async function POST(request: Request) {
         full_name: body.full_name.trim(),
         department: body.department || 'customer_service',
         job_title: body.job_title?.trim() || null,
-        complaint_permissions: body.complaint_permissions || {
-          canViewComplaints: false,
-          canAssignComplaints: false,
-          canRespondToComplaints: false,
-          canUpdateComplaintStatus: false,
-          canViewComplaintAnalytics: false,
-          canConfigureComplaintSystem: false,
-          canManageComplaintUsers: false,
-          canExportComplaintData: false
-        },
+        complaint_permissions: normalizeComplaintPermissions(body.complaint_permissions),
         max_assigned_complaints: body.max_assigned_complaints || 10,
         whatsapp_number: body.whatsapp_number?.trim() || null,
         assigned_regions: body.assigned_regions || [], // 🔥 TAMBAHKAN
@@ -166,15 +139,12 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = await createServerClient();
+    const access = await authorizeComplaintTeam('canManageComplaintUsers');
+    if (access.denied) return access.denied;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await request.json();
-    console.log('PATCH received:', body);
+
 
     if (!body.user_id) {
       return NextResponse.json({
@@ -182,7 +152,7 @@ export async function PATCH(request: Request) {
       }, { status: 400 });
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = createServiceClient();
 
     const updateData: any = {
       updated_at: new Date().toISOString()
@@ -192,7 +162,9 @@ export async function PATCH(request: Request) {
     if (body.department) updateData.department = body.department;
     if (body.job_title !== undefined) updateData.job_title = body.job_title?.trim() || null;
     if (body.whatsapp_number !== undefined) updateData.whatsapp_number = body.whatsapp_number?.trim() || null;
-    if (body.complaint_permissions) updateData.complaint_permissions = body.complaint_permissions;
+    if (body.complaint_permissions !== undefined) {
+      updateData.complaint_permissions = normalizeComplaintPermissions(body.complaint_permissions);
+    }
     if (body.max_assigned_complaints !== undefined) updateData.max_assigned_complaints = body.max_assigned_complaints;
     if (body.is_active !== undefined) updateData.is_active = body.is_active;
     if (body.assigned_regions !== undefined) updateData.assigned_regions = body.assigned_regions;
@@ -222,12 +194,9 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createServerClient();
+    const access = await authorizeComplaintTeam('canManageComplaintUsers');
+    if (access.denied) return access.denied;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('user_id');
@@ -238,7 +207,7 @@ export async function DELETE(request: Request) {
       }, { status: 400 });
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = createServiceClient();
 
     const { data, error } = await adminClient
       .from('user_complaint_profiles')

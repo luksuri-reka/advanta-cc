@@ -1,22 +1,14 @@
 // app/api/admin/auth-users/route.ts
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
+import { createServiceClient } from '@/app/utils/supabase/service';
 
 export async function GET() {
   try {
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const access = await authorizeComplaintTeam('canManageComplaintUsers');
+    if (access.denied) return access.denied;
+    const supabaseAdmin = createServiceClient();
 
-    // Get all users from auth.users
     const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
 
     if (error) {

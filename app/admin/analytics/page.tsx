@@ -1,10 +1,12 @@
 // app/admin/analytics/page.tsx
 'use client';
 
+import { useComplaintActor } from '@/app/admin/ComplaintAccessProvider';
+import { hasComplaintPermission as can, type ComplaintPermission } from '@/app/utils/complaintPermissions';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getProfile, logout } from '../../utils/auth';
-import type { User } from '@supabase/supabase-js';
+import { logout } from '../../utils/auth';
 import Link from 'next/link';
 import AdminSpinner from '../components/AdminSpinner';
 import {
@@ -19,12 +21,6 @@ import {
   ExclamationTriangleIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
-
-interface DisplayUser {
-  name: string;
-  roles?: string[];
-  complaint_permissions?: Record<string, boolean>;
-}
 
 interface AnalyticsData {
   summary: {
@@ -95,41 +91,19 @@ interface AnalyticsData {
 
 export default function AnalyticsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<DisplayUser | null>(null);
+  const user = useComplaintActor();
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('30');
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile: User | null = await getProfile();
-        if (profile) {
-          setUser({
-            name: profile.user_metadata?.name || 'Admin',
-            roles: profile.app_metadata?.roles || ['Superadmin'],
-            complaint_permissions: profile.user_metadata?.complaint_permissions || {}
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-        router.push('/admin/login');
-      }
-    })();
-  }, []);
 
   useEffect(() => {
-    if (user) {
+    if (can(user, 'canViewComplaintAnalytics')) {
       loadAnalytics();
     }
   }, [user, period]);
 
-  const hasComplaintPermission = (permission: string) => {
-    if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
-      return true;
-    }
-    return user?.complaint_permissions?.[permission] === true;
-  };
+  const hasComplaintPermission = (permission: ComplaintPermission) => can(user, permission);
 
   const loadAnalytics = async () => {
     try {
@@ -190,7 +164,7 @@ export default function AnalyticsPage() {
     return labels[dept] || dept;
   };
 
-  if (loading && !analytics) {
+  if (hasComplaintPermission('canViewComplaintAnalytics') && loading && !analytics) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
         <AdminSpinner text="Loading analytics..." size="lg" />

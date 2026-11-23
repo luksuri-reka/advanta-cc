@@ -19,4 +19,8 @@ export const departments = [
   'technical',
   'management',
   'lab_testing',
+  'observasi',
+  'investigasi_1',
+  'investigasi_2',
+  'sales',
 ];

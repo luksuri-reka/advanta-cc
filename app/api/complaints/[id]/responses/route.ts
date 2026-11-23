@@ -1,6 +1,7 @@
 // app/api/complaints/[id]/responses/route.ts - DIPERBAIKI
-import { createClient } from '@/app/utils/supabase/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
 import { NextResponse } from 'next/server';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 
 export async function POST(
   request: Request,
@@ -8,35 +9,39 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     // --- PERBAIKAN 1: Baca 'is_internal' BUKAN 'is_customer_response' ---
     const body = await request.json();
     const {
       message,
-      admin_name,
-      admin_id,
+      admin_name: suppliedName,
+      admin_id: suppliedAdminId,
       is_internal, // 👈 BACA INI (sesuai skema database)
-      skip_notification // 🔥 BARU
+      skip_notification,
+      complaint_number,
     } = body;
 
-    // Get user (bisa 'null' jika pelanggan yang post)
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // --- PERBAIKAN 2: Validasi ---
-    if (!message) {
-      return NextResponse.json(
-        { error: 'Message is required' },
-        { status: 400 }
-      );
+    let admin_id: string | null = null;
+    let admin_name: string | null = null;
+    if (!/^[1-9]\d*$/.test(id) || typeof message !== 'string' || !message.trim()
+        || (is_internal !== undefined && typeof is_internal !== 'boolean')) {
+      return NextResponse.json({ error: 'Data balasan komplain tidak valid.' }, { status: 400 });
     }
 
-    // Catatan internal harus punya admin_id
-    if (admin_id === null && is_internal === true) {
-      return NextResponse.json(
-        { error: 'Internal notes must have an admin_id' },
-        { status: 400 }
-      );
+    if (suppliedAdminId != null || suppliedName || is_internal === true) {
+      const access = await authorizeComplaint(id, 'canRespondToComplaints');
+      if (access.denied) return access.denied;
+      admin_id = access.actor.id;
+      admin_name = access.actor.name;
+    } else {
+      if (typeof complaint_number !== 'string' || !complaint_number.trim()) {
+        return NextResponse.json({ error: 'Nomor komplain wajib diisi.' }, { status: 400 });
+      }
+      const { data, error } = await supabase.from('complaints').select('id')
+        .eq('id', id).eq('complaint_number', complaint_number.trim()).maybeSingle();
+      if (error) return NextResponse.json({ error: 'Gagal memeriksa nomor komplain.' }, { status: 500 });
+      if (!data) return NextResponse.json({ error: 'Komplain tidak ditemukan.' }, { status: 404 });
     }
 
     // --- PERBAIKAN 3: Insert 'is_internal' ke DB ---

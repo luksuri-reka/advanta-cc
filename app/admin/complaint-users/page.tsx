@@ -1,10 +1,12 @@
 // app/admin/complaint-users/page.tsx
 'use client';
 
+import { useComplaintActor } from '@/app/admin/ComplaintAccessProvider';
+import { complaintPermissionLabels, hasComplaintPermission as can, normalizeComplaintPermissions, type ComplaintPermission } from '@/app/utils/complaintPermissions';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getProfile, logout } from '../../utils/auth';
-import type { User } from '@supabase/supabase-js';
+import { logout } from '../../utils/auth';
 import {
   UserGroupIcon,
   PlusIcon,
@@ -21,12 +23,6 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import AdminSpinner from '../components/AdminSpinner';
-
-interface DisplayUser {
-  name: string;
-  roles?: string[];
-  complaint_permissions?: Record<string, boolean>;
-}
 
 interface ComplaintUser {
   user_id: string;
@@ -68,7 +64,7 @@ interface FormData {
 
 export default function ComplaintUsersPage() {
   const router = useRouter();
-  const [user, setUser] = useState<DisplayUser | null>(null);
+  const user = useComplaintActor();
   const [users, setUsers] = useState<ComplaintUser[]>([]);
   const [availableAuthUsers, setAvailableAuthUsers] = useState<AuthUser[]>([]);
 
@@ -103,37 +99,15 @@ export default function ComplaintUsersPage() {
     return departments[dept] || dept;
   };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile: User | null = await getProfile();
-        if (profile) {
-          setUser({
-            name: profile.user_metadata?.name || 'Admin',
-            roles: profile.app_metadata?.roles || ['Superadmin'],
-            complaint_permissions: profile.user_metadata?.complaint_permissions || {}
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-        router.push('/admin/login');
-      }
-    })();
-  }, []);
 
   useEffect(() => {
-    if (user) {
+    if (can(user, 'canManageComplaintUsers')) {
       loadComplaintUsers();
       loadAvailableAuthUsers();
     }
   }, [user]);
 
-  const hasPermission = (permission: string) => {
-    if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
-      return true;
-    }
-    return user?.complaint_permissions?.[permission] === true;
-  };
+  const hasPermission = (permission: ComplaintPermission) => can(user, permission);
 
   const loadComplaintUsers = async () => {
     setLoading(true);
@@ -188,7 +162,7 @@ export default function ComplaintUsersPage() {
         max_assigned_complaints: user.max_assigned_complaints || 5,
         assigned_regions: user.assigned_regions || [], // 🔥 TAMBAHKAN
         is_active: user.is_active ?? true, // ← Handle null/undefined
-        complaint_permissions: user.complaint_permissions || {}
+        complaint_permissions: normalizeComplaintPermissions(user.complaint_permissions)
       });
     } else {
       setEditingUser(null);
@@ -333,23 +307,15 @@ export default function ComplaintUsersPage() {
     return new Date(dateString).toLocaleString('id-ID');
   };
 
-  if (!user) {
+  if (!can(user, 'canManageComplaintUsers')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 flex items-center justify-center">
-        <AdminSpinner text="Memuat akses user..." size="lg" />
+        <p>Anda tidak memiliki izin untuk mengelola Complaint Team.</p>
       </div>
     );
   }
 
-  const permissionList = [
-    { id: 'canViewComplaints', name: 'View Complaints' },
-    { id: 'canEditComplaints', name: 'Edit Complaints' },
-    { id: 'canAssignComplaints', name: 'Assign Complaints' },
-    { id: 'canResolveComplaints', name: 'Resolve Complaints' },
-    { id: 'canRespondToComplaints', name: 'Respond to Complaints' },
-    { id: 'canManageComplaintSettings', name: 'Manage Settings' },
-    { id: 'canViewComplaintAnalytics', name: 'View Analytics' },
-  ];
+  const permissionList = Object.entries(complaintPermissionLabels).map(([id, name]) => ({ id, name }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
@@ -365,7 +331,7 @@ export default function ComplaintUsersPage() {
               Kelola admin yang dapat mengakses dan mengelola keluhan.
             </p>
           </div>
-          {hasPermission('canManageComplaintSettings') && (
+          {hasPermission('canManageComplaintUsers') && (
             <div className="flex-shrink-0">
               <button
                 type="button"
@@ -443,7 +409,7 @@ export default function ComplaintUsersPage() {
                         <Link href={`/admin/complaint-users/${member.user_id}`} className="text-blue-600 hover:text-blue-900 dark:hover:text-blue-400 inline-flex items-center gap-1">
                           <ChartBarIcon className="h-4 w-4" /> Detail
                         </Link>
-                        {hasPermission('canManageComplaintSettings') && (
+                        {hasPermission('canManageComplaintUsers') && (
                           <button onClick={() => openModal(member)} className="text-emerald-600 hover:text-emerald-900 dark:hover:text-emerald-400 ml-4 inline-flex items-center gap-1">
                             <PencilIcon className="h-4 w-4" /> Edit
                           </button>

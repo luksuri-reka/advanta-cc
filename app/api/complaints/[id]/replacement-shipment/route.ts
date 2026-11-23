@@ -1,5 +1,5 @@
-import { createClient } from '@/app/utils/supabase/server';
-import { canUpdateReplacementShipment, validateReplacementShipment } from '@/app/utils/replacementShipment';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
+import { validateReplacementShipment } from '@/app/utils/replacementShipment';
 import { NextResponse } from 'next/server';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -9,15 +9,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'ID komplain tidak valid' }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { data: profile } = await supabase.from('user_complaint_profiles')
-      .select('complaint_permissions, is_active').eq('user_id', user.id).maybeSingle();
-    if (!canUpdateReplacementShipment(user.app_metadata?.roles, profile)) {
-      return NextResponse.json({ error: 'Anda tidak memiliki hak untuk memperbarui pengiriman' }, { status: 403 });
-    }
+    const access = await authorizeComplaint(id, 'canEditComplaints');
+    if (access.denied) return access.denied;
+    const { supabase } = access;
 
     let body;
     try {
@@ -34,7 +28,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { data, error } = await supabase.from('complaints').update({
       replacement_shipment_status: status,
       replacement_shipped_date: status === 'shipped' ? date : null,
-      updated_at: new Date().toISOString(),
     }).eq('id', id).select('id, replacement_shipment_status, replacement_shipped_date, updated_at').maybeSingle();
 
     if (error) {

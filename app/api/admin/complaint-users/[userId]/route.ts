@@ -1,6 +1,8 @@
 // app/api/admin/complaint-users/[userId]/route.ts
-import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
+import { createServiceClient } from '@/app/utils/supabase/service';
+import { normalizeComplaintPermissions } from '@/app/utils/complaintPermissions';
 
 export async function GET(
   request: Request,
@@ -8,13 +10,10 @@ export async function GET(
 ) {
   try {
     const { userId } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaintTeam('canManageComplaintUsers');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
-    // Check auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Fetch profile
     const { data, error } = await supabase
@@ -67,13 +66,10 @@ export async function PATCH(
 ) {
   try {
     const { userId } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaintTeam('canManageComplaintUsers');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
-    // Check auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await request.json();
 
@@ -81,7 +77,8 @@ export async function PATCH(
     const allowedFields = {
       department: body.department,
       job_title: body.job_title,
-      complaint_permissions: body.complaint_permissions,
+      complaint_permissions: body.complaint_permissions === undefined
+        ? undefined : normalizeComplaintPermissions(body.complaint_permissions),
       max_assigned_complaints: body.max_assigned_complaints,
       assigned_regions: body.assigned_regions, // 🔥 TAMBAHKAN
       is_active: body.is_active,
@@ -123,13 +120,10 @@ export async function DELETE(
 ) {
   try {
     const { userId } = await params;
-    const supabase = await createClient();
+    const access = await authorizeComplaintTeam('canManageComplaintUsers');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
-    // Check auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Soft delete - set is_active to false
     const { error } = await supabase

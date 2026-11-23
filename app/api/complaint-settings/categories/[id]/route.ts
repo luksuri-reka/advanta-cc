@@ -1,18 +1,17 @@
 // app/api/complaint-settings/categories/[id]/route.ts
-import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
+import { createServiceClient } from '@/app/utils/supabase/service';
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> } // 🔥 UBAH: params jadi Promise
 ) {
   try {
-    const supabase = await createClient();
+    const access = await authorizeComplaintTeam('canConfigureComplaintSystem');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // 🔥 AWAIT params dulu
     const { id } = await params;
@@ -124,12 +123,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> } // 🔥 UBAH: params jadi Promise
 ) {
   try {
-    const supabase = await createClient();
+    const access = await authorizeComplaintTeam('canConfigureComplaintSystem');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // 🔥 AWAIT params dulu
     const { id } = await params;

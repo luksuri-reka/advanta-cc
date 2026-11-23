@@ -20,14 +20,14 @@ function loadTs(file, overrides = {}) {
     return require(name);
   };
   vm.runInNewContext(source, {
-    module, exports: module.exports, require: localRequire, Request, Response,
+    module, exports: module.exports, require: localRequire, Request, Response, process: { env: {} },
     console: { error() {} },
   }, { filename });
   return module.exports;
 }
 
 const shipment = loadTs('app/utils/replacementShipment.ts');
-const activeProfile = { is_active: true, complaint_permissions: { canUpdateComplaintStatus: true } };
+const activeProfile = { is_active: true, complaint_permissions: { canViewComplaints: true, canUpdateComplaintStatus: true } };
 
 test('dates require real calendar dates and preserve DD/MM/YYYY across time zones', () => {
   for (const value of ['2026-02-30', '2026-02-29', '2026-13-01', '0000-01-01', '2026-1-01', '', null, 1, {}]) {
@@ -40,16 +40,6 @@ test('dates require real calendar dates and preserve DD/MM/YYYY across time zone
   assert.equal(shipment.validateReplacementShipment('pending', null), null);
   assert.equal(shipment.validateReplacementShipment('not_required', null), null);
   assert.ok(shipment.validateReplacementShipment('delivered', '2026-10-28'));
-});
-
-test('permissions require a trusted role or an active profile with Update Status', () => {
-  assert.equal(shipment.canUpdateReplacementShipment(['Superadmin'], null), true);
-  assert.equal(shipment.canUpdateReplacementShipment(['superadmin'], null), true);
-  assert.equal(shipment.canUpdateReplacementShipment([], activeProfile), true);
-  for (const profile of [null, {}, { ...activeProfile, is_active: false }, { is_active: true, complaint_permissions: {} }]) {
-    assert.equal(shipment.canUpdateReplacementShipment([], profile), false);
-  }
-  assert.equal(shipment.canUpdateReplacementShipment('Superadmin', null), false);
 });
 
 test('summary Excel preserves all three statuses and leaves legacy complaints unfilled', () => {
@@ -98,22 +88,42 @@ function apiHarness(options = {}) {
     from(table) {
       const query = {
         select() { return this; },
-        eq(field, value) { if (table === 'complaints') assert.equal(value, '1'); return this; },
+        eq(field, value) { if (table === 'complaints' && field === 'id') assert.equal(value, '1'); return this; },
         update(payload) { updates.push(payload); return this; },
+        insert() { return this; },
+        async single() { return this.maybeSingle(); },
         async maybeSingle() {
           if (table === 'user_complaint_profiles') return { data: options.profile === undefined ? activeProfile : options.profile };
+          if (updates.length === 0) {
+            return { data: options.missing ? null : {
+              id: 1, customer_province: 'Jawa Timur', status: 'submitted', ...options.complaint,
+            } };
+          }
           return { data: options.missing ? null : { id: 1, ...updates.at(-1) }, error: options.error || null };
         },
       };
       return query;
     },
   };
-  const { PATCH } = loadTs('app/api/complaints/[id]/replacement-shipment/route.ts', {
-    '@/app/utils/supabase/server': { createClient: async () => client },
+  const overrides = {
+    './access': {
+      getAdminUser: async () => ({ user, supabase: client }),
+      getAdminIdentity: async () => ({ user, isSuperAdmin: user?.app_metadata?.roles?.includes('Superadmin') }),
+    },
+    '@/app/utils/supabase/service': { createServiceClient: () => client },
+    'server-only': {},
+    react: { cache: fn => fn },
     'next/server': { NextResponse: { json: (data, init) => Response.json(data, init) } },
-  });
+  };
+  const { PATCH } = loadTs('app/api/complaints/[id]/replacement-shipment/route.ts', overrides);
   return {
     updates,
+    async changeStatus(body) {
+      const { POST } = loadTs('app/api/complaints/[id]/status/route.ts', overrides);
+      return POST(new Request('http://localhost/api/complaints/1/status', {
+        method: 'POST', body: JSON.stringify(body),
+      }), { params: Promise.resolve({ id: '1' }) });
+    },
     async request(body, id = '1', raw = false) {
       return PATCH(new Request('http://localhost/api/complaints/1/replacement-shipment', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: raw ? body : JSON.stringify(body),
@@ -127,6 +137,7 @@ test('API rejects unauthenticated, inactive and unauthorized users before writin
     [{ user: null }, 401],
     [{ profile: null }, 403],
     [{ profile: { ...activeProfile, is_active: false } }, 403],
+    [{ profile: { ...activeProfile, complaint_permissions: { ...activeProfile.complaint_permissions, canEditComplaints: false } } }, 403],
     [{ profile: { is_active: true, complaint_permissions: {} }, user: { id: 'x', app_metadata: {}, user_metadata: { complaint_permissions: { canUpdateComplaintStatus: true } } } }, 403],
   ]) {
     const api = apiHarness(options);
@@ -159,6 +170,8 @@ test('API saves shipment independently of complaint closure and clears obsolete 
   }
   const admin = apiHarness({ user: { id: 'admin', app_metadata: { roles: ['Superadmin'] } }, profile: null });
   assert.equal((await admin.request({ replacement_shipment_status: 'pending' })).status, 200);
+  const editor = apiHarness({ profile: { is_active: true, complaint_permissions: { canViewComplaints: true, canEditComplaints: true } } });
+  assert.equal((await editor.request({ replacement_shipment_status: 'pending' })).status, 200);
 });
 
 test('API reports inaccessible records and database failures without reporting success', async () => {
@@ -167,4 +180,35 @@ test('API reports inaccessible records and database failures without reporting s
     assert.equal(response.status, status);
     assert.ok((await response.json()).error);
   }
+});
+
+test('Complaint Team can confirm an unassigned complaint using the saved Edit Complaints flag', async () => {
+  const profile = {
+    is_active: true, department: 'admin',
+    complaint_permissions: { canViewComplaints: true, canEditComplaints: true },
+  };
+  const editor = apiHarness({ profile });
+  const result = await editor.changeStatus({ status: 'acknowledged' });
+  assert.equal(result.status, 200);
+  assert.equal(editor.updates[0].status, 'acknowledged');
+
+  const close = apiHarness({ profile });
+  assert.equal((await close.changeStatus({ status: 'resolved', complaint_validity: 'non_valid' })).status, 403);
+  assert.equal(close.updates.length, 0);
+
+  const outside = apiHarness({ profile: { ...profile, assigned_regions: ['Jawa Barat'] } });
+  assert.equal((await outside.changeStatus({ status: 'acknowledged' })).status, 404);
+  assert.equal(outside.updates.length, 0);
+});
+
+test('assigned legacy staff still work while explicit revocation blocks the same action', async () => {
+  const complaint = { assignee_observasi: 'officer' };
+  const flags = { canViewComplaints: true, canRespondToComplaints: true };
+  const legacy = apiHarness({ complaint, profile: { is_active: true, complaint_permissions: flags } });
+  assert.equal((await legacy.changeStatus({ status: 'acknowledged' })).status, 200);
+  const blocked = apiHarness({ complaint, profile: {
+    is_active: true, complaint_permissions: { ...flags, canEditComplaints: false },
+  } });
+  assert.equal((await blocked.changeStatus({ status: 'acknowledged' })).status, 403);
+  assert.equal(blocked.updates.length, 0);
 });

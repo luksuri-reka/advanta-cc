@@ -1,10 +1,12 @@
 // app/admin/complaints/page.tsx
 'use client';
 
+import { useComplaintActor } from '@/app/admin/ComplaintAccessProvider';
+import { hasComplaintPermission as can, type ComplaintPermission } from '@/app/utils/complaintPermissions';
+
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getProfile, logout } from '../../utils/auth';
-import type { User } from '@supabase/supabase-js';
+import { logout } from '../../utils/auth';
 import * as XLSX from 'xlsx';
 import {
   ExclamationTriangleIcon,
@@ -76,12 +78,6 @@ interface Complaint extends ReplacementShipment {
   complaint_observations?: ComplaintObservation[];
 }
 
-interface DisplayUser {
-  name: string;
-  roles?: string[];
-  complaint_permissions?: Record<string, boolean>;
-}
-
 type SortDirection = 'asc' | 'desc';
 interface SortConfig {
   key: keyof Complaint | 'location' | 'age' | null;
@@ -103,7 +99,7 @@ const formatReplacementDestinationType = (type?: ComplaintObservation['replaceme
 
 export default function AdminComplaintsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<DisplayUser | null>(null);
+  const user = useComplaintActor();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -160,26 +156,9 @@ export default function AdminComplaintsPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile: User | null = await getProfile();
-        if (profile) {
-          setUser({
-            name: profile.user_metadata?.name || 'Admin',
-            roles: profile.app_metadata?.roles || ['Superadmin'],
-            complaint_permissions: profile.user_metadata?.complaint_permissions || {}
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-        router.push('/admin/login');
-      }
-    })();
-  }, []);
 
   useEffect(() => {
-    if (user) {
+    if (can(user, 'canViewComplaints')) {
       loadComplaints();
     }
     setMounted(true);
@@ -205,12 +184,7 @@ export default function AdminComplaintsPage() {
   };
 
 
-  const hasComplaintPermission = (permission: string) => {
-    if (user?.roles?.includes('Superadmin') || user?.roles?.includes('superadmin')) {
-      return true;
-    }
-    return user?.complaint_permissions?.[permission] === true;
-  };
+  const hasComplaintPermission = (permission: ComplaintPermission) => can(user, permission);
 
   const handleDelete = async (id: number, complaintNumber: string) => {
     if (!confirm(`Apakah Anda yakin ingin menghapus keluhan ${complaintNumber}? Tindakan ini tidak dapat dibatalkan.`)) {

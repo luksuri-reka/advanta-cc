@@ -1,21 +1,17 @@
 // app/api/complaint-profiles/route.ts
-import { createClient } from '@/app/utils/supabase/server';
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    // Check auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const access = await authorizeComplaintTeam('canAssignComplaints');
+    if (access.denied) return access.denied;
+    const { supabase } = access;
 
     // Get all active complaint profiles
     const { data: profiles, error } = await supabase
       .from('user_complaint_profiles')
-      .select('*')
+      .select('user_id, full_name, department, job_title, assigned_regions')
       .eq('is_active', true)
       .order('full_name', { ascending: true });
 

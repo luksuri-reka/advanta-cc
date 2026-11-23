@@ -1,10 +1,10 @@
 // app/api/complaints/auto-assign/route.ts
-import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/utils/supabase/service';
+import { authorizeComplaint } from '@/app/admin/complaintAccess';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
     const { complaint_id, department, priority } = await request.json();
 
     if (!complaint_id) {
@@ -12,6 +12,10 @@ export async function POST(request: Request) {
         error: 'complaint_id is required' 
       }, { status: 400 });
     }
+
+    const access = await authorizeComplaint(String(complaint_id), 'canAssignComplaints');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
     // Get complaint details
     const { data: complaint, error: complaintError } = await supabase

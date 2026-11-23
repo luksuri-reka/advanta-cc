@@ -1,15 +1,14 @@
 // app/api/complaint-settings/categories/route.ts
-import { createClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
+import { createServiceClient } from '@/app/utils/supabase/service';
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const access = await authorizeComplaintTeam('canConfigureComplaintSystem');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Ambil semua kategori dengan sub-kategori dan case types
     const { data: categories, error: catError } = await supabase
@@ -77,12 +76,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const access = await authorizeComplaintTeam('canConfigureComplaintSystem');
+    if (access.denied) return access.denied;
+    const supabase = createServiceClient();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const category = await request.json();
 

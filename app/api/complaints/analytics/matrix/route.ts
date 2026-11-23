@@ -1,4 +1,3 @@
-import { createClient } from '@/app/utils/supabase/server';
 import {
   getComplaintValidityMatrixKey,
   getComplaintMatrixStage,
@@ -6,6 +5,7 @@ import {
   isClosedComplaintStatus,
 } from '@/app/utils/complaintStatus';
 import { NextResponse } from 'next/server';
+import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
 
 const parseQty = (val: string | null | undefined): number => {
   if (!val) return 0;
@@ -52,16 +52,13 @@ const getCropFamily = (hybrid: string | null): string => {
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    
-    // Check auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const access = await authorizeComplaintTeam('canViewComplaints');
+    if (access.denied) return access.denied;
+    const { regions, supabase } = access;
+
 
     // 1. Fetch complaints and their investigations
-    const { data: rawComplaints, error } = await supabase
+    let query = supabase
       .from('complaints')
       .select(`
         id,
@@ -90,6 +87,8 @@ export async function GET(request: Request) {
         )
       `)
       .order('created_at', { ascending: false });
+    if (regions.length > 0) query = query.in('customer_province', regions);
+    const { data: rawComplaints, error } = await query;
 
     if (error) {
       console.error('Database Error:', error);
