@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
 import { createServiceClient } from '@/app/utils/supabase/service';
 import { normalizeComplaintPermissions } from '@/app/utils/complaintPermissions';
+import { listAuthUsers } from '../auth-users/listUsers';
 
 export async function GET() {
   try {
@@ -13,29 +14,20 @@ export async function GET() {
     // Use admin client untuk bypass RLS
     const adminClient = createServiceClient();
 
-    const { data, error } = await adminClient
-      .from('user_complaint_profiles')
-      .select('*')
-      .order('full_name');
+    const [{ data, error }, authUsers] = await Promise.all([
+      adminClient.from('user_complaint_profiles').select('*').order('full_name'),
+      listAuthUsers(adminClient),
+    ]);
 
     if (error) {
       console.error('Database error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const userIds = data?.map(u => u.user_id) || [];
-    const emailMap: Record<string, string> = {};
-
-    for (const userId of userIds) {
-      const { data: authUser } = await adminClient.auth.admin.getUserById(userId);
-      if (authUser?.user?.email) {
-        emailMap[userId] = authUser.user.email;
-      }
-    }
-
-    const enrichedData = data?.map(profile => ({
+    const emailByUserId = new Map(authUsers.map(user => [user.id, user.email]));
+    const enrichedData = data.map(profile => ({
       ...profile,
-      email: emailMap[profile.user_id] || 'N/A'
+      email: emailByUserId.get(profile.user_id) || 'N/A'
     }));
 
     return NextResponse.json({

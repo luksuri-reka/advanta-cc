@@ -7,6 +7,7 @@ import { complaintPermissionLabels, hasComplaintPermission as can, normalizeComp
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { logout } from '../../utils/auth';
+import { supabase } from '../../utils/supabase';
 import {
   UserGroupIcon,
   PlusIcon,
@@ -62,6 +63,27 @@ interface FormData {
   complaint_permissions: Record<string, boolean>;
 }
 
+async function fetchUserList<T>(url: string): Promise<T[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      if (response.status === 401) throw new Error('Sesi Anda telah berakhir. Silakan masuk kembali.');
+      if (response.status === 403) throw new Error('Anda tidak memiliki izin untuk mengelola Complaint Team.');
+      throw new Error('Daftar user gagal dimuat.');
+    }
+    const result = await response.json();
+    if (!Array.isArray(result.data)) throw new Error('Daftar user gagal dimuat.');
+    return result.data;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Permintaan melebihi batas waktu.');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export default function ComplaintUsersPage() {
   const router = useRouter();
   const user = useComplaintActor();
@@ -69,6 +91,9 @@ export default function ComplaintUsersPage() {
   const [availableAuthUsers, setAvailableAuthUsers] = useState<AuthUser[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState('');
+  const [loadingAuthUsers, setLoadingAuthUsers] = useState(false);
+  const [authUsersError, setAuthUsersError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<ComplaintUser | null>(null);
   const [provinces, setProvinces] = useState<{ id: number, name: string }[]>([]); // 🔥 TAMBAHKAN
@@ -102,8 +127,8 @@ export default function ComplaintUsersPage() {
 
   useEffect(() => {
     if (can(user, 'canManageComplaintUsers')) {
-      loadComplaintUsers();
-      loadAvailableAuthUsers();
+      void loadComplaintUsers();
+      void loadProvinces();
     }
   }, [user]);
 
@@ -111,38 +136,33 @@ export default function ComplaintUsersPage() {
 
   const loadComplaintUsers = async () => {
     setLoading(true);
+    setListError('');
     try {
-      const response = await fetch('/api/admin/complaint-users');
-      const result = await response.json();
-      if (response.ok) {
-        setUsers(result.data || []);
-      }
-
-      // Load provinces
-      const { createBrowserClient } = await import('@supabase/ssr');
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { data: provData } = await supabase.from('provinces').select('id, name').order('name');
-      if (provData) setProvinces(provData);
-
+      setUsers(await fetchUserList<ComplaintUser>('/api/admin/complaint-users'));
     } catch (error) {
       console.error('Error loading complaint users:', error);
+      setListError(error instanceof Error ? error.message : 'Daftar user gagal dimuat.');
     } finally {
       setLoading(false);
     }
   };
 
+  const loadProvinces = async () => {
+    const { data, error } = await supabase.from('provinces').select('id, name').order('name');
+    if (error) console.error('Error loading provinces:', error.message);
+    else setProvinces(data);
+  };
+
   const loadAvailableAuthUsers = async () => {
+    setLoadingAuthUsers(true);
+    setAuthUsersError('');
     try {
-      const response = await fetch('/api/admin/auth-users');
-      const result = await response.json();
-      if (response.ok) {
-        setAvailableAuthUsers(result.data || []);
-      }
+      setAvailableAuthUsers(await fetchUserList<AuthUser>('/api/admin/auth-users'));
     } catch (error) {
       console.error('Error loading auth users:', error);
+      setAuthUsersError(error instanceof Error ? error.message : 'Daftar akun gagal dimuat.');
+    } finally {
+      setLoadingAuthUsers(false);
     }
   };
 
@@ -166,6 +186,8 @@ export default function ComplaintUsersPage() {
       });
     } else {
       setEditingUser(null);
+      setAvailableAuthUsers([]);
+      void loadAvailableAuthUsers();
       setFormData({
         user_id: '',
         department: '',
@@ -281,9 +303,6 @@ export default function ComplaintUsersPage() {
         alert(editingUser ? 'User berhasil diperbarui' : 'User berhasil ditambahkan');
         setShowModal(false);
         loadComplaintUsers();
-        if (!editingUser) {
-          loadAvailableAuthUsers(); // Refresh available users
-        }
       } else {
         console.error('API Error:', result);
         alert(`Error: ${result.error || result.message || 'Gagal menyimpan'}`);
@@ -367,6 +386,15 @@ export default function ComplaintUsersPage() {
                       <AdminSpinner text="Memuat data user..." size="sm" />
                     </td>
                   </tr>
+                ) : listError ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-16 px-6">
+                      <p role="alert" className="text-sm text-red-600 dark:text-red-400">{listError}</p>
+                      <button type="button" onClick={loadComplaintUsers} className="mt-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                        Coba lagi
+                      </button>
+                    </td>
+                  </tr>
                 ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="text-center py-16 px-6">
@@ -402,7 +430,7 @@ export default function ComplaintUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
-                          {Object.values(member.complaint_permissions).filter(Boolean).length} Izin
+                          {Object.values(member.complaint_permissions ?? {}).filter(Boolean).length} Izin
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -459,12 +487,12 @@ export default function ComplaintUsersPage() {
                       name="user_id"
                       value={formData.user_id}
                       onChange={handleFormChange}
-                      disabled={!!editingUser || availableAuthUsers.length === 0}
+                      disabled={!!editingUser || loadingAuthUsers || !!authUsersError || availableAuthUsers.length === 0}
                       className="mt-1 block w-full py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm disabled:bg-gray-100 dark:disabled:bg-gray-600"
                       required
                     >
                       <option value="" disabled>
-                        {availableAuthUsers.length === 0 ? 'Tidak ada user tersedia' : 'Pilih user...'}
+                        {loadingAuthUsers ? 'Memuat akun…' : authUsersError ? 'Akun gagal dimuat' : availableAuthUsers.length === 0 ? 'Tidak ada user tersedia' : 'Pilih user...'}
                       </option>
                       {availableAuthUsers.map(u => (
                         <option key={u.id} value={u.id}>
@@ -477,6 +505,14 @@ export default function ComplaintUsersPage() {
                         </option>
                       )}
                     </select>
+                    {!editingUser && authUsersError && (
+                      <div className="mt-2 text-sm">
+                        <p role="alert" className="text-red-600 dark:text-red-400">{authUsersError}</p>
+                        <button type="button" onClick={loadAvailableAuthUsers} className="font-semibold text-emerald-700 dark:text-emerald-400">
+                          Coba lagi
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -636,7 +672,7 @@ export default function ComplaintUsersPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isSaving || (!editingUser && (!formData.user_id || availableAuthUsers.length === 0))}
+                    disabled={isSaving || (!editingUser && (!formData.user_id || loadingAuthUsers || !!authUsersError || availableAuthUsers.length === 0))}
                     className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {isSaving ? (

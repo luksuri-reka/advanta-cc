@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { authorizeComplaintTeam } from '@/app/admin/complaintAccess';
 import { createServiceClient } from '@/app/utils/supabase/service';
+import { listAuthUsers } from './listUsers';
 
 export async function GET() {
   try {
@@ -9,19 +10,13 @@ export async function GET() {
     if (access.denied) return access.denied;
     const supabaseAdmin = createServiceClient();
 
-    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+    const [users, { data: existingProfiles, error }] = await Promise.all([
+      listAuthUsers(supabaseAdmin),
+      supabaseAdmin.from('user_complaint_profiles').select('user_id'),
+    ]);
+    if (error) throw error;
 
-    if (error) {
-      console.error('Error fetching users:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Get existing complaint profiles to exclude them
-    const { data: existingProfiles } = await supabaseAdmin
-      .from('user_complaint_profiles')
-      .select('user_id');
-
-    const existingUserIds = new Set(existingProfiles?.map(p => p.user_id) || []);
+    const existingUserIds = new Set(existingProfiles.map(p => p.user_id));
 
     // Map users to simpler format and exclude those who already have profiles
     const availableUsers = users
