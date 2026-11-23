@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { logout } from '../../../utils/auth';
 import Link from 'next/link';
+import AdminSpinner from '../../components/AdminSpinner';
 import {
   ArrowLeftIcon,
   UserCircleIcon,
@@ -16,7 +17,6 @@ import {
   CheckCircleIcon,
   StarIcon,
   ExclamationTriangleIcon, // Ditambahkan untuk error
-  ArrowPathIcon, // Ditambahkan untuk loading
   ShieldCheckIcon,
   WrenchIcon
 } from '@heroicons/react/24/outline';
@@ -178,9 +178,8 @@ export default function ComplaintUserDetailPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="text-center py-20 text-gray-600 dark:text-gray-400">
-            <ArrowPathIcon className="h-8 w-8 animate-spin mx-auto mb-4" />
-            Memuat detail user...
+          <div className="py-20 text-center">
+            <AdminSpinner text="Memuat detail user..." size="md" />
           </div>
         ) : error ? (
            <div className="text-center py-20 text-red-600 dark:text-red-400">
